@@ -1,3 +1,4 @@
+![IMG](space_invaders.png "Space Invaders Image")
 # Space Invaders Game
 
 Este proyecto es una implementación del clásico juego **Space Invaders** desarrollado en **Python**. En este juego, el jugador controla una nave espacial que debe disparar para eliminar las naves enemigas que se acercan. El objetivo es destruir a todas las naves enemigas antes de que alcancen la parte inferior de la pantalla.
