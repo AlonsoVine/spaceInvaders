@@ -61,20 +61,28 @@ let enemyShootTimer = 0;
 const ENEMY_SHOOT_INTERVAL = 100;
 
 // ---- Enemigos ----
-// Movimiento clásico: el grupo avanza en pasos discretos.
-// Cada N frames hace un paso horizontal; cuando alcanza el borde,
-// baja una fila y cambia de dirección.
+// Lógica clásica Space Invaders:
+// - Todo el grupo se mueve a la vez en pasos discretos
+// - Cuando alguno toca el borde, en el SIGUIENTE paso bajan todos y cambian dirección
+// - Velocidad = función del número de enemigos vivos (menos = más rápido)
 const enemies = [];
-let enemyDir = 1;         // 1 = derecha, -1 = izquierda
-let enemyStepX = 12;      // píxeles por paso horizontal
-let enemyStepY = 24;      // píxeles que bajan al llegar al borde
-let enemyTickInterval;    // frames entre pasos (se reduce con el nivel)
+let enemyDir = 1;       // 1 = derecha, -1 = izquierda
+const ENEMY_STEP_X = 10;  // píxeles por paso horizontal
+const ENEMY_STEP_Y = 20;  // píxeles que bajan al tocar el borde
 let enemyTickTimer = 0;
 let pendingDrop = false;
 
 const COLS = 8, ROWS = 3;
 const E_W = 36, E_H = 24;
-const MARGIN_X = 60, MARGIN_Y = 70, GAP_X = 72, GAP_Y = 52;
+const MARGIN_X = 55, MARGIN_Y = 65, GAP_X = 74, GAP_Y = 52;
+const TOTAL_ENEMIES = COLS * ROWS;
+
+// Intervalo entre pasos: 60 frames con todos vivos → 6 frames con 1 vivo
+function getEnemyTickInterval() {
+  const alive = enemies.filter(e => e.alive).length;
+  const base = Math.max(4, 28 - (level - 1) * 2);
+  return Math.max(4, Math.round(base * (alive / TOTAL_ENEMIES)));
+}
 
 function spawnEnemies() {
   enemies.length = 0;
@@ -84,7 +92,6 @@ function spawnEnemies() {
     }
   }
   enemyDir = 1;
-  enemyTickInterval = Math.max(8, 22 - (level - 1) * 3); // más rápido cada nivel
   enemyTickTimer = 0;
   pendingDrop = false;
 }
@@ -128,25 +135,25 @@ function update() {
     return;
   }
 
-  // Paso de enemigos (discreto)
+  // Paso de enemigos (discreto, clásico)
   enemyTickTimer++;
-  if (enemyTickTimer >= enemyTickInterval) {
+  if (enemyTickTimer >= getEnemyTickInterval()) {
     enemyTickTimer = 0;
 
     if (pendingDrop) {
-      // Bajar y cambiar dirección
-      enemies.forEach(e => e.y += enemyStepY);
+      // Bajar todos y cambiar dirección — solo ocurre una vez por borde tocado
+      enemies.forEach(e => { if (e.alive) e.y += ENEMY_STEP_Y; });
       enemyDir *= -1;
       pendingDrop = false;
     } else {
-      // Mover horizontalmente
-      enemies.forEach(e => e.x += enemyDir * enemyStepX);
+      // Mover todo el grupo horizontalmente un paso
+      enemies.forEach(e => { if (e.alive) e.x += enemyDir * ENEMY_STEP_X; });
 
-      // ¿Alcanzaron el borde?
+      // Comprobar si algún enemigo toca el borde DESPUÉS de moverse
       const leftmost  = Math.min(...alive.map(e => e.x));
       const rightmost = Math.max(...alive.map(e => e.x + e.w));
-      if (rightmost >= canvas.width - 10 || leftmost <= 10) {
-        pendingDrop = true;
+      if (rightmost >= canvas.width - 8 || leftmost <= 8) {
+        pendingDrop = true; // el drop ocurrirá en el SIGUIENTE tick
       }
     }
   }
