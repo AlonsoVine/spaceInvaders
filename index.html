@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>Space Invaders</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
@@ -18,13 +18,20 @@
 
     <div id="overlay" class="visible">
       <h1>👾 SPACE INVADERS</h1>
-      <p id="overlay-msg">Pulsa <strong>ENTER</strong> para empezar</p>
+      <p id="overlay-msg">Pulsa <strong>ENTER</strong> o toca para empezar</p>
       <button id="btn-start">JUGAR</button>
     </div>
   </div>
 
+  <!-- Controles táctiles -->
+  <div id="touch-controls">
+    <button id="btn-left">◀</button>
+    <button id="btn-fire">🔥</button>
+    <button id="btn-right">▶</button>
+  </div>
+
   <div id="controls-hint">
-    ⬅ ➡ Mover &nbsp;|&nbsp; ESPACIO Disparar
+    ⬅ ➡ Mover &nbsp;|&nbsp; ESPACIO Disparar &nbsp;|&nbsp; ENTER Iniciar
   </div>
 
   <script src="js/game.js"></script>

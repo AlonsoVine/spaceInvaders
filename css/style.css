@@ -9,23 +9,28 @@ body {
   min-height: 100vh;
   font-family: 'Courier New', monospace;
   color: #00ff88;
+  overflow: hidden;
 }
 
-#game-wrapper { position: relative; }
+#game-wrapper {
+  position: relative;
+  width: min(800px, 100vw);
+}
 
 #header {
   display: flex;
   justify-content: space-between;
-  padding: 8px 0;
+  padding: 8px 4px;
   font-size: 13px;
   letter-spacing: 2px;
-  width: 800px;
 }
 
 #header strong { color: #fff; }
 
 #gameCanvas {
   display: block;
+  width: 100%;
+  height: auto;
   border: 2px solid #00ff88;
   box-shadow: 0 0 24px #00ff8844;
   background: #000;
@@ -33,7 +38,7 @@ body {
 
 #overlay {
   position: absolute;
-  inset: 0;
+  inset: 40px 0 0 0;
   background: rgba(0,0,0,0.88);
   display: none;
   flex-direction: column;
@@ -41,12 +46,13 @@ body {
   justify-content: center;
   gap: 20px;
   text-align: center;
+  padding: 20px;
 }
 
 #overlay.visible { display: flex; }
 
-#overlay h1 { font-size: 52px; text-shadow: 0 0 24px #00ff88; }
-#overlay p  { font-size: 14px; color: #aaa; }
+#overlay h1 { font-size: clamp(28px, 6vw, 52px); text-shadow: 0 0 24px #00ff88; }
+#overlay p  { font-size: 14px; color: #aaa; line-height: 1.8; }
 
 #btn-start {
   padding: 12px 36px;
@@ -58,13 +64,53 @@ body {
   font-weight: bold;
   letter-spacing: 3px;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 #btn-start:hover { background: #00cc66; }
 
+/* ---- Controles táctiles ---- */
+#touch-controls {
+  display: none;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+@media (pointer: coarse) {
+  #touch-controls { display: flex; }
+}
+
+#touch-controls button {
+  width: 80px;
+  height: 80px;
+  background: rgba(0, 255, 136, 0.15);
+  border: 2px solid #00ff88;
+  color: #00ff88;
+  font-size: 28px;
+  border-radius: 12px;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#btn-fire {
+  background: rgba(255, 68, 68, 0.15) !important;
+  border-color: #ff4444 !important;
+  color: #ff4444 !important;
+}
+
+#touch-controls button:active {
+  background: rgba(0, 255, 136, 0.35);
+}
+
 #controls-hint {
-  margin-top: 14px;
-  font-size: 12px;
-  color: #444;
+  margin-top: 12px;
+  font-size: 11px;
+  color: #333;
   letter-spacing: 1px;
+}
+
+@media (pointer: coarse) {
+  #controls-hint { display: none; }
 }
