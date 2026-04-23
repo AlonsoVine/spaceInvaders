@@ -1,28 +1,36 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
-body {
+html, body {
   background: #000;
+  min-height: 100%;
+  font-family: 'Courier New', monospace;
+  color: #00ff88;
+  overflow-x: hidden;
+}
+
+/* ---- Layout vertical (móvil portrait) ---- */
+body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  font-family: 'Courier New', monospace;
-  color: #00ff88;
-  overflow: hidden;
+  justify-content: flex-start;
+  padding: 8px 0;
 }
 
 #game-wrapper {
   position: relative;
   width: min(800px, 100vw);
+  max-width: 100vw;
 }
 
 #header {
   display: flex;
   justify-content: space-between;
-  padding: 8px 4px;
-  font-size: 13px;
-  letter-spacing: 2px;
+  flex-wrap: wrap;
+  padding: 6px 8px;
+  font-size: clamp(10px, 2.5vw, 14px);
+  letter-spacing: 1px;
+  gap: 4px;
 }
 
 #header strong { color: #fff; }
@@ -32,48 +40,46 @@ body {
   width: 100%;
   height: auto;
   border: 2px solid #00ff88;
-  box-shadow: 0 0 24px #00ff8844;
+  box-shadow: 0 0 20px #00ff8833;
   background: #000;
+  touch-action: none;
 }
 
+/* Overlay */
 #overlay {
   position: absolute;
-  inset: 40px 0 0 0;
+  inset: 0;
   background: rgba(0,0,0,0.88);
   display: none;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 20px;
+  gap: 16px;
   text-align: center;
   padding: 20px;
 }
-
 #overlay.visible { display: flex; }
-
-#overlay h1 { font-size: clamp(28px, 6vw, 52px); text-shadow: 0 0 24px #00ff88; }
-#overlay p  { font-size: 14px; color: #aaa; line-height: 1.8; }
+#overlay h1 { font-size: clamp(24px, 7vw, 52px); text-shadow: 0 0 24px #00ff88; }
+#overlay p  { font-size: clamp(12px, 3vw, 15px); color: #aaa; line-height: 1.9; }
 
 #btn-start {
-  padding: 12px 36px;
-  background: #00ff88;
-  color: #000;
-  border: none;
+  padding: 12px 32px;
+  background: #00ff88; color: #000; border: none;
   font-family: 'Courier New', monospace;
-  font-size: 16px;
-  font-weight: bold;
-  letter-spacing: 3px;
-  cursor: pointer;
+  font-size: clamp(14px, 3.5vw, 18px);
+  font-weight: bold; letter-spacing: 3px; cursor: pointer;
   touch-action: manipulation;
 }
-
-#btn-start:hover { background: #00cc66; }
+#btn-start:hover, #btn-start:active { background: #00cc66; }
 
 /* ---- Controles táctiles ---- */
 #touch-controls {
   display: none;
-  gap: 16px;
-  margin-top: 16px;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0 8px;
+  width: 100%;
 }
 
 @media (pointer: coarse) {
@@ -81,36 +87,76 @@ body {
 }
 
 #touch-controls button {
-  width: 80px;
-  height: 80px;
-  background: rgba(0, 255, 136, 0.15);
+  width: clamp(70px, 20vw, 100px);
+  height: clamp(70px, 20vw, 100px);
+  background: rgba(0,255,136,0.12);
   border: 2px solid #00ff88;
   color: #00ff88;
-  font-size: 28px;
-  border-radius: 12px;
+  font-size: clamp(22px, 6vw, 34px);
+  border-radius: 14px;
   cursor: pointer;
   touch-action: manipulation;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-#btn-fire {
-  background: rgba(255, 68, 68, 0.15) !important;
-  border-color: #ff4444 !important;
-  color: #ff4444 !important;
+  user-select: none; -webkit-user-select: none;
+  transition: background 0.1s, transform 0.1s;
 }
 
 #touch-controls button:active {
-  background: rgba(0, 255, 136, 0.35);
+  background: rgba(0,255,136,0.35);
+  transform: scale(0.93);
 }
 
+#btn-fire {
+  background: rgba(255,68,68,0.12) !important;
+  border-color: #ff4444 !important;
+  color: #ff4444 !important;
+}
+#btn-fire:active {
+  background: rgba(255,68,68,0.35) !important;
+}
+
+/* ---- Landscape en móvil ---- */
+@media (orientation: landscape) and (max-height: 500px) {
+  body { flex-direction: row; align-items: flex-start; padding: 4px; gap: 8px; }
+
+  #game-wrapper { width: auto; flex: 1; height: 100vh; }
+  #gameCanvas { width: auto; height: calc(100vh - 40px); }
+  #header { font-size: 10px; padding: 2px 6px; }
+
+  #touch-controls {
+    flex-direction: column;
+    justify-content: center;
+    padding: 0 8px;
+    height: 100vh;
+    gap: 8px;
+  }
+
+  #touch-controls button {
+    width: clamp(56px, 12vh, 80px);
+    height: clamp(56px, 12vh, 80px);
+    font-size: clamp(18px, 4vh, 26px);
+  }
+}
+
+/* ---- Hint teclado (solo desktop) ---- */
 #controls-hint {
-  margin-top: 12px;
+  margin-top: 10px;
   font-size: 11px;
   color: #333;
   letter-spacing: 1px;
+  text-align: center;
 }
+@media (pointer: coarse) { #controls-hint { display: none; } }
 
-@media (pointer: coarse) {
-  #controls-hint { display: none; }
+/* ---- Enlace portfolio ---- */
+#portfolio-link {
+  margin-top: 10px;
+  font-size: 11px;
+  color: #444;
+  text-align: center;
 }
+#portfolio-link a {
+  color: #00ff88;
+  text-decoration: none;
+  letter-spacing: 1px;
+}
+#portfolio-link a:hover { color: #fff; }

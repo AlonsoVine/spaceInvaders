@@ -9,10 +9,10 @@
 <body>
   <div id="game-wrapper">
     <div id="header">
-      <span>PUNTUACIÓN: <strong id="score">0</strong></span>
-      <span>RÉCORD: <strong id="highscore">0</strong></span>
+      <span>PTS: <strong id="score">0</strong></span>
+      <span>RÉC: <strong id="highscore">0</strong></span>
       <span>VIDAS: <strong id="lives">3</strong></span>
-      <span>NIVEL: <strong id="level">1</strong></span>
+      <span>NIV: <strong id="level">1</strong></span>
     </div>
 
     <canvas id="gameCanvas" width="800" height="600"></canvas>
@@ -24,15 +24,16 @@
     </div>
   </div>
 
-  <!-- Controles táctiles -->
   <div id="touch-controls">
     <button id="btn-left">◀</button>
     <button id="btn-fire">🔥</button>
     <button id="btn-right">▶</button>
   </div>
 
-  <div id="controls-hint">
-    ⬅ ➡ Mover &nbsp;|&nbsp; ESPACIO Disparar &nbsp;|&nbsp; ENTER Iniciar
+  <div id="controls-hint">⬅ ➡ Mover &nbsp;|&nbsp; ESPACIO Disparar &nbsp;|&nbsp; P Pausa</div>
+
+  <div id="portfolio-link">
+    Creado por <a href="PORTFOLIO_URL" target="_blank" rel="noopener">Alonso Vine</a>
   </div>
 
   <script src="js/game.js"></script>
