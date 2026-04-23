@@ -35,7 +35,13 @@ function soundShoot() { beep(880, 0.08, 'square', 0.1); }
 function soundHit()   { beep(180, 0.12, 'sawtooth', 0.18); }
 function soundDeath() { beep(150, 0.3, 'sawtooth', 0.2); setTimeout(() => beep(90, 0.35, 'sawtooth', 0.18), 160); }
 function soundWin()   { [523,659,784,1047].forEach((f,i) => setTimeout(() => beep(f, 0.15, 'sine', 0.2), i*120)); }
-function soundUfo()   { beep(440, 0.05, 'sawtooth', 0.08); }
+let ufoBeepPhase = 0;
+function soundUfo() {
+  if (frameCount % 30 !== 0) return;
+  const freqs = [330, 220];
+  beep(freqs[ufoBeepPhase % 2], 0.18, 'sine', 0.06);
+  ufoBeepPhase++;
+}
 
 // Ritmo del heartbeat (se acelera con menos enemigos)
 let heartbeatTimer = 0;
@@ -66,6 +72,7 @@ document.addEventListener('keydown', e => {
   keys[e.code] = true;
   if (e.code === 'Enter' && !running && !showingLevelScreen) { initAudio(); startGame(); }
   if (e.code === 'Space') { e.preventDefault(); shoot(); }
+  if ((e.code === 'KeyP' || e.code === 'Escape') && running) { e.preventDefault(); togglePause(); }
 });
 document.addEventListener('keyup', e => keys[e.code] = false);
 btnStart.addEventListener('click', () => { initAudio(); startGame(); });
@@ -86,10 +93,14 @@ function getEnemyShootInterval() {
   return Math.max(40, 110 - (level - 1) * 10);
 }
 
-// ---- Explosiones ----
+// ---- Explosiones y textos flotantes ----
 const explosions = [];
+const floatingTexts = [];
 function spawnExplosion(x, y) {
   explosions.push({ x, y, timer: 20, maxTimer: 20 });
+}
+function spawnFloatingText(x, y, text, color) {
+  floatingTexts.push({ x, y, text, color, timer: 50, maxTimer: 50 });
 }
 
 // ---- UFO ----
@@ -196,6 +207,8 @@ function update() {
           scoreEl.textContent = score;
           if (score > highscore) { highscore = score; highscoreEl.textContent = highscore; localStorage.setItem('si_hs', highscore); }
           spawnExplosion(e.x + e.w/2, e.y + e.h/2);
+          const pts = e.row === 0 ? 30 : e.row === 1 ? 20 : 10;
+          spawnFloatingText(e.x + e.w/2, e.y, '+' + pts, '#ffff00');
           soundHit();
           break;
         }
@@ -205,6 +218,7 @@ function update() {
         score += 150; scoreEl.textContent = score;
         if (score > highscore) { highscore = score; highscoreEl.textContent = highscore; localStorage.setItem('si_hs', highscore); }
         spawnExplosion(ufo.x + ufo.w/2, ufo.y + ufo.h/2);
+        spawnFloatingText(ufo.x + ufo.w/2, ufo.y, '+150', '#ff66cc');
         ufo.active = false; bullet = null; soundHit();
         hit = true;
       }
@@ -299,6 +313,13 @@ function update() {
     if (ufo.x > canvas.width + ufo.w || ufo.x < -ufo.w * 2) ufo.active = false;
   }
 
+  // Textos flotantes
+  for (let i = floatingTexts.length - 1; i >= 0; i--) {
+    floatingTexts[i].timer--;
+    floatingTexts[i].y -= 0.5;
+    if (floatingTexts[i].timer <= 0) floatingTexts.splice(i, 1);
+  }
+
   // Explosiones
   for (let i = explosions.length - 1; i >= 0; i--) {
     explosions[i].timer--;
@@ -306,9 +327,17 @@ function update() {
   }
 }
 
+let paused = false;
+function togglePause() {
+  if (!running) return;
+  paused = !paused;
+  if (!paused) loop();
+}
+
 function triggerDeath() {
   lives--; livesEl.textContent = lives;
   soundDeath();
+  if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
   if (lives <= 0) return gameOver();
   invincibleTimer = 120;
   player.hit = true;
@@ -404,6 +433,18 @@ function draw() {
     ctx.textAlign = 'left';
   }
 
+  // Textos flotantes
+  for (const ft of floatingTexts) {
+    const ratio = ft.timer / ft.maxTimer;
+    ctx.globalAlpha = ratio;
+    ctx.fillStyle = ft.color;
+    ctx.font = 'bold 14px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText(ft.text, ft.x, ft.y);
+    ctx.textAlign = 'left';
+    ctx.globalAlpha = 1;
+  }
+
   // Explosiones
   for (const ex of explosions) {
     const ratio = ex.timer / ex.maxTimer;
@@ -419,6 +460,19 @@ function draw() {
 
 // ---- Loop ----
 function loop() {
+  if (paused) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#00ff88';
+    ctx.font = 'bold 40px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText('⏸ PAUSA', canvas.width/2, canvas.height/2);
+    ctx.font = '16px Courier New';
+    ctx.fillStyle = '#aaa';
+    ctx.fillText('P o ESC para continuar', canvas.width/2, canvas.height/2 + 40);
+    ctx.textAlign = 'left';
+    return;
+  }
   update(); draw();
   if (running) requestAnimationFrame(loop);
 }
@@ -435,7 +489,7 @@ function gameOver() {
 function startGame() {
   score = 0; lives = 3; level = 1;
   scoreEl.textContent = 0; livesEl.textContent = 3; levelEl.textContent = 1;
-  bullet = null; enemyBullets.length = 0; explosions.length = 0;
+  bullet = null; enemyBullets.length = 0; explosions.length = 0; floatingTexts.length = 0; paused = false;
   invincibleTimer = 0; frameCount = 0; enemyShootTimer = 0;
   ufo.active = false; ufoSpawnTimer = 0;
   heartbeatTimer = 0; heartbeatIdx = 0;
