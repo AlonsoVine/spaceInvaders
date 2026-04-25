@@ -11,6 +11,10 @@ const highscoreEl = document.getElementById('highscore');
 const overlay   = document.getElementById('overlay');
 const overlayMsg = document.getElementById('overlay-msg');
 const btnStart  = document.getElementById('btn-start');
+const btnMusic = document.getElementById('btn-music');
+const btnFullscreen = document.getElementById('btn-fullscreen');
+const musicVolumeEl = document.getElementById('music-volume');
+const fullscreenTarget = document.body;
 
 // ---- Récord e historial ----
 let highscore = parseInt(localStorage.getItem('si_hs') || '0');
@@ -31,7 +35,79 @@ function saveScore(s) {
 // ---- Audio ----
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
 let audioCtx;
-function initAudio() { if (!audioCtx) audioCtx = new AudioCtx(); }
+let musicGain = null;
+let musicLoop = null;
+let musicStep = 0;
+let musicEnabled = localStorage.getItem('si_music_enabled');
+musicEnabled = musicEnabled === null ? true : musicEnabled === '1';
+let musicVolume = parseFloat(localStorage.getItem('si_music_volume') || '0.35');
+musicVolume = Number.isFinite(musicVolume) ? Math.min(0.6, Math.max(0, musicVolume)) : 0.35;
+
+const NOTES = {
+  C3: 130.81, E3: 164.81, G3: 196.00, A3: 220.00,
+  C4: 261.63, E4: 329.63, G4: 392.00, A4: 440.00,
+  C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99
+};
+
+const MUSIC_BASS = [
+  NOTES.C3, null, NOTES.C3, null,
+  NOTES.G3, null, NOTES.G3, null,
+  NOTES.A3, null, NOTES.A3, null,
+  NOTES.G3, null, NOTES.E3, null
+];
+
+const MUSIC_MELODY = [
+  NOTES.C4, NOTES.E4, NOTES.G4, NOTES.C5,
+  NOTES.G4, NOTES.E4, NOTES.C4, NOTES.D5,
+  NOTES.E4, NOTES.G4, NOTES.A4, NOTES.G4,
+  NOTES.E4, NOTES.C4, NOTES.G4, NOTES.E4
+];
+
+function updateMusicUI() {
+  btnMusic.textContent = `MUSICA: ${musicEnabled ? 'ON' : 'OFF'}`;
+  musicVolumeEl.value = musicVolume.toFixed(2);
+}
+
+function updateFullscreenUI() {
+  btnFullscreen.textContent = document.fullscreenElement ? 'SALIR FS' : 'FULLSCREEN';
+}
+
+function persistMusicSettings() {
+  localStorage.setItem('si_music_enabled', musicEnabled ? '1' : '0');
+  localStorage.setItem('si_music_volume', musicVolume.toFixed(2));
+}
+
+function ensureMusicBus() {
+  if (!audioCtx) return;
+  if (!musicGain) {
+    musicGain = audioCtx.createGain();
+    musicGain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+    musicGain.connect(audioCtx.destination);
+  }
+  if (!musicLoop) {
+    musicLoop = setInterval(() => {
+      if (!audioCtx || audioCtx.state !== 'running') return;
+      tickMusic();
+    }, 190);
+  }
+  syncMusicGain();
+}
+
+function syncMusicGain() {
+  if (!audioCtx || !musicGain) return;
+  const now = audioCtx.currentTime;
+  const target = musicEnabled ? Math.max(0.0001, musicVolume) : 0.0001;
+  musicGain.gain.cancelScheduledValues(now);
+  musicGain.gain.setValueAtTime(musicGain.gain.value || 0.0001, now);
+  musicGain.gain.linearRampToValueAtTime(target, now + 0.12);
+}
+
+function initAudio() {
+  if (!audioCtx) audioCtx = new AudioCtx();
+  ensureMusicBus();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
 function beep(freq, duration, type = 'square', vol = 0.12) {
   if (!audioCtx) return;
   const osc = audioCtx.createOscillator();
@@ -51,6 +127,28 @@ let ufoBeepPhase = 0;
 function soundUfo() {
   if (frameCount % 30 !== 0) return;
   beep([330,220][ufoBeepPhase++ % 2], 0.18, 'sine', 0.06);
+}
+
+function playMusicNote(freq, duration, type, vol) {
+  if (!audioCtx || !musicGain || !musicEnabled || !freq) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  const now = audioCtx.currentTime;
+  osc.connect(gain); gain.connect(musicGain);
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, now);
+  gain.gain.setValueAtTime(vol, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+  osc.start(now);
+  osc.stop(now + duration);
+}
+
+function tickMusic() {
+  if (!running || paused || showingLevelScreen || !musicEnabled) return;
+  const step = musicStep % MUSIC_MELODY.length;
+  playMusicNote(MUSIC_BASS[step], 0.28, 'triangle', 0.12);
+  playMusicNote(MUSIC_MELODY[step], 0.18, step % 4 === 3 ? 'square' : 'sine', 0.07);
+  musicStep++;
 }
 
 // Heartbeat
@@ -85,6 +183,34 @@ document.addEventListener('keydown', e => {
 });
 document.addEventListener('keyup', e => keys[e.code] = false);
 btnStart.addEventListener('click', () => { initAudio(); startGame(); });
+btnMusic.addEventListener('click', () => {
+  initAudio();
+  musicEnabled = !musicEnabled;
+  persistMusicSettings();
+  updateMusicUI();
+  syncMusicGain();
+});
+btnFullscreen.addEventListener('click', async () => {
+  try {
+    if (!document.fullscreenElement) {
+      await fullscreenTarget.requestFullscreen();
+    } else {
+      await document.exitFullscreen();
+    }
+  } catch (err) {
+    console.warn('No se pudo cambiar el modo fullscreen', err);
+  } finally {
+    updateFullscreenUI();
+  }
+});
+musicVolumeEl.addEventListener('input', e => {
+  initAudio();
+  musicVolume = Math.min(0.6, Math.max(0, parseFloat(e.target.value) || 0));
+  persistMusicSettings();
+  updateMusicUI();
+  syncMusicGain();
+});
+document.addEventListener('fullscreenchange', updateFullscreenUI);
 
 // ---- Bala jugador ----
 let bullet = null;
@@ -481,12 +607,15 @@ function startGame() {
   heartbeatTimer = 0; heartbeatIdx = 0;
   combo = 0; comboTimer = 0; autoShootTimer = 0;
   showingLevelScreen = false;
+  musicStep = 0;
   player.x = canvas.width/2 - player.w/2; player.hit = false;
   spawnEnemies(); buildShields();
   overlay.classList.remove('visible');
   running = true; loop();
 }
 
+updateMusicUI();
+updateFullscreenUI();
 draw();
 
 // ---- Controles táctiles con disparo automático ----
