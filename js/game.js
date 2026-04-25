@@ -9,27 +9,313 @@ const livesEl   = document.getElementById('lives');
 const levelEl   = document.getElementById('level');
 const highscoreEl = document.getElementById('highscore');
 const overlay   = document.getElementById('overlay');
+const overlayTitle = document.getElementById('overlay-title');
+const overlayKicker = document.getElementById('overlay-kicker');
 const overlayMsg = document.getElementById('overlay-msg');
 const btnStart  = document.getElementById('btn-start');
+const difficultySelect = document.getElementById('difficulty-select');
+const vibrationToggle = document.getElementById('toggle-vibration');
 const btnMusic = document.getElementById('btn-music');
 const btnFullscreen = document.getElementById('btn-fullscreen');
 const musicVolumeEl = document.getElementById('music-volume');
 const fullscreenTarget = document.body;
+const settingsPanel = document.getElementById('settings-panel');
+const runPanel = document.getElementById('run-panel');
+const runPanelTitle = document.getElementById('run-panel-title');
+const runPanelBadge = document.getElementById('run-panel-badge');
+const runStatsGridEl = document.getElementById('run-stats-grid');
+const aggregatePanel = document.getElementById('aggregate-panel');
+const historyPanel = document.getElementById('history-panel');
+const statsSummaryEl = document.getElementById('stats-summary');
+const statsHistoryEl = document.getElementById('stats-history');
 
 // ---- Récord e historial ----
 let highscore = parseInt(localStorage.getItem('si_hs') || '0');
 highscoreEl.textContent = highscore;
-let scoreHistory = JSON.parse(localStorage.getItem('si_history') || '[]');
 
-function saveScore(s) {
-  scoreHistory.unshift(s);
-  scoreHistory = scoreHistory.slice(0, 5);
-  localStorage.setItem('si_history', JSON.stringify(scoreHistory));
-  if (s > highscore) {
-    highscore = s;
+// ---- Ajustes ----
+const SETTINGS_KEY = 'si_settings';
+const HISTORY_KEY = 'si_history';
+const AGGREGATE_STATS_KEY = 'si_stats';
+const DIFFICULTY_PRESETS = {
+  easy:   { startLives: 4, playerSpeed: 5.8, enemyTickFactor: 1.18, enemyShootFactor: 1.18, enemyBulletBase: 3.4, enemyBulletStep: 0.45, ufoSpawnInterval: 820 },
+  normal: { startLives: 3, playerSpeed: 5.0, enemyTickFactor: 1.00, enemyShootFactor: 1.00, enemyBulletBase: 4.0, enemyBulletStep: 0.50, ufoSpawnInterval: 700 },
+  hard:   { startLives: 2, playerSpeed: 4.6, enemyTickFactor: 0.82, enemyShootFactor: 0.82, enemyBulletBase: 4.8, enemyBulletStep: 0.60, ufoSpawnInterval: 560 }
+};
+
+function normalizeDifficulty(value) {
+  return Object.prototype.hasOwnProperty.call(DIFFICULTY_PRESETS, value) ? value : 'normal';
+}
+
+function loadSettings() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+    return {
+      difficulty: normalizeDifficulty(stored.difficulty),
+      vibration: stored.vibration !== false
+    };
+  } catch {
+    return { difficulty: 'normal', vibration: true };
+  }
+}
+
+let gameSettings = loadSettings();
+
+function normalizeHistoryEntry(entry) {
+  if (typeof entry === 'number') {
+    return {
+      score: entry,
+      level: 1,
+      accuracy: 0,
+      shots: 0,
+      hits: 0,
+      enemiesDestroyed: 0,
+      ufoDestroyed: 0,
+      maxCombo: 1,
+      difficulty: 'normal',
+      playedAt: null,
+      durationMs: 0
+    };
+  }
+  if (!entry || typeof entry !== 'object') return null;
+  return {
+    score: Number(entry.score) || 0,
+    level: Number(entry.level) || 1,
+    accuracy: Number(entry.accuracy) || 0,
+    shots: Number(entry.shots) || 0,
+    hits: Number(entry.hits) || 0,
+    enemiesDestroyed: Number(entry.enemiesDestroyed) || 0,
+    ufoDestroyed: Number(entry.ufoDestroyed) || 0,
+    maxCombo: Math.max(1, Number(entry.maxCombo) || 1),
+    difficulty: normalizeDifficulty(entry.difficulty),
+    playedAt: typeof entry.playedAt === 'string' ? entry.playedAt : null,
+    durationMs: Math.max(0, Number(entry.durationMs) || 0)
+  };
+}
+
+function loadScoreHistory() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    if (!Array.isArray(stored)) return [];
+    return stored.map(normalizeHistoryEntry).filter(Boolean).slice(0, 8);
+  } catch {
+    return [];
+  }
+}
+
+function loadAggregateStats() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(AGGREGATE_STATS_KEY) || '{}');
+    return {
+      gamesPlayed: Math.max(0, Number(stored.gamesPlayed) || 0),
+      totalScore: Math.max(0, Number(stored.totalScore) || 0),
+      totalShots: Math.max(0, Number(stored.totalShots) || 0),
+      totalHits: Math.max(0, Number(stored.totalHits) || 0),
+      totalEnemiesDestroyed: Math.max(0, Number(stored.totalEnemiesDestroyed) || 0),
+      totalUfoDestroyed: Math.max(0, Number(stored.totalUfoDestroyed) || 0),
+      bestLevel: Math.max(0, Number(stored.bestLevel) || 0),
+      bestCombo: Math.max(1, Number(stored.bestCombo) || 1),
+      totalTimeMs: Math.max(0, Number(stored.totalTimeMs) || 0)
+    };
+  } catch {
+    return {
+      gamesPlayed: 0,
+      totalScore: 0,
+      totalShots: 0,
+      totalHits: 0,
+      totalEnemiesDestroyed: 0,
+      totalUfoDestroyed: 0,
+      bestLevel: 0,
+      bestCombo: 1,
+      totalTimeMs: 0
+    };
+  }
+}
+
+let scoreHistory = loadScoreHistory();
+let aggregateStats = loadAggregateStats();
+
+function createRunStats() {
+  return {
+    startedAt: 0,
+    shots: 0,
+    hits: 0,
+    enemiesDestroyed: 0,
+    ufoDestroyed: 0,
+    maxCombo: 1,
+    difficulty: gameSettings.difficulty
+  };
+}
+
+let currentRunStats = createRunStats();
+let overlayMode = 'start';
+
+function persistGameSettings() {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(gameSettings));
+}
+
+function applySettingsUI() {
+  difficultySelect.value = gameSettings.difficulty;
+  vibrationToggle.checked = gameSettings.vibration;
+}
+
+function getDifficultyConfig() {
+  return DIFFICULTY_PRESETS[gameSettings.difficulty] || DIFFICULTY_PRESETS.normal;
+}
+
+function getAccuracyPercent(shots, hits) {
+  return shots > 0 ? Math.round((hits / shots) * 100) : 0;
+}
+
+function formatDuration(ms) {
+  const totalSeconds = Math.max(0, Math.round(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function formatDifficultyLabel(value) {
+  return value === 'easy' ? 'FACIL' : value === 'hard' ? 'DIFICIL' : 'NORMAL';
+}
+
+function formatPlayedAt(value) {
+  if (!value) return 'sin fecha';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'sin fecha';
+  return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+}
+
+function setPanelVisibility(panel, visible) {
+  panel.hidden = !visible;
+}
+
+function renderRunStats(entry, mode = overlayMode) {
+  const currentEntry = entry || {
+    score: score || 0,
+    level: level || 1,
+    lives: lives || 0,
+    shots: currentRunStats.shots,
+    hits: currentRunStats.hits,
+    enemiesDestroyed: currentRunStats.enemiesDestroyed,
+    ufoDestroyed: currentRunStats.ufoDestroyed,
+    maxCombo: currentRunStats.maxCombo,
+    accuracy: getAccuracyPercent(currentRunStats.shots, currentRunStats.hits),
+    difficulty: currentRunStats.difficulty || gameSettings.difficulty,
+    durationMs: currentRunStats.startedAt ? Math.max(0, Date.now() - currentRunStats.startedAt) : 0
+  };
+
+  const stats = mode === 'pause'
+    ? [
+        ['Puntuacion', `${currentEntry.score} pts`, `Nivel ${currentEntry.level} · ${currentEntry.lives} vidas`],
+        ['Precision', `${currentEntry.accuracy}%`, `${currentEntry.hits}/${currentEntry.shots} impactos`],
+        ['Destruccion', `${currentEntry.enemiesDestroyed} enemigos`, `${currentEntry.ufoDestroyed} UFO · combo x${currentEntry.maxCombo}`],
+        ['Sesion', formatDuration(currentEntry.durationMs), formatDifficultyLabel(currentEntry.difficulty)]
+      ]
+    : [
+        ['Puntuacion final', `${currentEntry.score} pts`, `Nivel ${currentEntry.level} · ${formatDifficultyLabel(currentEntry.difficulty)}`],
+        ['Precision', `${currentEntry.accuracy}%`, `${currentEntry.hits}/${currentEntry.shots} impactos`],
+        ['Destruccion', `${currentEntry.enemiesDestroyed} enemigos`, `${currentEntry.ufoDestroyed} UFO · combo x${currentEntry.maxCombo}`],
+        ['Duracion', formatDuration(currentEntry.durationMs), `Record ${highscore} pts`]
+      ];
+
+  runStatsGridEl.innerHTML = stats.map(([label, value, subvalue]) => (
+    `<div class="run-stat"><span class="run-stat-label">${label}</span><strong class="run-stat-value">${value}</strong><span class="run-stat-subvalue">${subvalue}</span></div>`
+  )).join('');
+}
+
+function saveAggregateStats() {
+  localStorage.setItem(AGGREGATE_STATS_KEY, JSON.stringify(aggregateStats));
+}
+
+function saveScore(entry) {
+  scoreHistory.unshift(entry);
+  scoreHistory = scoreHistory.slice(0, 8);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(scoreHistory));
+  if (entry.score > highscore) {
+    highscore = entry.score;
     highscoreEl.textContent = highscore;
     localStorage.setItem('si_hs', highscore);
   }
+}
+
+function updateAggregateStats(entry) {
+  aggregateStats.gamesPlayed += 1;
+  aggregateStats.totalScore += entry.score;
+  aggregateStats.totalShots += entry.shots;
+  aggregateStats.totalHits += entry.hits;
+  aggregateStats.totalEnemiesDestroyed += entry.enemiesDestroyed;
+  aggregateStats.totalUfoDestroyed += entry.ufoDestroyed;
+  aggregateStats.bestLevel = Math.max(aggregateStats.bestLevel, entry.level);
+  aggregateStats.bestCombo = Math.max(aggregateStats.bestCombo, entry.maxCombo);
+  aggregateStats.totalTimeMs += entry.durationMs;
+  saveAggregateStats();
+}
+
+function renderStatsPanel() {
+  const globalAccuracy = getAccuracyPercent(aggregateStats.totalShots, aggregateStats.totalHits);
+  statsSummaryEl.innerHTML = aggregateStats.gamesPlayed === 0
+    ? '<div class="stats-empty">Todavia no hay partidas registradas.</div>'
+    : [
+        ['Partidas', aggregateStats.gamesPlayed],
+        ['Puntos totales', aggregateStats.totalScore],
+        ['Mejor nivel', aggregateStats.bestLevel],
+        ['Mejor combo', `x${aggregateStats.bestCombo}`],
+        ['Precision global', `${globalAccuracy}%`],
+        ['Tiempo jugado', formatDuration(aggregateStats.totalTimeMs)]
+      ].map(([label, value]) => `<div class="stats-line"><span>${label}</span><strong>${value}</strong></div>`).join('');
+
+  statsHistoryEl.innerHTML = scoreHistory.length === 0
+    ? '<div class="stats-empty">Aun no hay historial de partidas.</div>'
+    : scoreHistory.slice(0, 5).map(entry => (
+        `<div class="history-line"><span>${formatPlayedAt(entry.playedAt)} · ${formatDifficultyLabel(entry.difficulty)} · NIV ${entry.level}</span><strong>${entry.score} pts · ${entry.accuracy}%</strong></div>`
+      )).join('');
+}
+
+function setOverlayMode(mode, entry = null) {
+  overlayMode = mode;
+  overlay.dataset.mode = mode;
+  renderStatsPanel();
+
+  if (mode === 'start') {
+    overlayKicker.textContent = 'ARCADE SESSION';
+    overlayTitle.textContent = 'SPACE INVADERS';
+    overlayMsg.innerHTML = 'Pulsa <strong>ENTER</strong> o toca para empezar';
+    btnStart.textContent = 'JUGAR';
+    runPanelTitle.textContent = 'RESUMEN';
+    runPanelBadge.textContent = 'PARTIDA';
+    setPanelVisibility(settingsPanel, true);
+    setPanelVisibility(runPanel, false);
+    setPanelVisibility(aggregatePanel, false);
+    setPanelVisibility(historyPanel, false);
+  } else if (mode === 'pause') {
+    overlayKicker.textContent = 'PARTIDA EN CURSO';
+    overlayTitle.textContent = 'PAUSA';
+    overlayMsg.innerHTML = 'Has detenido la partida. Revisa tu progreso y continua cuando quieras.';
+    btnStart.textContent = 'CONTINUAR';
+    runPanelTitle.textContent = 'PARTIDA ACTUAL';
+    runPanelBadge.textContent = 'EN CURSO';
+    renderRunStats(entry, mode);
+    setPanelVisibility(settingsPanel, false);
+    setPanelVisibility(runPanel, true);
+    setPanelVisibility(aggregatePanel, true);
+    setPanelVisibility(historyPanel, true);
+  } else {
+    overlayKicker.textContent = 'SESION FINALIZADA';
+    overlayTitle.textContent = 'GAME OVER';
+    overlayMsg.innerHTML = entry && entry.score >= highscore
+      ? 'Has cerrado la partida con una gran marca. Revisa el resumen antes de volver a intentarlo.'
+      : 'La partida ha terminado. Tienes el resumen y tu historial justo aqui, sin ruido extra.';
+    btnStart.textContent = 'REINTENTAR';
+    runPanelTitle.textContent = 'ULTIMA PARTIDA';
+    runPanelBadge.textContent = 'FINAL';
+    renderRunStats(entry, mode);
+    setPanelVisibility(settingsPanel, false);
+    setPanelVisibility(runPanel, true);
+    setPanelVisibility(aggregatePanel, true);
+    setPanelVisibility(historyPanel, true);
+  }
+
+  overlay.classList.add('visible');
 }
 
 // ---- Audio ----
@@ -70,6 +356,14 @@ function updateMusicUI() {
 
 function updateFullscreenUI() {
   btnFullscreen.textContent = document.fullscreenElement ? 'SALIR FS' : 'FULLSCREEN';
+}
+
+function toggleMusic() {
+  initAudio();
+  musicEnabled = !musicEnabled;
+  persistMusicSettings();
+  updateMusicUI();
+  syncMusicGain();
 }
 
 function persistMusicSettings() {
@@ -151,6 +445,20 @@ function tickMusic() {
   musicStep++;
 }
 
+async function toggleFullscreen() {
+  try {
+    if (!document.fullscreenElement) {
+      await fullscreenTarget.requestFullscreen();
+    } else {
+      await document.exitFullscreen();
+    }
+  } catch (err) {
+    console.warn('No se pudo cambiar el modo fullscreen', err);
+  } finally {
+    updateFullscreenUI();
+  }
+}
+
 // Heartbeat
 let heartbeatTimer = 0, heartbeatIdx = 0;
 const HEARTBEAT_NOTES = [160, 130, 100, 80];
@@ -176,39 +484,38 @@ const player = { x: 0, y: canvas.height - 60, w: 40, h: 20, speed: 5, hit: false
 // ---- Teclas ----
 const keys = {};
 document.addEventListener('keydown', e => {
+  if (e.repeat && (e.code === 'KeyM' || e.code === 'KeyF')) return;
   keys[e.code] = true;
+  if (e.code === 'Enter' && paused) { e.preventDefault(); togglePause(); }
   if (e.code === 'Enter' && !running && !showingLevelScreen) { initAudio(); startGame(); }
   if (e.code === 'Space') { e.preventDefault(); shoot(); }
   if ((e.code === 'KeyP' || e.code === 'Escape') && running) { e.preventDefault(); togglePause(); }
+  if (e.code === 'KeyM') { e.preventDefault(); toggleMusic(); }
+  if (e.code === 'KeyF') { e.preventDefault(); toggleFullscreen(); }
 });
 document.addEventListener('keyup', e => keys[e.code] = false);
-btnStart.addEventListener('click', () => { initAudio(); startGame(); });
-btnMusic.addEventListener('click', () => {
+btnStart.addEventListener('click', () => {
   initAudio();
-  musicEnabled = !musicEnabled;
-  persistMusicSettings();
-  updateMusicUI();
-  syncMusicGain();
+  if (overlayMode === 'pause') togglePause();
+  else startGame();
 });
-btnFullscreen.addEventListener('click', async () => {
-  try {
-    if (!document.fullscreenElement) {
-      await fullscreenTarget.requestFullscreen();
-    } else {
-      await document.exitFullscreen();
-    }
-  } catch (err) {
-    console.warn('No se pudo cambiar el modo fullscreen', err);
-  } finally {
-    updateFullscreenUI();
-  }
-});
+btnMusic.addEventListener('click', toggleMusic);
+btnFullscreen.addEventListener('click', toggleFullscreen);
 musicVolumeEl.addEventListener('input', e => {
   initAudio();
   musicVolume = Math.min(0.6, Math.max(0, parseFloat(e.target.value) || 0));
   persistMusicSettings();
   updateMusicUI();
   syncMusicGain();
+});
+difficultySelect.addEventListener('change', e => {
+  gameSettings.difficulty = normalizeDifficulty(e.target.value);
+  persistGameSettings();
+  applySettingsUI();
+});
+vibrationToggle.addEventListener('change', e => {
+  gameSettings.vibration = !!e.target.checked;
+  persistGameSettings();
 });
 document.addEventListener('fullscreenchange', updateFullscreenUI);
 
@@ -219,13 +526,17 @@ let autoShootTimer = 0;
 function shoot() {
   if (!running || bullet || showingLevelScreen || paused) return;
   bullet = { x: player.x + player.w/2 - 2, y: player.y, w: 4, h: 14, speed: 9 };
+  currentRunStats.shots++;
   soundShoot();
 }
 
 // ---- Balas enemigas ----
 const enemyBullets = [];
 let enemyShootTimer = 0;
-function getEnemyShootInterval() { return Math.max(40, 110 - (level-1)*10); }
+function getEnemyShootInterval() {
+  const preset = getDifficultyConfig();
+  return Math.max(36, Math.round((110 - (level-1)*10) * preset.enemyShootFactor));
+}
 
 // ---- Explosiones y textos flotantes ----
 const explosions = [], floatingTexts = [];
@@ -235,7 +546,9 @@ function spawnFloatingText(x, y, text, color) { floatingTexts.push({ x, y, text,
 // ---- UFO ----
 const ufo = { active: false, x: 0, y: 28, w: 50, h: 20, speed: 2, dir: 1 };
 let ufoSpawnTimer = 0;
-const UFO_SPAWN_INTERVAL = 700;
+function getUfoSpawnInterval() {
+  return getDifficultyConfig().ufoSpawnInterval;
+}
 
 // ---- Escudos ----
 const shields = [];
@@ -277,9 +590,10 @@ function getEnemyLayout() {
 }
 
 function getEnemyTickInterval() {
+  const preset = getDifficultyConfig();
   const alive = enemies.filter(e => e.alive).length;
   const base = Math.max(4, 26 - (level-1)*2);
-  return Math.max(3, Math.round(base * (alive / TOTAL_ENEMIES)));
+  return Math.max(3, Math.round(base * preset.enemyTickFactor * (alive / TOTAL_ENEMIES)));
 }
 
 function spawnEnemies() {
@@ -335,6 +649,9 @@ function update() {
         if (rectsOverlap(bullet, e)) {
           e.alive = false; bullet = null; hit = true;
           combo++; comboTimer = 90;
+          currentRunStats.hits++;
+          currentRunStats.enemiesDestroyed++;
+          currentRunStats.maxCombo = Math.max(currentRunStats.maxCombo, combo);
           const pts = (e.row === 0 ? 30 : e.row === 1 ? 20 : 10) * (combo > 1 ? combo : 1);
           score += pts; scoreEl.textContent = score;
           if (score > highscore) { highscore = score; highscoreEl.textContent = highscore; localStorage.setItem('si_hs', highscore); }
@@ -344,6 +661,8 @@ function update() {
         }
       }
       if (!hit && bullet && ufo.active && rectsOverlap(bullet, ufo)) {
+        currentRunStats.hits++;
+        currentRunStats.ufoDestroyed++;
         score += 150; scoreEl.textContent = score;
         if (score > highscore) { highscore = score; highscoreEl.textContent = highscore; localStorage.setItem('si_hs', highscore); }
         spawnExplosion(ufo.x + ufo.w/2, ufo.y + ufo.h/2);
@@ -396,7 +715,14 @@ function update() {
     const shooters = Object.values(cols);
     if (shooters.length) {
       const s = shooters[Math.floor(Math.random() * shooters.length)];
-      enemyBullets.push({ x: s.x + s.w/2 - 2, y: s.y + s.h, w: 4, h: 12, speed: 4 + (level-1)*0.5 });
+      const preset = getDifficultyConfig();
+      enemyBullets.push({
+        x: s.x + s.w/2 - 2,
+        y: s.y + s.h,
+        w: 4,
+        h: 12,
+        speed: preset.enemyBulletBase + (level-1) * preset.enemyBulletStep
+      });
     }
   }
 
@@ -415,7 +741,7 @@ function update() {
 
   // UFO
   ufoSpawnTimer++;
-  if (!ufo.active && ufoSpawnTimer >= UFO_SPAWN_INTERVAL) {
+  if (!ufo.active && ufoSpawnTimer >= getUfoSpawnInterval()) {
     ufoSpawnTimer = 0; ufo.active = true;
     ufo.dir = Math.random() < 0.5 ? 1 : -1;
     ufo.x = ufo.dir === 1 ? -ufo.w : canvas.width;
@@ -438,13 +764,18 @@ function update() {
 function togglePause() {
   if (!running) return;
   paused = !paused;
-  if (!paused) loop();
+  if (paused) {
+    setOverlayMode('pause');
+  } else {
+    overlay.classList.remove('visible');
+    loop();
+  }
 }
 
 function triggerDeath() {
   lives--; livesEl.textContent = lives;
   soundDeath();
-  if (navigator.vibrate) navigator.vibrate([100,50,100]);
+  if (gameSettings.vibration && navigator.vibrate) navigator.vibrate([100,50,100]);
   combo = 0; comboTimer = 0;
   if (lives <= 0) return gameOver();
   invincibleTimer = 120; player.hit = true;
@@ -569,18 +900,7 @@ function draw() {
 
 // ---- Loop ----
 function loop() {
-  if (paused) {
-    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.fillStyle = '#00ff88'; ctx.shadowBlur = 16; ctx.shadowColor = '#00ff88';
-    ctx.font = `bold ${Math.floor(canvas.width/18)}px Courier New`;
-    ctx.textAlign = 'center';
-    ctx.fillText('⏸ PAUSA', canvas.width/2, canvas.height/2);
-    ctx.font = `${Math.floor(canvas.width/45)}px Courier New`;
-    ctx.fillStyle = '#aaa'; ctx.shadowBlur = 0;
-    ctx.fillText('P o ESC para continuar', canvas.width/2, canvas.height/2+40);
-    ctx.textAlign = 'left';
-    return;
-  }
+  if (paused) return;
   update(); draw();
   if (running) requestAnimationFrame(loop);
 }
@@ -588,19 +908,33 @@ function loop() {
 // ---- Game Over ----
 function gameOver() {
   running = false;
-  saveScore(score);
-  const histHtml = scoreHistory.length > 1
-    ? '<br><small style="color:#666">Últimas: ' + scoreHistory.join(' · ') + '</small>'
-    : '';
-  overlayMsg.innerHTML = `💀 GAME OVER<br><br>Puntuación: <strong>${score}</strong> &nbsp;|&nbsp; Récord: <strong>${highscore}</strong>${histHtml}<br><br>Pulsa <strong>ENTER</strong> para reintentar`;
-  btnStart.textContent = 'REINTENTAR';
-  overlay.classList.add('visible');
+  const durationMs = Math.max(0, Date.now() - currentRunStats.startedAt);
+  const entry = {
+    score,
+    level,
+    accuracy: getAccuracyPercent(currentRunStats.shots, currentRunStats.hits),
+    shots: currentRunStats.shots,
+    hits: currentRunStats.hits,
+    enemiesDestroyed: currentRunStats.enemiesDestroyed,
+    ufoDestroyed: currentRunStats.ufoDestroyed,
+    maxCombo: currentRunStats.maxCombo,
+    difficulty: currentRunStats.difficulty,
+    playedAt: new Date().toISOString(),
+    durationMs
+  };
+  saveScore(entry);
+  updateAggregateStats(entry);
+  setOverlayMode('gameover', entry);
 }
 
 // ---- Start ----
 function startGame() {
-  score = 0; lives = 3; level = 1;
-  scoreEl.textContent = 0; livesEl.textContent = 3; levelEl.textContent = 1;
+  const preset = getDifficultyConfig();
+  currentRunStats = createRunStats();
+  currentRunStats.startedAt = Date.now();
+  currentRunStats.difficulty = gameSettings.difficulty;
+  score = 0; lives = preset.startLives; level = 1;
+  scoreEl.textContent = 0; livesEl.textContent = lives; levelEl.textContent = 1;
   bullet = null; enemyBullets.length = 0; explosions.length = 0; floatingTexts.length = 0;
   paused = false; invincibleTimer = 0; frameCount = 0; enemyShootTimer = 0;
   ufo.active = false; ufoSpawnTimer = 0;
@@ -608,14 +942,17 @@ function startGame() {
   combo = 0; comboTimer = 0; autoShootTimer = 0;
   showingLevelScreen = false;
   musicStep = 0;
-  player.x = canvas.width/2 - player.w/2; player.hit = false;
+  player.x = canvas.width/2 - player.w/2; player.hit = false; player.speed = preset.playerSpeed;
   spawnEnemies(); buildShields();
   overlay.classList.remove('visible');
+  overlayMode = 'start';
   running = true; loop();
 }
 
+applySettingsUI();
 updateMusicUI();
 updateFullscreenUI();
+setOverlayMode('start');
 draw();
 
 // ---- Controles táctiles con disparo automático ----

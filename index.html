@@ -17,10 +17,65 @@
 
     <canvas id="gameCanvas" width="800" height="600"></canvas>
 
-    <div id="overlay" class="visible">
-      <h1>👾 SPACE INVADERS</h1>
-      <p id="overlay-msg">Pulsa <strong>ENTER</strong> o toca para empezar</p>
-      <button id="btn-start">JUGAR</button>
+    <div id="overlay" class="visible" data-mode="start">
+      <div id="overlay-shell">
+        <div id="overlay-hero">
+          <p id="overlay-kicker">ARCADE SESSION</p>
+          <h1 id="overlay-title">SPACE INVADERS</h1>
+          <p id="overlay-msg">Pulsa <strong>ENTER</strong> o toca para empezar</p>
+        </div>
+
+        <div id="overlay-panels">
+          <section id="settings-panel" class="overlay-card" aria-label="Ajustes de partida">
+            <div class="card-head">
+              <h2>AJUSTES</h2>
+              <span class="card-badge">ANTES DE JUGAR</span>
+            </div>
+            <div class="setting-row">
+              <label for="difficulty-select">DIFICULTAD</label>
+              <select id="difficulty-select">
+                <option value="easy">FACIL</option>
+                <option value="normal" selected>NORMAL</option>
+                <option value="hard">DIFICIL</option>
+              </select>
+            </div>
+            <label class="setting-toggle" for="toggle-vibration">
+              <input id="toggle-vibration" type="checkbox" checked />
+              <span>VIBRACION</span>
+            </label>
+            <p id="settings-note">Los cambios se aplican al iniciar la siguiente partida.</p>
+          </section>
+
+          <section id="run-panel" class="overlay-card" aria-label="Resumen de partida">
+            <div class="card-head">
+              <h2 id="run-panel-title">RESUMEN</h2>
+              <span id="run-panel-badge" class="card-badge">PARTIDA</span>
+            </div>
+            <div id="run-stats-grid"></div>
+          </section>
+
+          <section id="aggregate-panel" class="overlay-card" aria-label="Estadisticas acumuladas">
+            <div class="card-head">
+              <h2>ESTADISTICAS</h2>
+              <span class="card-badge">GLOBAL</span>
+            </div>
+            <div id="stats-summary"></div>
+          </section>
+
+          <section id="history-panel" class="overlay-card" aria-label="Ultimas partidas">
+            <div class="card-head">
+              <h2>ULTIMAS PARTIDAS</h2>
+              <span class="card-badge">HISTORIAL</span>
+            </div>
+            <div id="stats-history"></div>
+          </section>
+        </div>
+
+        <div id="overlay-footer">
+          <p id="shortcut-list">ENTER iniciar · P/ESC pausa · M musica · F fullscreen</p>
+          <button id="btn-start">JUGAR</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -37,10 +92,11 @@
     <input id="music-volume" type="range" min="0" max="0.6" step="0.05" value="0.35" />
   </div>
 
-  <div id="controls-hint">⬅ ➡ Mover &nbsp;|&nbsp; ESPACIO Disparar &nbsp;|&nbsp; P Pausa</div>
-
-  <div id="portfolio-link">
-    Creado por <a href="https://alonsovine.github.io/portfolioR/" target="_blank" rel="noopener">Alonso Vine</a>
+  <div id="meta-footer">
+    <div id="controls-hint">⬅ ➡ Mover &nbsp;|&nbsp; ESPACIO Disparar &nbsp;|&nbsp; P/ESC Pausa &nbsp;|&nbsp; M Musica &nbsp;|&nbsp; F Fullscreen</div>
+    <div id="portfolio-link">
+      Creado por <a href="https://alonsovine.github.io/portfolioR/" target="_blank" rel="noopener">Alonso Vine</a>
+    </div>
   </div>
 
   <script src="js/game.js"></script>

@@ -27,9 +27,13 @@ Implementación web del clásico **Space Invaders** con una base muy ligera: `HT
 - Explosiones y feedback visual al impactar.
 - Audio retro sintetizado con `WebAudio API`.
 - Música de fondo procedural con control de activación y volumen.
+- Soporte para pantalla completa.
+- Panel inicial de ajustes con dificultad y vibración.
+- Atajos visibles y accesos directos para música/fullscreen.
 - Vibración en dispositivos compatibles al recibir daño.
 - Transición entre niveles y dificultad progresiva.
-- Guardado local de récord (`si_hs`) e historial reciente (`si_history`).
+- Estadísticas de partida y acumuladas.
+- Guardado local de récord (`si_hs`), historial enriquecido (`si_history`) y estadísticas acumuladas (`si_stats`).
 
 ## Estructura del proyecto
 
@@ -69,10 +73,10 @@ spaceInvaders/
 `js/game.js` concentra toda la lógica. A nivel práctico funciona como un único módulo con estas responsabilidades:
 
 - Estado global de partida: `score`, `lives`, `level`, `running`, `paused`, `combo`, `frameCount`.
-- Persistencia: lectura y escritura en `localStorage`.
+- Persistencia: lectura y escritura en `localStorage` para récord, historial, ajustes y estadísticas.
 - Audio: generación procedural de efectos con `AudioContext`.
 - Entrada: teclado, botón de inicio y controles táctiles.
-- Sistemas de juego: jugador, bala del jugador, balas enemigas, escudos, enemigos, UFO, explosiones y textos flotantes.
+- Sistemas de juego: jugador, bala del jugador, balas enemigas, escudos, enemigos, UFO, explosiones, textos flotantes y tracking de métricas.
 - Bucle principal: `update()` + `draw()` + `requestAnimationFrame(loop)`.
 
 ### 4. Flujo de una partida
@@ -105,7 +109,7 @@ spaceInvaders/
 - Funcionalidades como ranking online, logros, guardado de progreso o editor de niveles requerirán separar estado, persistencia y UI.
 - Si el proyecto sigue creciendo, conviene dividir `game.js` por dominios: entrada, audio, entidades, render y persistencia.
 
-## Ejecutar el proyecto Legacy
+## Ejecutar el proyecto
 
 No requiere instalación de dependencias. Basta con abrir `index.html` en el navegador o servir el directorio como estático.
 
@@ -139,20 +143,17 @@ Esta carpeta no interviene en la versión web actual, pero sí aporta contexto h
 
 ### Mejoras de bajo coste
 
-1. Selector de dificultad.
-2. Soporte para pantalla completa.
-3. Tutorial interactivo de primera partida.
+1. Tutorial interactivo de primera partida.
 
 ### Mejoras de impacto medio
 
 1. Animaciones avanzadas.
 2. Power-ups.
 3. Efectos de partículas.
-4. Tabla de estadísticas.
-5. Personalización de controles.
-6. Selección de skins o temas.
-7. Jefe final por ciclo de niveles.
-8. Modo contrarreloj.
+4. Personalización de controles.
+5. Selección de skins o temas.
+6. Jefe final por ciclo de niveles.
+7. Modo contrarreloj.
 
 ### Mejoras que exigen más arquitectura
 
