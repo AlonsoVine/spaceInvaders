@@ -105,6 +105,85 @@ body {
   transform: scale(0.93);
 }
 
+#audio-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 0 12px;
+  width: min(800px, 100vw);
+  color: #00ff88;
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+
+#audio-controls label {
+  min-width: 24px;
+}
+
+#btn-music {
+  padding: 8px 14px;
+  border: 1px solid #00ff88;
+  background: rgba(0,255,136,0.08);
+  color: #00ff88;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+
+#btn-fullscreen {
+  padding: 8px 14px;
+  border: 1px solid #00ff88;
+  background: rgba(0,255,136,0.08);
+  color: #00ff88;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+
+#btn-fullscreen:hover, #btn-fullscreen:active,
+#btn-music:hover, #btn-music:active {
+  background: rgba(0,255,136,0.18);
+}
+
+#music-volume {
+  width: min(180px, 40vw);
+  flex: 0 1 180px;
+  accent-color: #00ff88;
+}
+
+body:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  padding: 12px;
+  justify-content: center;
+  gap: 10px;
+  overflow: hidden;
+}
+
+body:fullscreen #game-wrapper {
+  width: min(calc((100vh - 140px) * 4 / 3), calc(100vw - 24px));
+  max-width: none;
+}
+
+body:fullscreen #audio-controls {
+  width: min(calc((100vh - 140px) * 4 / 3), calc(100vw - 24px));
+}
+
+body:fullscreen #gameCanvas {
+  width: 100%;
+  max-height: calc(100vh - 140px);
+}
+
+body:fullscreen #controls-hint,
+body:fullscreen #portfolio-link {
+  display: none;
+}
+
 #btn-fire {
   background: rgba(255,68,68,0.12) !important;
   border-color: #ff4444 !important;
@@ -134,6 +213,19 @@ body {
     width: clamp(56px, 12vh, 80px);
     height: clamp(56px, 12vh, 80px);
     font-size: clamp(18px, 4vh, 26px);
+  }
+
+  #audio-controls {
+    flex-direction: column;
+    align-items: center;
+    width: auto;
+    min-width: 120px;
+    margin-top: 0;
+    padding: 8px 4px;
+  }
+
+  #music-volume {
+    width: 100px;
   }
 }
 

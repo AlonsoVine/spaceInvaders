@@ -1,75 +1,172 @@
-![IMG](recreativas_invaders.png "Space Invaders Image")
 # Space Invaders Game
 
-Implementación del clásico **Space Invaders**. Actualmente en Python/Pygame, en proceso de migración a HTML5 + JavaScript para poder jugarlo directamente en el navegador sin instalar nada.
+![IMG](recreativas_invaders.png "Space Invaders Image")
 
----
+Implementación web del clásico **Space Invaders** con una base muy ligera: `HTML + CSS + JavaScript` sin dependencias ni build step. El repositorio también conserva una versión histórica en `Python/Pygame` dentro de `legacy/`.
 
-## 🗺️ Roadmap: Migración a HTML5 + JS
+## Resumen
 
-### Fase 1 — Conversión base
-- [ ] Crear `index.html` con canvas 800x600
-- [ ] Migrar lógica del jugador (movimiento, disparo) a JS
-- [ ] Migrar lógica de enemigos (movimiento en grid, rebote) a JS
-- [ ] Migrar sistema de colisiones
-- [ ] Integrar imágenes y sonidos existentes vía assets
-- [ ] Mostrar puntuación y pantalla de Game Over
+- Juego 2D sobre `canvas` de `800x600`.
+- Interfaz retro responsive para escritorio y móvil.
+- Lógica principal concentrada en `js/game.js`.
+- Persistencia local de récord e historial mediante `localStorage`.
+- Despliegue automático a GitHub Pages desde `main`.
 
-### Fase 2 — GitHub Actions (despliegue automático)
-- [ ] Crear workflow `.github/workflows/deploy.yml`
-- [ ] Configurar GitHub Pages como destino
-- [ ] Disparar deploy con cualquier commit a `main` con formato `deploy: <descripción>`
+## Funcionalidades implementadas
 
-### Fase 3 — Mejoras
-- [ ] Ver lista de mejoras propuestas más abajo
+- Pantalla de inicio con overlay y botón de arranque.
+- HUD con puntuación, récord, vidas y nivel.
+- Movimiento del jugador por teclado y controles táctiles.
+- Pausa con `P` o `Esc`.
+- Disparo del jugador con una bala activa simultánea.
+- Oleadas de enemigos en rejilla con desplazamiento lateral, descenso y animación simple.
+- Disparo enemigo por columnas activas.
+- Escudos destructibles.
+- UFO especial con aparición aleatoria y puntuación extra.
+- Sistema de combos con textos flotantes.
+- Explosiones y feedback visual al impactar.
+- Audio retro sintetizado con `WebAudio API`.
+- Música de fondo procedural con control de activación y volumen.
+- Vibración en dispositivos compatibles al recibir daño.
+- Transición entre niveles y dificultad progresiva.
+- Guardado local de récord (`si_hs`) e historial reciente (`si_history`).
 
----
+## Estructura del proyecto
 
-## 🚀 Deploy automático
-
-El despliegue se activa con un commit en `main` con el formato:
-
+```text
+spaceInvaders/
+├─ index.html
+├─ README.md
+├─ recreativas_invaders.png
+├─ css/
+│  └─ style.css
+├─ js/
+│  └─ game.js
+├─ legacy/
+│  ├─ main.py
+│  ├─ proyecto_9.py
+│  ├─ imágenes, sonidos y fuentes de la versión Pygame
+└─ .github/
+   └─ workflows/
+      └─ deploy.yml
 ```
-deploy: descripción del cambio
-```
 
-El workflow publica automáticamente en GitHub Pages.
+## Cómo está estructurada la aplicación
 
----
+### 1. Capa de interfaz
 
-## ✨ 15 Mejoras propuestas
+- `index.html` define un layout mínimo con HUD, `canvas`, overlay de inicio/game over, controles táctiles y enlace externo.
+- La web no usa componentes ni framework; toda la UI está montada directamente sobre el DOM y el `canvas`.
 
-1. **Sistema de niveles** — enemigos más rápidos cada ronda
-2. **Vidas del jugador** — 3 vidas con indicador visual
-3. **Enemigos que disparan** — proyectiles descendentes aleatorios
-4. **Power-ups** — escudos, disparo doble, velocidad
-5. **Tabla de puntuaciones** — top 10 guardado en localStorage
-6. **Pantalla de inicio** — menú con animación y botón Start
-7. **Pantalla de Game Over** — con puntuación final y opción de reinicio
-8. **Pausa** — tecla ESC para pausar/reanudar
-9. **Animaciones de explosión** — sprite sheet al destruir enemigos
-10. **Jefe final (boss)** — enemigo grande al completar cada nivel
-11. **Diseño responsive** — adaptable a móvil con controles táctiles
-12. **Modo 2 jugadores** — turnos alternos en el mismo teclado
-13. **Efectos de partículas** — rastro de la nave y explosiones mejoradas
-14. **Música y volumen ajustable** — slider de audio en la UI
-15. **Compartir puntuación** — botón para compartir en redes sociales
+### 2. Capa visual y responsive
 
----
+- `css/style.css` controla el look retro con paleta neón, layout vertical para móvil y ajustes específicos para `landscape`.
+- Los controles táctiles solo aparecen en dispositivos con puntero grueso (`pointer: coarse`).
+- El `canvas` escala de forma fluida manteniendo el aspecto jugable.
 
-## 📁 Estructura del Proyecto (versión Python original)
+### 3. Capa de juego
 
-La versión Python original está preservada en la rama `backup/python-original`.
+`js/game.js` concentra toda la lógica. A nivel práctico funciona como un único módulo con estas responsabilidades:
 
-- **main.py**: Lógica principal del juego en Pygame
-- **Imágenes**: `astronave.png`, `astronave_enemiga.png`, `bala.png`, `Fondo.jpg`
-- **Sonidos**: `MusicaFondo.mp3`, `Golpe.mp3`, `disparo.mp3`
-- **Fuentes**: `CREATED_ATTACHED_DEMO.ttf`, `FAST-TRACK.ttf`
+- Estado global de partida: `score`, `lives`, `level`, `running`, `paused`, `combo`, `frameCount`.
+- Persistencia: lectura y escritura en `localStorage`.
+- Audio: generación procedural de efectos con `AudioContext`.
+- Entrada: teclado, botón de inicio y controles táctiles.
+- Sistemas de juego: jugador, bala del jugador, balas enemigas, escudos, enemigos, UFO, explosiones y textos flotantes.
+- Bucle principal: `update()` + `draw()` + `requestAnimationFrame(loop)`.
 
-## 🐍 Ejecutar versión Python (legacy)
+### 4. Flujo de una partida
+
+1. `startGame()` reinicia estado, HUD, enemigos y escudos.
+2. `loop()` ejecuta actualización y render mientras `running` sea `true`.
+3. `update()` resuelve movimiento, disparos, colisiones, combos, avance de nivel y muerte.
+4. `draw()` renderiza todos los elementos del juego sobre el `canvas`.
+5. `gameOver()` guarda puntuación, muestra historial y reabre el overlay.
+
+## Contexto técnico útil
+
+### Fortalezas actuales
+
+- La app es simple de desplegar y de entender.
+- No depende de librerías externas.
+- El juego ya cubre el núcleo jugable: progresión, scoring, feedback audiovisual y soporte móvil.
+
+### Limitaciones estructurales
+
+- `js/game.js` es monolítico; cualquier mejora grande va a tocar varias zonas del mismo archivo.
+- No hay separación por módulos, clases ni sistemas desacoplados.
+- No existen tests automáticos.
+- No hay pipeline de build, lint ni empaquetado.
+- El workflow de deploy solo publica archivos estáticos; no hay backend ni servicios externos.
+
+### Qué implica esto para futuras mejoras
+
+- Mejoras pequeñas como música, dificultad o fullscreen son directas.
+- Funcionalidades como ranking online, logros, guardado de progreso o editor de niveles requerirán separar estado, persistencia y UI.
+- Si el proyecto sigue creciendo, conviene dividir `game.js` por dominios: entrada, audio, entidades, render y persistencia.
+
+## Ejecutar el proyecto Legacy
+
+No requiere instalación de dependencias. Basta con abrir `index.html` en el navegador o servir el directorio como estático.
+
+Ejemplo con un servidor simple:
 
 ```bash
-git checkout backup/python-original
-pip install pygame
-python main.py
+python -m http.server 8000
 ```
+
+Después abre `http://localhost:8000`.
+
+## Deploy automático
+
+El deploy está definido en `.github/workflows/deploy.yml`.
+
+- Se ejecuta en cualquier `push` a la rama `main`.
+- Publica el repositorio raíz en GitHub Pages.
+- Excluye `.github`, `legacy` e `.idea` del contenido publicado.
+
+## Directorio legacy
+
+La carpeta `legacy/` conserva material previo y de referencia:
+
+- `legacy/main.py`: versión original del juego en `Python/Pygame`, con assets locales, música y lógica clásica.
+- `legacy/proyecto_9.py`: script independiente de búsqueda de patrones; no forma parte del juego.
+- Recursos binarios: imágenes, sonidos y tipografías usadas por la versión antigua.
+
+Esta carpeta no interviene en la versión web actual, pero sí aporta contexto histórico sobre la evolución del proyecto.
+
+## Roadmap de mejoras
+
+### Mejoras de bajo coste
+
+1. Selector de dificultad.
+2. Soporte para pantalla completa.
+3. Tutorial interactivo de primera partida.
+
+### Mejoras de impacto medio
+
+1. Animaciones avanzadas.
+2. Power-ups.
+3. Efectos de partículas.
+4. Tabla de estadísticas.
+5. Personalización de controles.
+6. Selección de skins o temas.
+7. Jefe final por ciclo de niveles.
+8. Modo contrarreloj.
+
+### Mejoras que exigen más arquitectura
+
+1. Guardado de progreso.
+2. Sistema de logros o misiones.
+3. Ranking online/global.
+4. Modo multijugador.
+5. Integración con servicios externos.
+6. Editor de niveles.
+7. Replay de partidas.
+8. Recompensas diarias.
+9. Opciones de accesibilidad completas.
+10. Mejoras reales de CI/CD con validaciones y pruebas.
+
+## Siguiente paso recomendado
+
+Si el objetivo es seguir iterando esta base sin reescribirla, el mejor siguiente paso es extraer `js/game.js` en módulos pequeños antes de añadir features persistentes o conectadas a red.
