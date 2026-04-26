@@ -32,15 +32,12 @@
         </div>
 
         <div id="overlay-panels">
-          <section id="settings-panel" class="overlay-card" aria-label="Ajustes de partida">
+          <section id="game-settings-panel" class="overlay-card" aria-label="Ajustes de partida">
             <div class="card-head">
-              <h2>AJUSTES</h2>
-              <span class="card-badge">ANTES DE JUGAR</span>
+              <h2>PARTIDA</h2>
+              <span class="card-badge">GAMEPLAY</span>
             </div>
-            <div class="setting-row">
-              <label for="skin-select">SKIN</label>
-              <select id="skin-select"></select>
-            </div>
+            <p class="card-intro">Define el ritmo de la sesión antes de despegar.</p>
             <div class="setting-row">
               <label for="mode-select">MODO</label>
               <select id="mode-select">
@@ -60,6 +57,22 @@
               <input id="toggle-vibration" type="checkbox" checked />
               <span>VIBRACION</span>
             </label>
+            <div class="card-note-list">
+              <p id="mode-note" class="card-note">Clasico para progresión libre. Contrarreloj para presión constante.</p>
+              <p id="difficulty-note" class="card-note">Fácil para entrar rápido; normal como base; difícil para sesiones largas.</p>
+            </div>
+          </section>
+
+          <section id="visual-settings-panel" class="overlay-card" aria-label="Ajustes visuales">
+            <div class="card-head">
+              <h2>VISUAL</h2>
+              <span class="card-badge">PRESENTACION</span>
+            </div>
+            <p class="card-intro">Ajusta cómo se ve y se siente la cabina.</p>
+            <div class="setting-row">
+              <label for="skin-select">SKIN</label>
+              <select id="skin-select"></select>
+            </div>
             <label class="setting-toggle" for="toggle-reduced-effects">
               <input id="toggle-reduced-effects" type="checkbox" />
               <span>EFECTOS REDUCIDOS</span>
@@ -68,7 +81,29 @@
               <input id="toggle-high-contrast" type="checkbox" />
               <span>ALTO CONTRASTE</span>
             </label>
-            <p id="settings-note">Los cambios se aplican al iniciar la siguiente partida.</p>
+            <div class="card-note-list">
+              <p id="skin-note" class="card-note">Cada skin recolorea la cabina sin alterar la jugabilidad.</p>
+              <p id="settings-note" class="card-note">Los cambios visuales se aplican al iniciar la siguiente partida.</p>
+            </div>
+          </section>
+
+          <section id="start-summary-panel" class="overlay-card" aria-label="Resumen rápido">
+            <div class="card-head">
+              <h2>RESUMEN</h2>
+              <span class="card-badge">SESSION</span>
+            </div>
+            <p class="card-intro">Tu punto de partida antes de volver al arcade.</p>
+            <div id="start-summary"></div>
+          </section>
+
+          <section id="start-objectives-panel" class="overlay-card" aria-label="Objetivos y logros">
+            <div class="card-head">
+              <h2>OBJETIVOS <span id="start-objectives-count" class="card-count">0/0</span></h2>
+              <span class="card-badge">META</span>
+            </div>
+            <p class="card-intro">Qué perseguir ahora y qué hitos tienes más cerca.</p>
+            <div id="start-objective"></div>
+            <div id="start-achievements"></div>
           </section>
 
           <section id="run-panel" class="overlay-card" aria-label="Resumen de partida">
@@ -107,7 +142,10 @@
 
         <div id="overlay-footer">
           <p id="shortcut-list">ENTER iniciar · P/ESC pausa · M musica · F fullscreen</p>
-          <button id="btn-start">JUGAR</button>
+          <div id="overlay-actions">
+            <button id="btn-menu" hidden>VOLVER AL MENU</button>
+            <button id="btn-start">JUGAR</button>
+          </div>
         </div>
       </div>
     </div>

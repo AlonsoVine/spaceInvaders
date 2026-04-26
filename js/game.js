@@ -19,6 +19,7 @@ const overlayTitle = document.getElementById('overlay-title');
 const overlayKicker = document.getElementById('overlay-kicker');
 const overlayMsg = document.getElementById('overlay-msg');
 const btnStart = document.getElementById('btn-start');
+const btnMenu = document.getElementById('btn-menu');
 const skinSelect = document.getElementById('skin-select');
 const difficultySelect = document.getElementById('difficulty-select');
 const modeSelect = document.getElementById('mode-select');
@@ -29,7 +30,11 @@ const btnMusic = document.getElementById('btn-music');
 const btnFullscreen = document.getElementById('btn-fullscreen');
 const musicVolumeEl = document.getElementById('music-volume');
 const fullscreenTarget = document.body;
-const settingsPanel = document.getElementById('settings-panel');
+const gameSettingsPanel = document.getElementById('game-settings-panel');
+const visualSettingsPanel = document.getElementById('visual-settings-panel');
+const startSummaryPanel = document.getElementById('start-summary-panel');
+const startObjectivesPanel = document.getElementById('start-objectives-panel');
+const startObjectivesCountEl = document.getElementById('start-objectives-count');
 const runPanel = document.getElementById('run-panel');
 const runPanelTitle = document.getElementById('run-panel-title');
 const runPanelBadge = document.getElementById('run-panel-badge');
@@ -39,6 +44,9 @@ const historyPanel = document.getElementById('history-panel');
 const metaPanel = document.getElementById('meta-panel');
 const statsSummaryEl = document.getElementById('stats-summary');
 const statsHistoryEl = document.getElementById('stats-history');
+const startSummaryEl = document.getElementById('start-summary');
+const startObjectiveEl = document.getElementById('start-objective');
+const startAchievementsEl = document.getElementById('start-achievements');
 const challengeSummaryEl = document.getElementById('challenge-summary');
 const achievementSummaryEl = document.getElementById('achievement-summary');
 
@@ -93,22 +101,228 @@ const SKIN_THEMES = {
     shield: '#44c47e',
     drone: '#ffc7b0',
     accent: '#ff5f98'
+  },
+  solar: {
+    label: 'SOLAR',
+    player: '#ffd866',
+    playerBullet: '#fff4a6',
+    enemyRows: ['#ff8f4d', '#ffd866', '#8cf0ff'],
+    ufo: '#ff5c7a',
+    shield: '#72f0a6',
+    drone: '#fff0c2',
+    accent: '#ffd866'
+  },
+  eclipse: {
+    label: 'ECLIPSE',
+    player: '#b9c6ff',
+    playerBullet: '#f2a7ff',
+    enemyRows: ['#8d7dff', '#ff7db2', '#7ef2d5'],
+    ufo: '#ff4d88',
+    shield: '#7ef2d5',
+    drone: '#d8dfff',
+    accent: '#b9c6ff'
   }
 };
 
-const ACHIEVEMENT_DEFS = {
-  first_boss: { title: 'PRIMER BOSS', copy: 'Derrota tu primer boss.' },
-  combo_8: { title: 'COMBO X8', copy: 'Alcanza un combo de x8 o superior.' },
-  level_5: { title: 'NIVEL 5', copy: 'Llega al nivel 5.' },
-  sharpshooter: { title: 'FRANCOTIRADOR', copy: 'Termina una partida con 70% de precision y 35 disparos o mas.' },
-  challenge_streak: { title: 'OPERATIVO', copy: 'Completa 3 desafios activos.' }
+const BADGE_DEFS = {
+  rookie: { label: 'ROOKIE', copy: 'Has firmado tu primera salida.' },
+  vanguard: { label: 'VANGUARD', copy: 'Ya controlas la transición al nivel 2.' },
+  ace: { label: 'ACE', copy: 'Mantienes sesiones con profundidad real.' },
+  legend: { label: 'LEGEND', copy: 'Tu progresión ya se siente seria.' },
+  striker: { label: 'STRIKER', copy: 'Has empezado a jugar con ritmo y presión.' },
+  berserker: { label: 'BERSERKER', copy: 'Tus combos ya imponen respeto.' },
+  scope: { label: 'SCOPE', copy: 'Tu puntería empieza a destacar.' },
+  raider: { label: 'RAIDER', copy: 'Los UFO dejan de ser un extra ocasional.' },
+  scavenger: { label: 'SCAVENGER', copy: 'Exprimes el sistema de power-ups.' },
+  sentinel: { label: 'SENTINEL', copy: 'Los bosses ya forman parte de tu rutina.' },
+  chrono: { label: 'CHRONO', copy: 'Has entrado en el ritmo del contrarreloj.' },
+  operative: { label: 'OPERATIVE', copy: 'Cumples objetivos activos con constancia.' },
+  commander: { label: 'COMMANDER', copy: 'Tu disciplina meta ya es visible.' }
 };
+
+const ACHIEVEMENT_DEFS = [
+  {
+    id: 'first_sortie',
+    title: 'PRIMERA SALIDA',
+    copy: 'Termina tu primera partida para activar el perfil del piloto.',
+    category: 'INICIO',
+    tier: 'BASE',
+    reward: { type: 'badge', id: 'rookie' },
+    track: 'profile',
+    status: ctx => buildCountStatus(ctx.aggregate.gamesPlayed, 1, 'PARTIDA')
+  },
+  {
+    id: 'level_2',
+    title: 'ROMPEOLEADAS',
+    copy: 'Alcanza el nivel 2. El primer escalón debe enganchar, no expulsar.',
+    category: 'INICIO',
+    tier: 'BASE',
+    reward: { type: 'badge', id: 'vanguard' },
+    track: 'live',
+    status: ctx => buildLevelStatus(ctx.bestLevel, 2)
+  },
+  {
+    id: 'first_boss',
+    title: 'PRIMER BOSS',
+    copy: 'Derrota tu primer boss y desbloquea una skin de progresión real.',
+    category: 'PROGRESION',
+    tier: 'HITO',
+    reward: { type: 'skin', id: 'aurora' },
+    track: 'live',
+    status: ctx => buildCountStatus(ctx.totalBossesDefeated, 1, 'BOSS')
+  },
+  {
+    id: 'level_5',
+    title: 'NIVEL 5',
+    copy: 'Llega al nivel 5 para demostrar consistencia más allá del arranque.',
+    category: 'PROGRESION',
+    tier: 'CORE',
+    reward: { type: 'badge', id: 'ace' },
+    track: 'live',
+    status: ctx => buildLevelStatus(ctx.bestLevel, 5)
+  },
+  {
+    id: 'level_8',
+    title: 'SECTOR 8',
+    copy: 'Cruza el nivel 8. Aquí ya no vale con una buena racha aislada.',
+    category: 'PROGRESION',
+    tier: 'ELITE',
+    reward: { type: 'badge', id: 'legend' },
+    track: 'live',
+    status: ctx => buildLevelStatus(ctx.bestLevel, 8)
+  },
+  {
+    id: 'combo_4',
+    title: 'COMBO X4',
+    copy: 'Encadena un combo x4. Es el punto donde empieza a sentirse el flow.',
+    category: 'HABILIDAD',
+    tier: 'BASE',
+    reward: { type: 'badge', id: 'striker' },
+    track: 'live',
+    status: ctx => buildComboStatus(ctx.bestCombo, 4)
+  },
+  {
+    id: 'combo_8',
+    title: 'COMBO X8',
+    copy: 'Alcanza un combo x8 o superior y desbloquea una skin agresiva.',
+    category: 'HABILIDAD',
+    tier: 'CORE',
+    reward: { type: 'skin', id: 'crimson' },
+    track: 'live',
+    status: ctx => buildComboStatus(ctx.bestCombo, 8)
+  },
+  {
+    id: 'combo_12',
+    title: 'COMBO X12',
+    copy: 'Mantén una cadena x12. Ya no es suerte: es control total.',
+    category: 'HABILIDAD',
+    tier: 'ELITE',
+    reward: { type: 'badge', id: 'berserker' },
+    track: 'live',
+    status: ctx => buildComboStatus(ctx.bestCombo, 12)
+  },
+  {
+    id: 'marksman_60',
+    title: 'PULSO FIRME',
+    copy: 'Cierra una partida con 60% de precisión y al menos 25 disparos.',
+    category: 'HABILIDAD',
+    tier: 'CORE',
+    reward: { type: 'badge', id: 'scope' },
+    track: 'end',
+    status: ctx => buildPercentStatus(ctx.bestAccuracy25, 60, 25)
+  },
+  {
+    id: 'sharpshooter',
+    title: 'FRANCOTIRADOR',
+    copy: 'Termina una partida con 70% de precisión y 35 disparos o más.',
+    category: 'HABILIDAD',
+    tier: 'ELITE',
+    reward: { type: 'skin', id: 'solar' },
+    track: 'end',
+    status: ctx => buildPercentStatus(ctx.bestAccuracy35, 70, 35)
+  },
+  {
+    id: 'ufo_5',
+    title: 'CAZADOR UFO',
+    copy: 'Destruye 5 UFO en total para dominar el objetivo más rentable.',
+    category: 'COLECCION',
+    tier: 'CORE',
+    reward: { type: 'badge', id: 'raider' },
+    track: 'profile',
+    status: ctx => buildCountStatus(ctx.totalUfoDestroyed, 5, 'UFO')
+  },
+  {
+    id: 'power_12',
+    title: 'ARSENAL VIVO',
+    copy: 'Recoge 12 power-ups en total y exprime mejor el sandbox del juego.',
+    category: 'COLECCION',
+    tier: 'CORE',
+    reward: { type: 'badge', id: 'scavenger' },
+    track: 'profile',
+    status: ctx => buildCountStatus(ctx.totalPowerUpsCollected, 12, 'POWER-UP')
+  },
+  {
+    id: 'boss_3',
+    title: 'CAZABOSSES',
+    copy: 'Derrota 3 bosses en total para abrir la capa media del progreso.',
+    category: 'PROGRESION',
+    tier: 'ELITE',
+    reward: { type: 'badge', id: 'sentinel' },
+    track: 'profile',
+    status: ctx => buildCountStatus(ctx.totalBossesDefeated, 3, 'BOSS')
+  },
+  {
+    id: 'time_pilot',
+    title: 'PILOTO CRONO',
+    copy: 'Cierra tu primera partida en contrarreloj y entra en otro ritmo.',
+    category: 'MODOS',
+    tier: 'BASE',
+    reward: { type: 'badge', id: 'chrono' },
+    track: 'end',
+    status: ctx => buildCountStatus(ctx.aggregate.totalTimeAttackGames, 1, 'RUN')
+  },
+  {
+    id: 'time_master',
+    title: 'MAESTRO DEL TIEMPO',
+    copy: 'Alcanza 1800 puntos en contrarreloj para desbloquear una skin premium.',
+    category: 'MODOS',
+    tier: 'ELITE',
+    reward: { type: 'skin', id: 'eclipse' },
+    track: 'end',
+    status: ctx => buildScoreStatus(ctx.aggregate.bestTimeAttackScore, 1800)
+  },
+  {
+    id: 'challenge_streak',
+    title: 'OPERATIVO',
+    copy: 'Completa 3 desafíos activos. Es la puerta de entrada a la meta persistente.',
+    category: 'META',
+    tier: 'CORE',
+    reward: { type: 'badge', id: 'operative' },
+    track: 'meta',
+    status: ctx => buildCountStatus(ctx.meta.challengeCompletions, 3, 'SELLO')
+  },
+  {
+    id: 'challenge_7',
+    title: 'COMANDANCIA',
+    copy: 'Completa 7 desafíos activos y consolida tu perfil a largo plazo.',
+    category: 'META',
+    tier: 'ELITE',
+    reward: { type: 'badge', id: 'commander' },
+    track: 'meta',
+    status: ctx => buildCountStatus(ctx.meta.challengeCompletions, 7, 'SELLO')
+  }
+];
+
+const ACHIEVEMENT_MAP = Object.fromEntries(ACHIEVEMENT_DEFS.map(def => [def.id, def]));
+const ACHIEVEMENT_CATEGORIES = ['INICIO', 'PROGRESION', 'HABILIDAD', 'MODOS', 'COLECCION', 'META'];
 
 const CHALLENGE_DEFS = [
   {
     id: 'ufo_hunter',
     title: 'CAZADOR UFO',
     copy: 'Destruye 2 UFO en una sola partida.',
+    rewardCopy: 'RECOMPENSA: +1 sello de reto',
+    progressRatio: run => Math.min(1, run.ufoDestroyed / 2),
     progressText: run => `${Math.min(run.ufoDestroyed, 2)}/2 UFO`,
     isComplete: run => run.ufoDestroyed >= 2
   },
@@ -116,6 +330,8 @@ const CHALLENGE_DEFS = [
     id: 'combo_rush',
     title: 'RACHA DE COMBATE',
     copy: 'Alcanza un combo x6 en la partida activa.',
+    rewardCopy: 'RECOMPENSA: +1 sello de reto',
+    progressRatio: run => Math.min(1, run.maxCombo / 6),
     progressText: run => `COMBO x${Math.min(run.maxCombo, 6)}/x6`,
     isComplete: run => run.maxCombo >= 6
   },
@@ -123,8 +339,32 @@ const CHALLENGE_DEFS = [
     id: 'marksman',
     title: 'PUNTERIA FINA',
     copy: 'Cierra la partida con 65% de precision y 30 disparos o mas.',
+    rewardCopy: 'RECOMPENSA: +1 sello de reto',
+    progressRatio: run => {
+      const accuracyRatio = Math.min(1, getAccuracyPercent(run.shots, run.hits) / 65);
+      const shotsRatio = Math.min(1, run.shots / 30);
+      return Math.min(accuracyRatio, shotsRatio);
+    },
     progressText: run => `${getAccuracyPercent(run.shots, run.hits)}% · ${run.shots}/30`,
     isComplete: run => run.shots >= 30 && getAccuracyPercent(run.shots, run.hits) >= 65
+  },
+  {
+    id: 'power_surge',
+    title: 'SOBRECARGA',
+    copy: 'Recoge 3 power-ups en una sola partida.',
+    rewardCopy: 'RECOMPENSA: +1 sello de reto',
+    progressRatio: run => Math.min(1, run.powerUpsCollected / 3),
+    progressText: run => `${Math.min(run.powerUpsCollected, 3)}/3 power-ups`,
+    isComplete: run => run.powerUpsCollected >= 3
+  },
+  {
+    id: 'field_survivor',
+    title: 'LINEA CLARA',
+    copy: 'Llega al nivel 4 sin abandonar la sesión.',
+    rewardCopy: 'RECOMPENSA: +1 sello de reto',
+    progressRatio: () => Math.min(1, level / 4),
+    progressText: run => `NIV ${Math.min(level, 4)}/4`,
+    isComplete: () => level >= 4
   }
 ];
 
@@ -163,20 +403,64 @@ function loadMetaState() {
       ? stored.unlockedSkins.map(normalizeSkin).filter((value, index, array) => array.indexOf(value) === index)
       : ['classic'];
     if (!unlockedSkins.includes('classic')) unlockedSkins.unshift('classic');
+    const unlockedBadges = Array.isArray(stored.unlockedBadges)
+      ? stored.unlockedBadges.filter(id => BADGE_DEFS[id]).filter((value, index, array) => array.indexOf(value) === index)
+      : [];
+    const achievements = stored.achievements && typeof stored.achievements === 'object'
+      ? Object.fromEntries(Object.entries(stored.achievements).map(([id, value]) => {
+          if (!ACHIEVEMENT_MAP[id]) return [id, null];
+          if (value && typeof value === 'object') {
+            return [id, {
+              unlocked: value.unlocked === true,
+              unlockedAt: typeof value.unlockedAt === 'string' ? value.unlockedAt : null
+            }];
+          }
+          return [id, {
+            unlocked: value === true,
+            unlockedAt: null
+          }];
+        }).filter(([, value]) => value))
+      : {};
+    const completedChallenges = stored.completedChallenges && typeof stored.completedChallenges === 'object'
+      ? Object.fromEntries(Object.entries(stored.completedChallenges).map(([stamp, value]) => (
+          [stamp, value && typeof value === 'object'
+            ? {
+                completedAt: typeof value.completedAt === 'string' ? value.completedAt : null,
+                title: typeof value.title === 'string' ? value.title : ''
+              }
+            : {
+                completedAt: null,
+                title: ''
+              }]
+        )))
+      : {};
+    const unlockLog = Array.isArray(stored.unlockLog)
+      ? stored.unlockLog.filter(entry => entry && typeof entry === 'object').map(entry => ({
+          type: typeof entry.type === 'string' ? entry.type : 'meta',
+          title: typeof entry.title === 'string' ? entry.title : 'DESBLOQUEO',
+          detail: typeof entry.detail === 'string' ? entry.detail : '',
+          reward: typeof entry.reward === 'string' ? entry.reward : '',
+          at: typeof entry.at === 'string' ? entry.at : null
+        })).slice(0, 12)
+      : (typeof stored.latestUnlock === 'string' && stored.latestUnlock
+          ? [{ type: 'legacy', title: stored.latestUnlock, detail: 'Desbloqueo heredado', reward: '', at: null }]
+          : []);
     return {
       unlockedSkins,
-      achievements: stored.achievements && typeof stored.achievements === 'object' ? stored.achievements : {},
-      completedChallenges: stored.completedChallenges && typeof stored.completedChallenges === 'object' ? stored.completedChallenges : {},
+      unlockedBadges,
+      achievements,
+      completedChallenges,
       challengeCompletions: Math.max(0, Number(stored.challengeCompletions) || 0),
-      latestUnlock: typeof stored.latestUnlock === 'string' ? stored.latestUnlock : ''
+      unlockLog
     };
   } catch {
     return {
       unlockedSkins: ['classic'],
+      unlockedBadges: [],
       achievements: {},
       completedChallenges: {},
       challengeCompletions: 0,
-      latestUnlock: ''
+      unlockLog: []
     };
   }
 }
@@ -243,8 +527,13 @@ function loadAggregateStats() {
       totalUfoDestroyed: Math.max(0, Number(stored.totalUfoDestroyed) || 0),
       totalPowerUpsCollected: Math.max(0, Number(stored.totalPowerUpsCollected) || 0),
       totalBossesDefeated: Math.max(0, Number(stored.totalBossesDefeated) || 0),
+      totalClassicGames: Math.max(0, Number(stored.totalClassicGames) || 0),
+      totalTimeAttackGames: Math.max(0, Number(stored.totalTimeAttackGames) || 0),
       bestLevel: Math.max(0, Number(stored.bestLevel) || 0),
       bestCombo: Math.max(1, Number(stored.bestCombo) || 1),
+      bestTimeAttackScore: Math.max(0, Number(stored.bestTimeAttackScore) || 0),
+      bestAccuracy25: Math.max(0, Number(stored.bestAccuracy25) || 0),
+      bestAccuracy35: Math.max(0, Number(stored.bestAccuracy35) || 0),
       totalTimeMs: Math.max(0, Number(stored.totalTimeMs) || 0)
     };
   } catch {
@@ -257,8 +546,13 @@ function loadAggregateStats() {
       totalUfoDestroyed: 0,
       totalPowerUpsCollected: 0,
       totalBossesDefeated: 0,
+      totalClassicGames: 0,
+      totalTimeAttackGames: 0,
       bestLevel: 0,
       bestCombo: 1,
+      bestTimeAttackScore: 0,
+      bestAccuracy25: 0,
+      bestAccuracy35: 0,
       totalTimeMs: 0
     };
   }
@@ -329,6 +623,228 @@ function formatPlayedAt(value) {
   return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
 }
 
+function formatUnlockTimestamp(value) {
+  if (!value) return 'sin fecha';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'sin fecha';
+  return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+function buildCountStatus(value, target, unit) {
+  const safeValue = Math.max(0, Number(value) || 0);
+  return {
+    value: safeValue,
+    target,
+    ratio: Math.min(1, safeValue / target),
+    complete: safeValue >= target,
+    label: `${Math.min(safeValue, target)}/${target} ${unit}`
+  };
+}
+
+function buildLevelStatus(value, target) {
+  const safeValue = Math.max(0, Number(value) || 0);
+  return {
+    value: safeValue,
+    target,
+    ratio: Math.min(1, safeValue / target),
+    complete: safeValue >= target,
+    label: `NIV ${Math.min(safeValue, target)}/${target}`
+  };
+}
+
+function buildComboStatus(value, target) {
+  const safeValue = Math.max(1, Number(value) || 1);
+  return {
+    value: safeValue,
+    target,
+    ratio: Math.min(1, safeValue / target),
+    complete: safeValue >= target,
+    label: `COMBO x${Math.min(safeValue, target)}/x${target}`
+  };
+}
+
+function buildScoreStatus(value, target) {
+  const safeValue = Math.max(0, Number(value) || 0);
+  return {
+    value: safeValue,
+    target,
+    ratio: Math.min(1, safeValue / target),
+    complete: safeValue >= target,
+    label: `${Math.min(safeValue, target)}/${target} PTS`
+  };
+}
+
+function buildPercentStatus(value, target, shotsThreshold) {
+  const safeValue = Math.max(0, Number(value) || 0);
+  return {
+    value: safeValue,
+    target,
+    ratio: Math.min(1, safeValue / target),
+    complete: safeValue >= target,
+    label: `${Math.min(safeValue, target)}%/${target}% · ${shotsThreshold}+ DISP`
+  };
+}
+
+function getRewardLabel(reward) {
+  if (!reward) return 'SIN RECOMPENSA EXTRA';
+  if (reward.type === 'skin' && SKIN_THEMES[reward.id]) return `SKIN ${SKIN_THEMES[reward.id].label}`;
+  if (reward.type === 'badge' && BADGE_DEFS[reward.id]) return `INSIGNIA ${BADGE_DEFS[reward.id].label}`;
+  return 'RECOMPENSA META';
+}
+
+function createUnlockLogEntry(type, title, detail = '', reward = '') {
+  return {
+    type,
+    title,
+    detail,
+    reward,
+    at: new Date().toISOString()
+  };
+}
+
+function pushUnlockLog(entry) {
+  metaState.unlockLog.unshift(entry);
+  metaState.unlockLog = metaState.unlockLog.slice(0, 12);
+}
+
+function getLatestUnlockEntry() {
+  return metaState.unlockLog[0] || null;
+}
+
+function getAchievementState(id) {
+  const stored = metaState.achievements[id];
+  if (!stored || typeof stored !== 'object') {
+    return { unlocked: false, unlockedAt: null };
+  }
+  return {
+    unlocked: stored.unlocked === true,
+    unlockedAt: typeof stored.unlockedAt === 'string' ? stored.unlockedAt : null
+  };
+}
+
+function isAchievementUnlocked(id) {
+  return getAchievementState(id).unlocked;
+}
+
+function setAchievementUnlocked(id, unlockedAt = new Date().toISOString()) {
+  metaState.achievements[id] = { unlocked: true, unlockedAt };
+}
+
+function getLiveRunSnapshot() {
+  const activeMode = running ? currentRunStats.mode : gameSettings.mode;
+  return {
+    score: score || 0,
+    level: level || 1,
+    lives: lives || 0,
+    shots: currentRunStats.shots,
+    hits: currentRunStats.hits,
+    enemiesDestroyed: currentRunStats.enemiesDestroyed,
+    ufoDestroyed: currentRunStats.ufoDestroyed,
+    powerUpsCollected: currentRunStats.powerUpsCollected,
+    bossesDefeated: currentRunStats.bossesDefeated,
+    maxCombo: currentRunStats.maxCombo,
+    accuracy: getAccuracyPercent(currentRunStats.shots, currentRunStats.hits),
+    difficulty: currentRunStats.difficulty || gameSettings.difficulty,
+    mode: activeMode,
+    durationMs: currentRunStats.startedAt ? Math.max(0, Date.now() - currentRunStats.startedAt) : 0
+  };
+}
+
+function buildAchievementContext({ live = false } = {}) {
+  const run = live ? getLiveRunSnapshot() : null;
+  return {
+    run,
+    meta: metaState,
+    aggregate: aggregateStats,
+    totalUfoDestroyed: aggregateStats.totalUfoDestroyed + (run ? run.ufoDestroyed : 0),
+    totalPowerUpsCollected: aggregateStats.totalPowerUpsCollected + (run ? run.powerUpsCollected : 0),
+    totalBossesDefeated: aggregateStats.totalBossesDefeated + (run ? run.bossesDefeated : 0),
+    bestLevel: Math.max(aggregateStats.bestLevel, run ? run.level : 0),
+    bestCombo: Math.max(aggregateStats.bestCombo, run ? run.maxCombo : 1),
+    bestAccuracy25: Math.max(aggregateStats.bestAccuracy25, run && run.shots >= 25 ? run.accuracy : 0),
+    bestAccuracy35: Math.max(aggregateStats.bestAccuracy35, run && run.shots >= 35 ? run.accuracy : 0),
+    bestTimeAttackScore: Math.max(aggregateStats.bestTimeAttackScore, run && run.mode === 'timeattack' ? run.score : 0)
+  };
+}
+
+function getAchievementProgress(def, context = buildAchievementContext()) {
+  return def.status(context);
+}
+
+function getAchievementProgressRatio(def, context = buildAchievementContext()) {
+  return getAchievementProgress(def, context).ratio;
+}
+
+function countUnlockedAchievements() {
+  return ACHIEVEMENT_DEFS.filter(def => isAchievementUnlocked(def.id)).length;
+}
+
+function countCategoryAchievements(category) {
+  return ACHIEVEMENT_DEFS.filter(def => def.category === category).length;
+}
+
+function countUnlockedCategoryAchievements(category) {
+  return ACHIEVEMENT_DEFS.filter(def => def.category === category && isAchievementUnlocked(def.id)).length;
+}
+
+function getNearestAchievements(limit = 3, context = buildAchievementContext()) {
+  return ACHIEVEMENT_DEFS
+    .filter(def => !isAchievementUnlocked(def.id))
+    .map(def => ({ def, progress: getAchievementProgress(def, context) }))
+    .sort((a, b) => b.progress.ratio - a.progress.ratio || a.progress.target - b.progress.target || a.def.title.localeCompare(b.def.title))
+    .slice(0, limit);
+}
+
+function getRecentUnlockedAchievements(limit = 4) {
+  return ACHIEVEMENT_DEFS
+    .filter(def => isAchievementUnlocked(def.id))
+    .map(def => ({ def, state: getAchievementState(def.id) }))
+    .sort((a, b) => new Date(b.state.unlockedAt || 0) - new Date(a.state.unlockedAt || 0))
+    .slice(0, limit);
+}
+
+function getPendingAchievementsByCategory(context = buildAchievementContext()) {
+  return ACHIEVEMENT_CATEGORIES.map(category => {
+    const items = ACHIEVEMENT_DEFS
+      .filter(def => def.category === category && !isAchievementUnlocked(def.id))
+      .map(def => ({ def, progress: getAchievementProgress(def, context) }))
+      .sort((a, b) => b.progress.ratio - a.progress.ratio || a.progress.target - b.progress.target || a.def.title.localeCompare(b.def.title));
+    return { category, items };
+  }).filter(group => group.items.length);
+}
+
+function getCompletedAchievementsByCategory() {
+  return ACHIEVEMENT_CATEGORIES.map(category => {
+    const items = ACHIEVEMENT_DEFS
+      .filter(def => def.category === category && isAchievementUnlocked(def.id))
+      .map(def => ({ def, state: getAchievementState(def.id) }))
+      .sort((a, b) => new Date(b.state.unlockedAt || 0) - new Date(a.state.unlockedAt || 0));
+    return { category, items };
+  }).filter(group => group.items.length);
+}
+
+function renderStartObjectiveEntry(def, { progress = null, unlocked = false, unlockedAt = null } = {}) {
+  const stateLabel = unlocked ? 'LOGRADO' : progress.label;
+  const rewardLabel = getRewardLabel(def.reward);
+  return `
+    <div class="start-objective-item${unlocked ? ' is-unlocked' : ''}">
+      <div class="start-objective-item-head">
+        <div class="start-objective-item-copy">
+          <span class="objective-kicker">${def.category} · ${def.tier}</span>
+          <strong class="objective-title">${def.title}</strong>
+        </div>
+        <span class="achievement-state${unlocked ? ' is-unlocked' : ''}">${stateLabel}</span>
+      </div>
+      <span class="objective-copy">${def.copy}</span>
+      ${renderProgressMeter(unlocked ? 1 : progress.ratio)}
+      <div class="start-objective-item-meta">
+        <span class="objective-reward">${rewardLabel}</span>
+        <span class="objective-progress${unlocked ? ' is-complete' : ''}">${unlocked ? `Desbloqueado ${formatUnlockTimestamp(unlockedAt)}` : 'Objetivo pendiente'}</span>
+      </div>
+    </div>
+  `;
+}
+
 function getLocalDateKey() {
   const now = new Date();
   const year = now.getFullYear();
@@ -355,6 +871,27 @@ function getCurrentTheme() {
 
 function persistMetaState() {
   localStorage.setItem(META_KEY, JSON.stringify(metaState));
+}
+
+function grantBadge(id, { silent = false } = {}) {
+  if (!BADGE_DEFS[id] || metaState.unlockedBadges.includes(id)) return false;
+  metaState.unlockedBadges.push(id);
+  if (!silent) {
+    pushUnlockLog(createUnlockLogEntry('badge', BADGE_DEFS[id].label, BADGE_DEFS[id].copy, `INSIGNIA ${BADGE_DEFS[id].label}`));
+  }
+  return true;
+}
+
+function syncUnlockedRewardsFromAchievements() {
+  for (const def of ACHIEVEMENT_DEFS) {
+    if (!isAchievementUnlocked(def.id) || !def.reward) continue;
+    if (def.reward.type === 'skin' && SKIN_THEMES[def.reward.id] && !metaState.unlockedSkins.includes(def.reward.id)) {
+      metaState.unlockedSkins.push(def.reward.id);
+    }
+    if (def.reward.type === 'badge') {
+      grantBadge(def.reward.id, { silent: true });
+    }
+  }
 }
 
 function sanitizeSelectedSkin() {
@@ -387,12 +924,44 @@ function isCurrentChallengeComplete(runStats = currentRunStats) {
   return currentChallenge.isComplete(runStats);
 }
 
-function awardAchievement(id) {
-  if (metaState.achievements[id]) return false;
-  metaState.achievements[id] = true;
-  metaState.latestUnlock = ACHIEVEMENT_DEFS[id].title;
+function unlockSkin(id, { silent = false } = {}) {
+  if (!SKIN_THEMES[id] || metaState.unlockedSkins.includes(id)) return false;
+  metaState.unlockedSkins.push(id);
+  if (!silent) {
+    pushUnlockLog(createUnlockLogEntry('skin', SKIN_THEMES[id].label, 'Skin desbloqueada.', `SKIN ${SKIN_THEMES[id].label}`));
+  }
+  refreshSkinOptions();
+  if (!silent) {
+    spawnFloatingText(canvas.width / 2, canvas.height * 0.34, SKIN_THEMES[id].label, '#ffffff');
+    triggerCinematicFlash(0.08);
+  }
+  return true;
+}
+
+function grantReward(reward, { silent = false } = {}) {
+  if (!reward) return false;
+  if (reward.type === 'skin') {
+    return unlockSkin(reward.id, { silent });
+  }
+  if (reward.type === 'badge') {
+    return grantBadge(reward.id, { silent });
+  }
+  return false;
+}
+
+function awardAchievement(id, { silent = false } = {}) {
+  const def = ACHIEVEMENT_MAP[id];
+  if (!def || isAchievementUnlocked(id)) return false;
+  setAchievementUnlocked(id);
+  const rewardLabel = getRewardLabel(def.reward);
+  grantReward(def.reward, { silent: true });
+  if (!silent) {
+    pushUnlockLog(createUnlockLogEntry('achievement', def.title, def.copy, rewardLabel));
+  }
   persistMetaState();
-  spawnFloatingText(canvas.width / 2, canvas.height * 0.28, ACHIEVEMENT_DEFS[id].title, '#ffef88');
+  refreshSkinOptions();
+  if (silent) return true;
+  spawnFloatingText(canvas.width / 2, canvas.height * 0.28, def.title, '#ffef88');
   spawnShockwave(canvas.width / 2, canvas.height * 0.28, 'rgba(255,239,136,0.38)', 18, 3.2);
   spawnParticleBurst(canvas.width / 2, canvas.height * 0.28, {
     count: 18,
@@ -403,18 +972,27 @@ function awardAchievement(id) {
     lifeMax: 36
   });
   addScreenShake(3);
+  if (def.reward) {
+    spawnFloatingText(canvas.width / 2, canvas.height * 0.34, rewardLabel, '#ffffff');
+    triggerCinematicFlash(0.08);
+  }
   return true;
 }
 
-function unlockSkin(id) {
-  if (metaState.unlockedSkins.includes(id)) return false;
-  metaState.unlockedSkins.push(id);
-  metaState.latestUnlock = `SKIN ${SKIN_THEMES[id].label}`;
-  persistMetaState();
-  refreshSkinOptions();
-  spawnFloatingText(canvas.width / 2, canvas.height * 0.34, SKIN_THEMES[id].label, '#ffffff');
-  triggerCinematicFlash(0.08);
-  return true;
+function evaluateAchievements(track, { live = false, silent = false } = {}) {
+  const context = buildAchievementContext({ live });
+  let changed = false;
+  for (const def of ACHIEVEMENT_DEFS) {
+    if (def.track !== track || isAchievementUnlocked(def.id)) continue;
+    const progress = getAchievementProgress(def, context);
+    if (progress.complete) {
+      changed = awardAchievement(def.id, { silent }) || changed;
+    }
+  }
+  if (changed) {
+    persistMetaState();
+  }
+  return changed;
 }
 
 function setPanelVisibility(panel, visible) {
@@ -497,12 +1075,14 @@ function renderRunStats(entry, mode = overlayMode) {
 function renderStatsPanel() {
   const globalAccuracy = getAccuracyPercent(aggregateStats.totalShots, aggregateStats.totalHits);
   statsSummaryEl.innerHTML = aggregateStats.gamesPlayed === 0
-    ? '<div class="stats-empty">Todavia no hay partidas registradas.</div>'
+      ? '<div class="stats-empty">Todavia no hay partidas registradas.</div>'
     : [
         ['Partidas', aggregateStats.gamesPlayed],
+        ['Modos', `${aggregateStats.totalClassicGames} clasico · ${aggregateStats.totalTimeAttackGames} contrarreloj`],
         ['Puntos totales', aggregateStats.totalScore],
         ['Mejor nivel', aggregateStats.bestLevel],
         ['Mejor combo', `x${aggregateStats.bestCombo}`],
+        ['Mejor contrarreloj', `${aggregateStats.bestTimeAttackScore} pts`],
         ['Power-ups', aggregateStats.totalPowerUpsCollected],
         ['Bosses vencidos', aggregateStats.totalBossesDefeated],
         ['Precision global', `${globalAccuracy}%`],
@@ -516,43 +1096,322 @@ function renderStatsPanel() {
       )).join('');
 }
 
+function getChallengeMilestoneStatus() {
+  if (metaState.challengeCompletions < 3) {
+    return {
+      title: 'OPERATIVO',
+      copy: 'Al completar 3 desafíos desbloqueas una insignia meta.',
+      progress: `${metaState.challengeCompletions}/3 sellos`,
+      ratio: Math.min(1, metaState.challengeCompletions / 3),
+      reward: getRewardLabel(ACHIEVEMENT_MAP.challenge_streak.reward)
+    };
+  }
+  if (metaState.challengeCompletions < 7) {
+    return {
+      title: 'COMANDANCIA',
+      copy: 'El siguiente gran escalón llega con 7 desafíos completados.',
+      progress: `${metaState.challengeCompletions}/7 sellos`,
+      ratio: Math.min(1, metaState.challengeCompletions / 7),
+      reward: getRewardLabel(ACHIEVEMENT_MAP.challenge_7.reward)
+    };
+  }
+  return {
+    title: 'RUTA META COMPLETA',
+    copy: 'Ya has desbloqueado los dos hitos principales de desafíos.',
+    progress: `${metaState.challengeCompletions} sellos`,
+    ratio: 1,
+    reward: 'SIGUIENTE CAPA LISTA PARA EXPANDIR'
+  };
+}
+
+function renderProgressMeter(ratio) {
+  return `
+    <span class="progress-meter" aria-hidden="true">
+      <span class="progress-meter-fill" style="width:${Math.max(0, Math.min(100, ratio * 100))}%"></span>
+    </span>
+  `;
+}
+
+function renderAchievementPreview(def, progress, { compact = false } = {}) {
+  const unlocked = isAchievementUnlocked(def.id);
+  const state = getAchievementState(def.id);
+  const rewardLabel = getRewardLabel(def.reward);
+  return `
+    <div class="achievement-preview${unlocked ? ' is-unlocked' : ''}${compact ? ' is-compact' : ''}">
+      <div class="achievement-preview-head">
+        <span class="achievement-kicker">${def.category} · ${def.tier}</span>
+        <span class="achievement-chip${unlocked ? ' is-unlocked' : ''}">${unlocked ? 'COMPLETADO' : progress.label}</span>
+      </div>
+      <strong class="achievement-title">${def.title}</strong>
+      <span class="achievement-copy">${def.copy}</span>
+      ${renderProgressMeter(unlocked ? 1 : progress.ratio)}
+      <span class="achievement-reward">${rewardLabel}</span>
+      <span class="achievement-progress${unlocked ? ' is-unlocked' : ''}">${unlocked ? `Desbloqueado ${formatUnlockTimestamp(state.unlockedAt)}` : 'Objetivo activo'}</span>
+    </div>
+  `;
+}
+
 function renderMetaPanel() {
-  const unlockedAchievements = Object.keys(metaState.achievements).filter(id => metaState.achievements[id]);
+  const context = buildAchievementContext({ live: overlayMode === 'pause' });
+  const unlockedAchievements = countUnlockedAchievements();
+  const pendingAchievements = ACHIEVEMENT_DEFS.length - unlockedAchievements;
   const challengeCompleted = !!metaState.completedChallenges[getChallengeStamp()];
+  const challengeRatio = challengeCompleted ? 1 : (currentChallenge.progressRatio ? currentChallenge.progressRatio(currentRunStats) : 0);
+  const challengeMilestone = getChallengeMilestoneStatus();
+  const unlockedSkins = metaState.unlockedSkins.map(id => SKIN_THEMES[id].label).join(' · ');
+  const unlockedBadges = metaState.unlockedBadges.length
+    ? metaState.unlockedBadges.map(id => BADGE_DEFS[id].label).slice(0, 6).join(' · ')
+    : 'Aun sin insignias';
+  const recentUnlocks = metaState.unlockLog.slice(0, 3).map(entry => `
+    <div class="unlock-line">
+      <strong>${entry.title}</strong>
+      <span>${entry.reward || entry.detail}</span>
+    </div>
+  `).join('');
+
   challengeSummaryEl.innerHTML = `
     <div class="challenge-box">
       <div class="challenge-line">
-        <strong class="challenge-title">${currentChallenge.title}</strong>
+        <div class="challenge-head">
+          <strong class="challenge-title">${currentChallenge.title}</strong>
+          <span class="challenge-state${challengeCompleted ? ' is-complete' : ''}">${challengeCompleted ? 'COMPLETADO HOY' : getChallengeProgressText()}</span>
+        </div>
         <span class="challenge-copy">${currentChallenge.copy}</span>
-        <span class="challenge-progress${challengeCompleted ? ' is-complete' : ''}">${challengeCompleted ? 'COMPLETADO HOY' : getChallengeProgressText()}</span>
+        ${renderProgressMeter(challengeRatio)}
+        <span class="challenge-progress">${currentChallenge.rewardCopy}</span>
       </div>
       <div class="challenge-line">
-        <strong class="challenge-title">SKINS</strong>
-        <span class="challenge-copy">${metaState.unlockedSkins.map(id => SKIN_THEMES[id].label).join(' · ')}</span>
-        <span class="challenge-progress">ACTIVA ${SKIN_THEMES[gameSettings.skin].label}</span>
+        <div class="challenge-head">
+          <strong class="challenge-title">${challengeMilestone.title}</strong>
+          <span class="challenge-state">${challengeMilestone.progress}</span>
+        </div>
+        <span class="challenge-copy">${challengeMilestone.copy}</span>
+        ${renderProgressMeter(challengeMilestone.ratio)}
+        <span class="challenge-progress">SIGUIENTE RECOMPENSA · ${challengeMilestone.reward}</span>
+      </div>
+      <div class="challenge-line">
+        <div class="challenge-head">
+          <strong class="challenge-title">INVENTARIO META</strong>
+          <span class="challenge-state">${metaState.unlockedSkins.length}/${Object.keys(SKIN_THEMES).length} skins · ${metaState.unlockedBadges.length}/${Object.keys(BADGE_DEFS).length} insignias</span>
+        </div>
+        <span class="challenge-copy">Skins: ${unlockedSkins}</span>
+        <span class="challenge-progress">Insignias: ${unlockedBadges}</span>
       </div>
     </div>
   `;
 
-  const latestAchievements = Object.keys(ACHIEVEMENT_DEFS).slice(0, 5).map(id => {
-    const unlocked = !!metaState.achievements[id];
-    return `
-      <div class="achievement-line">
-        <strong class="achievement-title">${ACHIEVEMENT_DEFS[id].title}</strong>
-        <span class="achievement-copy">${ACHIEVEMENT_DEFS[id].copy}</span>
-        <span class="achievement-meta${unlocked ? ' is-unlocked' : ''}">${unlocked ? 'DESBLOQUEADO' : 'PENDIENTE'}</span>
+  const pendingGroupsHtml = getPendingAchievementsByCategory(context).map(({ category, items }) => `
+    <div class="achievement-group">
+      <div class="achievement-group-head">
+        <strong>${category}</strong>
+        <span>${items.length} por hacer</span>
       </div>
-    `;
-  }).join('');
+      ${items.map(({ def, progress }) => `
+        <div class="achievement-line">
+          <div class="achievement-head">
+            <strong class="achievement-title">${def.title}</strong>
+            <span class="achievement-state">${progress.label}</span>
+          </div>
+          <span class="achievement-copy">${def.copy}</span>
+          ${renderProgressMeter(progress.ratio)}
+          <span class="achievement-reward">${getRewardLabel(def.reward)}</span>
+          <span class="achievement-meta">${def.category} · ${def.tier}</span>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+
+  const completedGroupsHtml = getCompletedAchievementsByCategory().map(({ category, items }) => `
+    <div class="achievement-group">
+      <div class="achievement-group-head">
+        <strong>${category}</strong>
+        <span>${items.length} completados</span>
+      </div>
+      ${items.map(({ def, state }) => `
+        <div class="achievement-line is-unlocked">
+          <div class="achievement-head">
+            <strong class="achievement-title">${def.title}</strong>
+            <span class="achievement-state is-unlocked">COMPLETADO</span>
+          </div>
+          <span class="achievement-copy">${def.copy}</span>
+          ${renderProgressMeter(1)}
+          <span class="achievement-reward">${getRewardLabel(def.reward)}</span>
+          <span class="achievement-meta is-unlocked">Desbloqueado ${formatUnlockTimestamp(state.unlockedAt)}</span>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+
+  const tabBody = progressPanelTab === 'completed'
+    ? (completedGroupsHtml || '<div class="achievement-empty">Todavía no has completado ningún logro en esta sesión de perfil.</div>')
+    : (pendingGroupsHtml || '<div class="achievement-empty">Ya no quedan logros pendientes en el catálogo actual.</div>');
 
   achievementSummaryEl.innerHTML = `
     <div class="achievement-box">
-      <div class="achievement-line">
-        <strong class="achievement-title">LOGROS</strong>
-        <span class="achievement-copy">${unlockedAchievements.length}/${Object.keys(ACHIEVEMENT_DEFS).length} desbloqueados</span>
-        <span class="achievement-meta">${metaState.latestUnlock || 'SIN NUEVOS DESBLOQUEOS'}</span>
+      <div class="achievement-overview">
+        <div class="achievement-overview-head">
+          <div class="achievement-overview-copy">
+            <span class="achievement-kicker">PANORAMA META</span>
+            <strong class="achievement-title">PROGRESO GLOBAL</strong>
+            <span class="achievement-copy">La meta ya distingue entre inicio, progresión, habilidad, modos, colección y capa persistente.</span>
+          </div>
+          <span class="achievement-state">${unlockedAchievements}/${ACHIEVEMENT_DEFS.length} logros</span>
+        </div>
+        <div class="achievement-overview-stats">
+          <div class="achievement-overview-stat">
+            <span class="achievement-overview-label">Pendientes</span>
+            <strong>${pendingAchievements}</strong>
+          </div>
+          <div class="achievement-overview-stat">
+            <span class="achievement-overview-label">Completados</span>
+            <strong>${unlockedAchievements}</strong>
+          </div>
+          <div class="achievement-overview-stat">
+            <span class="achievement-overview-label">Insignias</span>
+            <strong>${metaState.unlockedBadges.length}</strong>
+          </div>
+        </div>
+        <span class="achievement-meta">${getLatestUnlockEntry() ? `${getLatestUnlockEntry().title} · ${getLatestUnlockEntry().reward || getLatestUnlockEntry().detail}` : 'Todavía no hay desbloqueos recientes.'}</span>
       </div>
-      ${latestAchievements}
+      ${recentUnlocks ? `<div class="unlock-log">${recentUnlocks}</div>` : ''}
+      <div class="achievement-tabs-shell">
+        <div class="achievement-tabs" role="tablist" aria-label="Filtro de progreso">
+          <button type="button" class="achievement-tab${progressPanelTab === 'pending' ? ' is-active' : ''}" data-progress-tab="pending" role="tab" aria-selected="${progressPanelTab === 'pending'}">POR HACER <span>${pendingAchievements}</span></button>
+          <button type="button" class="achievement-tab${progressPanelTab === 'completed' ? ' is-active' : ''}" data-progress-tab="completed" role="tab" aria-selected="${progressPanelTab === 'completed'}">COMPLETADOS <span>${unlockedAchievements}</span></button>
+        </div>
+        <span class="achievement-tabs-caption">${progressPanelTab === 'pending' ? 'Abre objetivos cercanos y recompensas pendientes.' : 'Consulta lo ya desbloqueado y cuándo se consiguió.'}</span>
+      </div>
+      <div class="achievement-tab-panel" data-active-tab="${progressPanelTab}">
+        ${tabBody}
+      </div>
+    </div>
+  `;
+}
+
+function renderStartScreenPanels() {
+  const globalAccuracy = getAccuracyPercent(aggregateStats.totalShots, aggregateStats.totalHits);
+  const latestSession = scoreHistory.length ? scoreHistory[0] : null;
+  const challengeCompleted = !!metaState.completedChallenges[getChallengeStamp()];
+  const unlockedAchievements = countUnlockedAchievements();
+  const pendingAchievements = ACHIEVEMENT_DEFS.length - unlockedAchievements;
+  const averageScore = aggregateStats.gamesPlayed ? Math.round(aggregateStats.totalScore / aggregateStats.gamesPlayed) : 0;
+  const bestLevel = aggregateStats.bestLevel || 1;
+  const bestCombo = aggregateStats.bestCombo || 1;
+  const startContext = buildAchievementContext();
+  const challengeMilestone = getChallengeMilestoneStatus();
+  const pendingGroups = getPendingAchievementsByCategory(startContext);
+  const completedGroups = getCompletedAchievementsByCategory();
+
+  const modeNoteEl = document.getElementById('mode-note');
+  const difficultyNoteEl = document.getElementById('difficulty-note');
+  const skinNoteEl = document.getElementById('skin-note');
+  if (startObjectivesCountEl) {
+    startObjectivesCountEl.textContent = `${unlockedAchievements}/${ACHIEVEMENT_DEFS.length}`;
+  }
+
+  if (modeNoteEl) {
+    modeNoteEl.textContent = gameSettings.mode === 'timeattack'
+      ? 'Contrarreloj aprieta desde el segundo uno y premia decisiones rápidas.'
+      : 'Clásico deja crecer la partida con power-ups, bosses y oleadas sin límite de tiempo.';
+  }
+  if (difficultyNoteEl) {
+    difficultyNoteEl.textContent = gameSettings.difficulty === 'easy'
+      ? 'Fácil acelera la entrada y deja margen para dominar el ritmo.'
+      : gameSettings.difficulty === 'hard'
+        ? 'Difícil reduce el margen de error y exprime mejor bosses y power-ups.'
+        : 'Normal mantiene el equilibrio base entre presión, progreso y control.';
+  }
+  if (skinNoteEl) {
+    skinNoteEl.textContent = `Skin activa ${SKIN_THEMES[gameSettings.skin].label}. ${metaState.unlockedSkins.length}/${Object.keys(SKIN_THEMES).length} desbloqueadas.`;
+  }
+
+  startSummaryEl.innerHTML = `
+    <div class="summary-grid">
+      <div class="summary-stat is-primary">
+        <span class="summary-label">MEJOR MARCA</span>
+        <strong class="summary-value">${highscore} pts</strong>
+        <span class="summary-copy">Tu techo actual está en nivel ${bestLevel} con combo máximo x${bestCombo}.</span>
+        <span class="summary-meta">${aggregateStats.totalTimeMs ? `Tiempo total ${formatDuration(aggregateStats.totalTimeMs)}` : 'Todavia sin tiempo acumulado relevante'}</span>
+      </div>
+      <div class="summary-stat">
+        <span class="summary-label">ULTIMA SESION</span>
+        <strong class="summary-value">${latestSession ? `${latestSession.score} pts` : 'SIN DATOS'}</strong>
+        <span class="summary-copy">${latestSession ? `Nivel ${latestSession.level} · ${latestSession.accuracy}% precisión · ${formatModeLabel(latestSession.mode)}` : 'Juega una partida para ver aquí tu cierre más reciente.'}</span>
+        <span class="summary-meta">${latestSession ? `${formatDifficultyLabel(latestSession.difficulty)} · ${formatPlayedAt(latestSession.playedAt)}` : 'Tu última sesión aparecerá aquí automáticamente.'}</span>
+      </div>
+      <div class="summary-stat">
+        <span class="summary-label">PERFIL</span>
+        <strong class="summary-value">${aggregateStats.gamesPlayed}</strong>
+        <span class="summary-copy">${aggregateStats.gamesPlayed ? `${globalAccuracy}% global · media ${averageScore} pts · ${aggregateStats.totalBossesDefeated} bosses · ${aggregateStats.totalUfoDestroyed} UFO` : 'Aún no hay suficiente histórico para perfilar tu estilo.'}</span>
+        <span class="summary-meta">${aggregateStats.totalPowerUpsCollected} power-ups · ${metaState.unlockedBadges.length} insignias · ${metaState.unlockedSkins.length}/${Object.keys(SKIN_THEMES).length} skins</span>
+      </div>
+    </div>
+    <div class="summary-ribbon">
+      <span class="summary-ribbon-label">ACTIVA</span>
+      <strong class="summary-ribbon-value">${formatModeLabel(gameSettings.mode)} · ${formatDifficultyLabel(gameSettings.difficulty)} · ${SKIN_THEMES[gameSettings.skin].label}</strong>
+      <span class="summary-ribbon-copy">${gameSettings.reducedEffects ? 'Efectos reducidos' : 'Visual completa'} · ${gameSettings.highContrast ? 'Alto contraste' : 'Contraste estándar'} · ${aggregateStats.totalTimeAttackGames} runs contrarreloj</span>
+    </div>
+  `;
+
+  startObjectiveEl.innerHTML = `
+    <div class="objective-card${challengeCompleted ? ' is-complete' : ''}">
+      <span class="objective-kicker">OBJETIVO ACTUAL</span>
+      <strong class="objective-title">${currentChallenge.title}</strong>
+      <span class="objective-copy">${currentChallenge.copy}</span>
+      <span class="objective-progress${challengeCompleted ? ' is-complete' : ''}">${challengeCompleted ? 'COMPLETADO HOY' : getChallengeProgressText()}</span>
+      ${renderProgressMeter(challengeCompleted ? 1 : (currentChallenge.progressRatio ? currentChallenge.progressRatio(currentRunStats) : 0))}
+      <span class="objective-reward">${currentChallenge.rewardCopy}</span>
+    </div>
+    <div class="objective-card">
+      <span class="objective-kicker">RUTA META</span>
+      <strong class="objective-title">${challengeMilestone.title}</strong>
+      <span class="objective-copy">${challengeMilestone.copy}</span>
+      <span class="objective-progress">${challengeMilestone.progress}</span>
+      ${renderProgressMeter(challengeMilestone.ratio)}
+      <span class="objective-reward">SIGUIENTE RECOMPENSA · ${challengeMilestone.reward}</span>
+    </div>
+  `;
+
+  const pendingTabBody = pendingGroups.length
+    ? pendingGroups.map(({ category, items }) => `
+        <div class="start-objective-group">
+          <div class="start-objective-group-head">
+            <strong>${category}</strong>
+            <span>${items.length} pendientes</span>
+          </div>
+          <div class="start-objective-list">
+            ${items.map(({ def, progress }) => renderStartObjectiveEntry(def, { progress })).join('')}
+          </div>
+        </div>
+      `).join('')
+    : '<div class="achievement-empty">Ya no quedan hitos pendientes en el catálogo actual.</div>';
+
+  const completedTabBody = completedGroups.length
+    ? completedGroups.map(({ category, items }) => `
+        <div class="start-objective-group">
+          <div class="start-objective-group-head">
+            <strong>${category}</strong>
+            <span>${items.length} logrados</span>
+          </div>
+          <div class="start-objective-list">
+            ${items.map(({ def, state }) => renderStartObjectiveEntry(def, { unlocked: true, unlockedAt: state.unlockedAt })).join('')}
+          </div>
+        </div>
+      `).join('')
+    : '<div class="achievement-empty">Todavía no has conseguido ningún objetivo.</div>';
+
+  startAchievementsEl.innerHTML = `
+    <div class="start-objectives-shell">
+      <div class="start-objective-tabs-shell">
+        <div class="start-objective-tabs" role="tablist" aria-label="Estado de objetivos">
+          <button type="button" class="start-objective-tab${startObjectivesTab === 'pending' ? ' is-active' : ''}" data-start-objectives-tab="pending" role="tab" aria-selected="${startObjectivesTab === 'pending'}">PENDIENTES <span>${pendingAchievements}</span></button>
+          <button type="button" class="start-objective-tab${startObjectivesTab === 'completed' ? ' is-active' : ''}" data-start-objectives-tab="completed" role="tab" aria-selected="${startObjectivesTab === 'completed'}">LOGRADOS <span>${unlockedAchievements}</span></button>
+        </div>
+        <span class="start-objective-tabs-caption">${startObjectivesTab === 'pending' ? 'Revisa todo lo que aún te queda por conseguir, empezando por lo más cercano.' : 'Consulta todos los hitos ya completados dentro de tu perfil actual.'}</span>
+      </div>
+      <div class="start-objective-tab-panel" data-active-tab="${startObjectivesTab}">
+        ${startObjectivesTab === 'pending' ? pendingTabBody : completedTabBody}
+      </div>
     </div>
   `;
 }
@@ -560,9 +1419,12 @@ function renderMetaPanel() {
 function completeCurrentChallengeIfNeeded() {
   const stamp = getChallengeStamp();
   if (!metaState.completedChallenges[stamp] && isCurrentChallengeComplete()) {
-    metaState.completedChallenges[stamp] = true;
+    metaState.completedChallenges[stamp] = {
+      completedAt: new Date().toISOString(),
+      title: currentChallenge.title
+    };
     metaState.challengeCompletions += 1;
-    metaState.latestUnlock = currentChallenge.title;
+    pushUnlockLog(createUnlockLogEntry('challenge', currentChallenge.title, 'Desafío activo completado.', '+1 sello de reto'));
     persistMetaState();
     spawnFloatingText(canvas.width / 2, canvas.height * 0.24, currentChallenge.title, '#9ed8ff');
     spawnShockwave(canvas.width / 2, canvas.height * 0.24, 'rgba(158,216,255,0.34)', 16, 2.8);
@@ -574,21 +1436,32 @@ function completeCurrentChallengeIfNeeded() {
       lifeMin: 20,
       lifeMax: 34
     });
-    if (metaState.challengeCompletions >= 3) {
-      awardAchievement('challenge_streak');
-    }
+    evaluateAchievements('meta');
     renderMetaPanel();
+    renderStartScreenPanels();
   }
 }
 
 function checkMidRunMilestones() {
-  if (currentRunStats.maxCombo >= 8) {
-    if (awardAchievement('combo_8')) unlockSkin('crimson');
-  }
-  if (level >= 5) {
-    awardAchievement('level_5');
-  }
+  evaluateAchievements('live', { live: true });
   completeCurrentChallengeIfNeeded();
+}
+
+function returnToMenu() {
+  running = false;
+  paused = false;
+  showingLevelScreen = false;
+  combo = 0;
+  comboTimer = 0;
+  screenShake = 0;
+  cinematicFlash = 0;
+  playerBullets.length = 0;
+  enemyBullets.length = 0;
+  powerUps.length = 0;
+  resetBoss();
+  updateHudStatus();
+  setOverlayMode('start');
+  draw();
 }
 
 function setOverlayMode(mode, entry = null) {
@@ -596,28 +1469,35 @@ function setOverlayMode(mode, entry = null) {
   overlay.dataset.mode = mode;
   renderStatsPanel();
   renderMetaPanel();
+  renderStartScreenPanels();
 
   if (mode === 'start') {
     overlayKicker.textContent = 'ARCADE SESSION';
     overlayTitle.textContent = 'SPACE INVADERS';
-    overlayMsg.innerHTML = 'Pulsa <strong>ENTER</strong> o toca para empezar';
+    overlayMsg.innerHTML = 'Elige cómo vas a jugar, revisa tu progreso y entra con un objetivo claro desde el primer segundo.';
     btnStart.textContent = 'JUGAR';
-    runPanelTitle.textContent = 'RESUMEN';
-    runPanelBadge.textContent = 'PARTIDA';
-    setPanelVisibility(settingsPanel, true);
+    btnMenu.hidden = true;
+    setPanelVisibility(gameSettingsPanel, true);
+    setPanelVisibility(visualSettingsPanel, true);
+    setPanelVisibility(startSummaryPanel, true);
+    setPanelVisibility(startObjectivesPanel, true);
     setPanelVisibility(runPanel, false);
     setPanelVisibility(aggregatePanel, false);
     setPanelVisibility(historyPanel, false);
-    setPanelVisibility(metaPanel, true);
+    setPanelVisibility(metaPanel, false);
   } else if (mode === 'pause') {
     overlayKicker.textContent = 'PARTIDA EN CURSO';
     overlayTitle.textContent = 'PAUSA';
     overlayMsg.innerHTML = 'Has detenido la partida. Revisa tu progreso y continua cuando quieras.';
     btnStart.textContent = 'CONTINUAR';
+    btnMenu.hidden = true;
     runPanelTitle.textContent = 'PARTIDA ACTUAL';
     runPanelBadge.textContent = formatModeLabel(currentRunStats.mode);
     renderRunStats(entry, mode);
-    setPanelVisibility(settingsPanel, false);
+    setPanelVisibility(gameSettingsPanel, false);
+    setPanelVisibility(visualSettingsPanel, false);
+    setPanelVisibility(startSummaryPanel, false);
+    setPanelVisibility(startObjectivesPanel, false);
     setPanelVisibility(runPanel, true);
     setPanelVisibility(aggregatePanel, true);
     setPanelVisibility(historyPanel, true);
@@ -627,15 +1507,19 @@ function setOverlayMode(mode, entry = null) {
     overlayKicker.textContent = timeout ? 'CUENTA ATRAS AGOTADA' : 'SESION FINALIZADA';
     overlayTitle.textContent = timeout ? 'TIEMPO' : 'GAME OVER';
     overlayMsg.innerHTML = timeout
-      ? 'El contrarreloj ha llegado a cero. Tienes el resumen y tus marcas listas para la siguiente partida.'
+      ? 'El contrarreloj ha llegado a cero. Tienes un cierre claro de la sesión, el progreso ganado y dos salidas rápidas para volver a entrar o reajustar la partida.'
       : entry && entry.score >= highscore
-        ? 'Has cerrado la partida con una gran marca. Revisa el resumen antes de volver a intentarlo.'
-        : 'La partida ha terminado. Tienes el resumen y tu historial justo aqui, sin ruido extra.';
+        ? 'Has firmado una gran marca. Revisa el cierre de la partida, los desbloqueos logrados y decide si relanzas otra run o vuelves al menú.'
+        : 'La partida ha terminado. Aquí tienes el cierre completo, tu progreso y el siguiente paso claro sin ruido extra.';
     btnStart.textContent = 'REINTENTAR';
+    btnMenu.hidden = false;
     runPanelTitle.textContent = 'ULTIMA PARTIDA';
     runPanelBadge.textContent = formatModeLabel(entry?.mode || currentRunStats.mode);
     renderRunStats(entry, mode);
-    setPanelVisibility(settingsPanel, false);
+    setPanelVisibility(gameSettingsPanel, false);
+    setPanelVisibility(visualSettingsPanel, false);
+    setPanelVisibility(startSummaryPanel, false);
+    setPanelVisibility(startObjectivesPanel, false);
     setPanelVisibility(runPanel, true);
     setPanelVisibility(aggregatePanel, true);
     setPanelVisibility(historyPanel, true);
@@ -647,12 +1531,19 @@ function setOverlayMode(mode, entry = null) {
 
 let gameSettings = loadSettings();
 let metaState = loadMetaState();
+syncUnlockedRewardsFromAchievements();
 sanitizeSelectedSkin();
 let currentChallenge = getCurrentChallengeDefinition();
 let scoreHistory = loadScoreHistory();
 let aggregateStats = loadAggregateStats();
 let currentRunStats = createRunStats();
 let overlayMode = 'start';
+let progressPanelTab = 'pending';
+let startObjectivesTab = 'pending';
+evaluateAchievements('profile', { silent: true });
+evaluateAchievements('end', { silent: true });
+evaluateAchievements('meta', { silent: true });
+persistMetaState();
 
 let highscore = parseInt(localStorage.getItem('si_hs') || '0', 10);
 highscoreEl.textContent = highscore;
@@ -894,6 +1785,7 @@ btnStart.addEventListener('click', () => {
   if (overlayMode === 'pause') togglePause();
   else startGame();
 });
+btnMenu.addEventListener('click', returnToMenu);
 btnMusic.addEventListener('click', toggleMusic);
 btnFullscreen.addEventListener('click', toggleFullscreen);
 musicVolumeEl.addEventListener('input', event => {
@@ -907,6 +1799,7 @@ difficultySelect.addEventListener('change', event => {
   gameSettings.difficulty = normalizeDifficulty(event.target.value);
   persistGameSettings();
   applySettingsUI();
+  renderStartScreenPanels();
 });
 skinSelect.addEventListener('change', event => {
   const nextSkin = normalizeSkin(event.target.value);
@@ -918,26 +1811,47 @@ skinSelect.addEventListener('change', event => {
   persistGameSettings();
   applySettingsUI();
   renderMetaPanel();
+  renderStartScreenPanels();
 });
 modeSelect.addEventListener('change', event => {
   gameSettings.mode = normalizeGameMode(event.target.value);
   persistGameSettings();
   applySettingsUI();
   updateHudStatus();
+  renderStartScreenPanels();
 });
 vibrationToggle.addEventListener('change', event => {
   gameSettings.vibration = !!event.target.checked;
   persistGameSettings();
+  renderStartScreenPanels();
 });
 reducedEffectsToggle.addEventListener('change', event => {
   gameSettings.reducedEffects = !!event.target.checked;
   persistGameSettings();
   applySettingsUI();
+  renderStartScreenPanels();
 });
 highContrastToggle.addEventListener('change', event => {
   gameSettings.highContrast = !!event.target.checked;
   persistGameSettings();
   applySettingsUI();
+  renderStartScreenPanels();
+});
+achievementSummaryEl.addEventListener('click', event => {
+  const trigger = event.target.closest('[data-progress-tab]');
+  if (!trigger) return;
+  const nextTab = trigger.dataset.progressTab === 'completed' ? 'completed' : 'pending';
+  if (progressPanelTab === nextTab) return;
+  progressPanelTab = nextTab;
+  renderMetaPanel();
+});
+startAchievementsEl.addEventListener('click', event => {
+  const trigger = event.target.closest('[data-start-objectives-tab]');
+  if (!trigger) return;
+  const nextTab = trigger.dataset.startObjectivesTab === 'completed' ? 'completed' : 'pending';
+  if (startObjectivesTab === nextTab) return;
+  startObjectivesTab = nextTab;
+  renderStartScreenPanels();
 });
 document.addEventListener('fullscreenchange', updateFullscreenUI);
 
@@ -1312,7 +2226,6 @@ function completeLevel() {
 
 function defeatBoss() {
   currentRunStats.bossesDefeated++;
-  if (awardAchievement('first_boss')) unlockSkin('aurora');
   score += 500 + level * 50;
   scoreEl.textContent = score;
   syncHighscore();
@@ -1331,6 +2244,7 @@ function defeatBoss() {
   addScreenShake(14);
   triggerCinematicFlash(0.22);
   resetBoss();
+  evaluateAchievements('live', { live: true });
   completeLevel();
 }
 
@@ -2192,8 +3106,13 @@ function updateAggregateStats(entry) {
   aggregateStats.totalUfoDestroyed += entry.ufoDestroyed;
   aggregateStats.totalPowerUpsCollected += entry.powerUpsCollected;
   aggregateStats.totalBossesDefeated += entry.bossesDefeated;
+  if (entry.mode === 'timeattack') aggregateStats.totalTimeAttackGames += 1;
+  else aggregateStats.totalClassicGames += 1;
   aggregateStats.bestLevel = Math.max(aggregateStats.bestLevel, entry.level);
   aggregateStats.bestCombo = Math.max(aggregateStats.bestCombo, entry.maxCombo);
+  if (entry.mode === 'timeattack') aggregateStats.bestTimeAttackScore = Math.max(aggregateStats.bestTimeAttackScore, entry.score);
+  if (entry.shots >= 25) aggregateStats.bestAccuracy25 = Math.max(aggregateStats.bestAccuracy25, entry.accuracy);
+  if (entry.shots >= 35) aggregateStats.bestAccuracy35 = Math.max(aggregateStats.bestAccuracy35, entry.accuracy);
   aggregateStats.totalTimeMs += entry.durationMs;
   saveAggregateStats();
 }
@@ -2208,10 +3127,8 @@ function gameOver(reason = 'defeat') {
   powerUps.length = 0;
 
   const durationMs = Math.max(0, Date.now() - currentRunStats.startedAt);
-  const finalAccuracy = getAccuracyPercent(currentRunStats.shots, currentRunStats.hits);
-  if (currentRunStats.shots >= 35 && finalAccuracy >= 70) {
-    awardAchievement('sharpshooter');
-  }
+  const finalSnapshot = getLiveRunSnapshot();
+  const finalAccuracy = finalSnapshot.accuracy;
   completeCurrentChallengeIfNeeded();
   const entry = {
     score,
@@ -2233,6 +3150,8 @@ function gameOver(reason = 'defeat') {
 
   saveScore(entry);
   updateAggregateStats(entry);
+  evaluateAchievements('end');
+  evaluateAchievements('profile');
   setOverlayMode('gameover', entry);
   updateHudStatus();
 }
