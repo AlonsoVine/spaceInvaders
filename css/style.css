@@ -34,7 +34,97 @@ body {
   gap: 4px;
 }
 
+#header span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 #header strong { color: #fff; }
+
+#status-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 30px;
+  padding: 0 8px 8px;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 4px 8px;
+  border: 1px solid rgba(0,255,136,0.16);
+  background: rgba(0,255,136,0.06);
+  color: #8fdcb3;
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+
+#boss-status {
+  color: #ff8cb8;
+  border-color: rgba(255,68,136,0.3);
+  background: rgba(255,20,102,0.1);
+}
+
+#timer.is-warning {
+  color: #ffef88;
+  text-shadow: 0 0 8px rgba(255,239,136,0.32);
+}
+
+#lives {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 20px;
+}
+
+.life-heart {
+  --heart-color: #ff5f8c;
+  position: relative;
+  width: 18px;
+  height: 18px;
+  display: inline-block;
+  filter: drop-shadow(0 0 4px rgba(255,95,140,0.35));
+}
+
+.life-heart::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 3px;
+  background: var(--heart-color);
+  box-shadow:
+    3px 0 var(--heart-color),
+    9px 0 var(--heart-color),
+    12px 0 var(--heart-color),
+    0 3px var(--heart-color),
+    6px 3px var(--heart-color),
+    15px 3px var(--heart-color),
+    0 6px var(--heart-color),
+    3px 6px var(--heart-color),
+    6px 6px var(--heart-color),
+    9px 6px var(--heart-color),
+    12px 6px var(--heart-color),
+    15px 6px var(--heart-color),
+    3px 9px var(--heart-color),
+    6px 9px var(--heart-color),
+    9px 9px var(--heart-color),
+    12px 9px var(--heart-color),
+    6px 12px var(--heart-color),
+    9px 12px var(--heart-color),
+    6px 15px var(--heart-color),
+    9px 15px var(--heart-color);
+}
+
+.life-heart.is-empty {
+  --heart-color: rgba(255,95,140,0.22);
+  filter: none;
+}
 
 #gameCanvas {
   display: block;
@@ -169,6 +259,17 @@ body {
 }
 
 #difficulty-select {
+  min-width: 130px;
+  max-width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #00ff88;
+  background: #04160e;
+  color: #00ff88;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+}
+
+#mode-select {
   min-width: 130px;
   max-width: 100%;
   padding: 8px 10px;
@@ -571,6 +672,16 @@ body:fullscreen #meta-footer {
     align-items: flex-start;
   }
 
+  #status-bar {
+    min-height: 24px;
+    padding: 0 8px 6px;
+  }
+
+  .status-chip {
+    font-size: 9px;
+    padding: 4px 7px;
+  }
+
   #audio-controls {
     justify-content: center;
     gap: 12px;
@@ -665,6 +776,11 @@ body:fullscreen #meta-footer {
   }
 
   #difficulty-select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  #mode-select {
     width: 100%;
     min-width: 0;
   }
