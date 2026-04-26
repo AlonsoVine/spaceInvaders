@@ -46,6 +46,34 @@ body[data-skin='crimson'] #gameCanvas {
     0 0 28px rgba(255,95,152,0.18);
 }
 
+body[data-skin='solar'] #game-wrapper {
+  box-shadow:
+    0 0 0 1px rgba(255,216,102,0.16),
+    0 0 0 10px rgba(14,10,2,0.34),
+    0 30px 72px rgba(0,0,0,0.62);
+}
+
+body[data-skin='solar'] #gameCanvas {
+  border-color: #ffd866;
+  box-shadow:
+    inset 0 0 40px rgba(255,216,102,0.08),
+    0 0 28px rgba(255,216,102,0.18);
+}
+
+body[data-skin='eclipse'] #game-wrapper {
+  box-shadow:
+    0 0 0 1px rgba(185,198,255,0.16),
+    0 0 0 10px rgba(6,8,14,0.34),
+    0 30px 72px rgba(0,0,0,0.62);
+}
+
+body[data-skin='eclipse'] #gameCanvas {
+  border-color: #b9c6ff;
+  box-shadow:
+    inset 0 0 40px rgba(185,198,255,0.08),
+    0 0 28px rgba(185,198,255,0.18);
+}
+
 body.high-contrast {
   background: #010101;
   color: #19ff9f;
@@ -346,6 +374,7 @@ body.reduced-effects #game-wrapper::before {
   border: 1px solid rgba(0,255,136,0.2);
   background: linear-gradient(180deg, rgba(0,255,136,0.07), rgba(0,255,136,0.03));
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+  min-width: 0;
 }
 
 .card-head {
@@ -370,6 +399,26 @@ body.reduced-effects #game-wrapper::before {
   letter-spacing: 1px;
 }
 
+.card-intro {
+  margin: 0 0 14px;
+  color: #a0b8aa;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.card-note-list {
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.card-note {
+  margin: 0;
+  color: #708278;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
 #overlay-footer {
   display: flex;
   align-items: center;
@@ -377,7 +426,14 @@ body.reduced-effects #game-wrapper::before {
   gap: 16px;
 }
 
-#settings-panel {
+#overlay-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+#game-settings-panel,
+#visual-settings-panel {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -446,6 +502,331 @@ body.reduced-effects #game-wrapper::before {
   color: #777;
 }
 
+#start-summary,
+#start-objective,
+#start-achievements {
+  display: grid;
+  gap: 10px;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.summary-stat {
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px;
+  border: 1px solid rgba(0,255,136,0.1);
+  background: rgba(0,255,136,0.03);
+}
+
+.summary-stat.is-primary {
+  grid-column: span 2;
+  padding: 14px 14px 12px;
+  background: linear-gradient(180deg, rgba(0,255,136,0.08), rgba(0,255,136,0.03));
+}
+
+.summary-label {
+  color: #7ca08a;
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+
+.summary-value {
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.summary-copy {
+  color: #9ad9b8;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.summary-meta {
+  color: #73887c;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.summary-ribbon {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid rgba(0,255,136,0.12);
+  background: rgba(0,255,136,0.025);
+}
+
+.summary-ribbon-label {
+  color: #7ca08a;
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+
+.summary-ribbon-value {
+  color: #fff;
+  font-size: 14px;
+  letter-spacing: 1px;
+}
+
+.summary-ribbon-copy {
+  color: #86b89d;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.objective-card,
+.achievement-preview {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid rgba(0,255,136,0.1);
+  background: rgba(0,255,136,0.03);
+}
+
+.objective-card.is-complete {
+  border-color: rgba(255,239,136,0.2);
+  background: linear-gradient(180deg, rgba(255,239,136,0.07), rgba(0,255,136,0.03));
+}
+
+.objective-kicker,
+.achievement-kicker {
+  color: #7ca08a;
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+
+.achievement-preview-head,
+.challenge-head,
+.achievement-head,
+.achievement-group-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.objective-title,
+.achievement-title {
+  color: #fff;
+  font-size: 15px;
+  letter-spacing: 1px;
+}
+
+.objective-copy,
+.achievement-copy {
+  color: #9ad9b8;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.objective-progress,
+.achievement-progress {
+  color: #86b89d;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+.objective-progress.is-complete,
+.achievement-progress.is-unlocked {
+  color: #ffef88;
+}
+
+.objective-reward,
+.achievement-reward {
+  color: #ffef88;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+.card-count {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 3px 7px;
+  border: 1px solid rgba(0,255,136,0.14);
+  background: rgba(0,255,136,0.06);
+  color: #9ad9b8;
+  font-size: 10px;
+  letter-spacing: 1px;
+  vertical-align: middle;
+}
+
+.start-objectives-shell {
+  display: grid;
+  gap: 12px;
+}
+
+.start-objective-tabs-shell {
+  display: grid;
+  gap: 8px;
+}
+
+.start-objective-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 4px;
+  border: 1px solid rgba(0,255,136,0.1);
+  background: rgba(0,255,136,0.03);
+}
+
+.start-objective-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1 1 160px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #86b89d;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+}
+
+.start-objective-tab span {
+  color: #fff;
+}
+
+.start-objective-tab.is-active {
+  border-color: rgba(0,255,136,0.28);
+  background: linear-gradient(180deg, rgba(0,255,136,0.14), rgba(0,255,136,0.06));
+  color: #00ff88;
+  box-shadow: 0 0 0 1px rgba(0,255,136,0.08) inset;
+}
+
+.start-objective-tabs-caption {
+  color: #6e8778;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.start-objective-tab-panel,
+.start-objective-group,
+.start-objective-list {
+  display: grid;
+  gap: 10px;
+}
+
+.start-objective-group {
+  padding: 12px;
+  border: 1px solid rgba(0,255,136,0.08);
+  background: rgba(0,255,136,0.02);
+}
+
+.start-objective-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(0,255,136,0.1);
+  color: #9ad9b8;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+.start-objective-group-head strong {
+  color: #00ff88;
+  font-size: 12px;
+}
+
+.start-objective-item {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(0,255,136,0.1);
+  background: linear-gradient(180deg, rgba(0,255,136,0.04), rgba(0,255,136,0.02));
+}
+
+.start-objective-item.is-unlocked {
+  border-color: rgba(255,239,136,0.16);
+  background: linear-gradient(180deg, rgba(255,239,136,0.05), rgba(0,255,136,0.02));
+}
+
+.start-objective-item-head,
+.start-objective-item-meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.start-objective-item-copy {
+  display: grid;
+  gap: 4px;
+}
+
+#overlay[data-mode="start"] #start-objective {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+#overlay[data-mode="start"] #start-achievements {
+  gap: 14px;
+}
+
+#overlay[data-mode="start"] .start-objective-tab-panel {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.achievement-preview.is-overview {
+  background: linear-gradient(180deg, rgba(0,255,136,0.08), rgba(0,255,136,0.03));
+}
+
+.achievement-preview.is-unlocked {
+  border-color: rgba(255,239,136,0.18);
+}
+
+.achievement-chip,
+.challenge-state,
+.achievement-state {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border: 1px solid rgba(0,255,136,0.18);
+  background: rgba(0,255,136,0.05);
+  color: #9ad9b8;
+  font-size: 10px;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.achievement-chip.is-unlocked,
+.challenge-state.is-complete,
+.achievement-state.is-unlocked {
+  border-color: rgba(255,239,136,0.22);
+  color: #ffef88;
+  background: rgba(255,239,136,0.06);
+}
+
+.progress-meter {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(0,255,136,0.12);
+  background: rgba(0,255,136,0.04);
+}
+
+.progress-meter-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(0,255,136,0.45), #00ff88);
+  box-shadow: 0 0 12px rgba(0,255,136,0.22);
+}
+
 #shortcut-list {
   color: #9ad9b8;
 }
@@ -462,8 +843,114 @@ body.reduced-effects #game-wrapper::before {
 .challenge-box,
 .achievement-box {
   display: grid;
-  gap: 8px;
+  gap: 12px;
   padding-top: 2px;
+}
+
+.achievement-overview {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(0,255,136,0.12);
+  background:
+    linear-gradient(180deg, rgba(0,255,136,0.08), rgba(0,255,136,0.025)),
+    rgba(0,255,136,0.02);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.03),
+    0 10px 26px rgba(0,0,0,0.18);
+}
+
+.achievement-overview-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.achievement-overview-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.achievement-overview-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.achievement-overview-stat {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid rgba(0,255,136,0.1);
+  background: rgba(0,255,136,0.04);
+}
+
+.achievement-overview-label {
+  color: #7ca08a;
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+
+.achievement-overview-stat strong {
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.achievement-tabs-shell {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px 0;
+  border-top: 1px solid rgba(0,255,136,0.08);
+}
+
+.achievement-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 4px;
+  border: 1px solid rgba(0,255,136,0.1);
+  background: rgba(0,255,136,0.03);
+}
+
+.achievement-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1 1 180px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #86b89d;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+}
+
+.achievement-tab span {
+  color: #fff;
+}
+
+.achievement-tab.is-active {
+  border-color: rgba(0,255,136,0.28);
+  background: linear-gradient(180deg, rgba(0,255,136,0.14), rgba(0,255,136,0.06));
+  color: #00ff88;
+  box-shadow: 0 0 0 1px rgba(0,255,136,0.08) inset;
+}
+
+.achievement-tabs-caption {
+  color: #6e8778;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.achievement-tab-panel {
+  display: grid;
+  gap: 12px;
 }
 
 .challenge-line,
@@ -504,6 +991,65 @@ body.reduced-effects #game-wrapper::before {
 .challenge-progress.is-complete,
 .achievement-meta.is-unlocked {
   color: #ffef88;
+}
+
+.achievement-group {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(0,255,136,0.08);
+  background: rgba(0,255,136,0.02);
+}
+
+.achievement-group-head {
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(0,255,136,0.1);
+  color: #9ad9b8;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+.achievement-group-head strong {
+  color: #00ff88;
+  font-size: 12px;
+}
+
+.achievement-line.is-unlocked {
+  border-bottom-color: rgba(255,239,136,0.12);
+}
+
+.unlock-log {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(0,255,136,0.08);
+  background: linear-gradient(180deg, rgba(0,255,136,0.03), rgba(0,255,136,0.015));
+}
+
+.unlock-line {
+  display: grid;
+  gap: 3px;
+}
+
+.unlock-line strong {
+  color: #fff;
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+
+.unlock-line span {
+  color: #86b89d;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.achievement-empty {
+  padding: 14px;
+  border: 1px solid rgba(0,255,136,0.08);
+  background: linear-gradient(180deg, rgba(0,255,136,0.025), rgba(0,255,136,0.012));
+  color: #86b89d;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .run-stat {
@@ -553,6 +1099,24 @@ body.reduced-effects #game-wrapper::before {
 
 #btn-start:hover, #btn-start:active {
   background: linear-gradient(180deg, #3effa5, #08d06c);
+}
+
+#btn-menu {
+  min-width: 220px;
+  padding: 15px 24px;
+  border: 1px solid rgba(0,255,136,0.26);
+  background: rgba(0,255,136,0.05);
+  color: #d7fbe8;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  cursor: pointer;
+}
+
+#btn-menu:hover,
+#btn-menu:active {
+  background: rgba(0,255,136,0.12);
 }
 
 /* ---- Controles táctiles ---- */
@@ -670,30 +1234,118 @@ body.reduced-effects #game-wrapper::before {
 }
 
 #overlay[data-mode="start"] #overlay-shell {
-  min-height: 100%;
-  justify-content: center;
+  min-height: auto;
+  justify-content: flex-start;
+  gap: 24px;
+  margin: 0 auto;
 }
 
 #overlay[data-mode="start"] #overlay-hero {
-  max-width: 760px;
+  display: grid;
+  gap: 12px;
+  max-width: 920px;
 }
 
 #overlay[data-mode="start"] #overlay-panels {
-  grid-template-columns: minmax(360px, 0.95fr) minmax(260px, 0.75fr);
-  align-items: end;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 20px;
 }
 
-#overlay[data-mode="start"] #settings-panel {
-  min-height: 220px;
+#overlay[data-mode="start"] #start-summary-panel {
+  order: 1;
+  grid-column: 1 / -1;
+}
+
+#overlay[data-mode="start"] #game-settings-panel {
+  order: 2;
+}
+
+#overlay[data-mode="start"] #visual-settings-panel {
+  order: 3;
+}
+
+#overlay[data-mode="start"] #start-objectives-panel {
+  order: 4;
+  grid-column: 1 / -1;
+}
+
+#overlay[data-mode="start"] #game-settings-panel,
+#overlay[data-mode="start"] #visual-settings-panel,
+#overlay[data-mode="start"] #start-summary-panel,
+#overlay[data-mode="start"] #start-objectives-panel {
+  min-height: 280px;
 }
 
 #overlay[data-mode="start"] #overlay-footer {
-  align-items: flex-end;
+  align-items: center;
+  padding-top: 6px;
 }
 
 #overlay[data-mode="start"] #shortcut-list {
   flex: 1;
+  max-width: 48ch;
   padding-right: 20px;
+}
+
+#overlay[data-mode="start"] #btn-start {
+  min-width: 320px;
+}
+
+#overlay[data-mode="start"] #overlay-title {
+  max-width: 12ch;
+}
+
+#overlay[data-mode="start"] #overlay-msg {
+  max-width: 44ch;
+}
+
+#overlay[data-mode="gameover"] #overlay-shell {
+  gap: 22px;
+}
+
+#overlay[data-mode="gameover"] #overlay-panels {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+#overlay[data-mode="gameover"] #run-panel,
+#overlay[data-mode="gameover"] #meta-panel {
+  grid-column: span 2;
+}
+
+#overlay[data-mode="gameover"] #run-panel {
+  order: 1;
+}
+
+#overlay[data-mode="gameover"] #meta-panel {
+  order: 2;
+}
+
+#overlay[data-mode="gameover"] #aggregate-panel {
+  order: 3;
+}
+
+#overlay[data-mode="gameover"] #history-panel {
+  order: 4;
+}
+
+#overlay[data-mode="gameover"] #run-panel .card-head,
+#overlay[data-mode="gameover"] #meta-panel .card-head {
+  margin-bottom: 10px;
+}
+
+#overlay[data-mode="gameover"] #run-panel .run-stat-value {
+  font-size: 24px;
+}
+
+#overlay[data-mode="gameover"] #overlay-footer {
+  align-items: flex-end;
+}
+
+#overlay[data-mode="gameover"] #shortcut-list {
+  max-width: 56ch;
+  color: #86b89d;
 }
 
 body:fullscreen {
@@ -816,11 +1468,20 @@ body:fullscreen #meta-footer {
 
   #overlay[data-mode="start"] #overlay-panels {
     margin-top: 2px;
+    gap: 14px;
   }
 
-  #overlay[data-mode="start"] #settings-panel {
+  #overlay[data-mode="start"] #game-settings-panel,
+  #overlay[data-mode="start"] #visual-settings-panel,
+  #overlay[data-mode="start"] #start-summary-panel,
+  #overlay[data-mode="start"] #start-objectives-panel {
     min-height: 0;
   }
+
+  #game-settings-panel { order: 2; }
+  #visual-settings-panel { order: 3; }
+  #start-summary-panel { order: 1; }
+  #start-objectives-panel { order: 4; }
 
   #overlay-panels {
     grid-template-columns: 1fr;
@@ -851,6 +1512,17 @@ body:fullscreen #meta-footer {
     width: 100%;
   }
 
+  #overlay-actions {
+    order: 1;
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  #btn-menu {
+    width: 100%;
+  }
+
   #shortcut-list {
     order: 2;
     text-align: center;
@@ -860,6 +1532,54 @@ body:fullscreen #meta-footer {
   .card-head {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .achievement-preview-head,
+  .challenge-head,
+  .achievement-head,
+  .achievement-group-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .achievement-overview-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .achievement-overview-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .achievement-tab {
+    flex-basis: 100%;
+  }
+
+  .start-objective-tab {
+    flex-basis: 100%;
+  }
+
+  #overlay[data-mode="start"] #start-objective,
+  #overlay[data-mode="start"] .start-objective-tab-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .start-objective-group-head,
+  .start-objective-item-head,
+  .start-objective-item-meta {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  #overlay[data-mode="gameover"] #overlay-panels,
+  #overlay[data-mode="gameover"] #run-panel,
+  #overlay[data-mode="gameover"] #meta-panel {
+    grid-template-columns: 1fr;
+    grid-column: auto;
   }
 
   #status-bar {
@@ -957,7 +1677,7 @@ body:fullscreen #meta-footer {
   }
 
   #overlay[data-mode="start"] #overlay-panels {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .setting-row {
@@ -985,12 +1705,34 @@ body:fullscreen #meta-footer {
     margin: 0 auto;
   }
 
+  #overlay[data-mode="start"] #overlay-shell {
+    gap: 22px;
+  }
+
+  #overlay[data-mode="start"] #game-settings-panel,
+  #overlay[data-mode="start"] #visual-settings-panel,
+  #overlay[data-mode="start"] #start-summary-panel,
+  #overlay[data-mode="start"] #start-objectives-panel {
+    min-height: 0;
+  }
+
   #overlay-title {
     font-size: clamp(30px, 6vw, 48px);
   }
 
   #overlay-msg {
     max-width: 48ch;
+  }
+}
+
+@media (max-width: 840px) {
+  #overlay[data-mode="start"] #overlay-panels {
+    grid-template-columns: 1fr;
+  }
+
+  #overlay[data-mode="start"] #start-summary-panel,
+  #overlay[data-mode="start"] #start-objectives-panel {
+    grid-column: auto;
   }
 }
 

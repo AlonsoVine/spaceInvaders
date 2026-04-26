@@ -40,11 +40,14 @@ Implementación web del clásico **Space Invaders** con una base muy ligera: `HT
 - HUD de vidas con corazones pixel art y estado activo de partida.
 - Fondo dinámico, partículas, shockwaves y screen shake con estética arcade renovada.
 - Entrada cinematográfica del boss y feedback visual reforzado en impactos y pickups.
-- Logros persistentes, desafío activo rotatorio y skins desbloqueables.
+- Sistema de meta renovado con logros por categorías, progreso parcial visible, recompensas explícitas y registro de desbloqueos.
+- Desafío activo rotatorio con hitos meta por sellos completados.
+- Skins desbloqueables y seleccionables con inventario persistente.
+- Insignias meta persistentes ligadas a logros y desafíos.
 - Ajustes de accesibilidad visual con `efectos reducidos` y `alto contraste`.
 - Nuevos power-ups: `freeze`, `piercing` y `drone wing`.
 - Estadísticas de partida y acumuladas.
-- Guardado local de récord (`si_hs`), historial enriquecido (`si_history`) y estadísticas acumuladas (`si_stats`).
+- Guardado local de récord (`si_hs`), historial enriquecido (`si_history`), estadísticas acumuladas (`si_stats`) y meta persistente (`si_meta`).
 
 ## Estructura del proyecto
 
@@ -118,7 +121,7 @@ spaceInvaders/
 ### Qué implica esto para futuras mejoras
 
 - Mejoras pequeñas como música, dificultad, fullscreen o ajustes siguen siendo directas.
-- Funcionalidades como ranking online, logros, guardado de progreso o editor de niveles requerirán separar estado, persistencia y UI.
+- Funcionalidades como ranking online, guardado de progreso remoto o editor de niveles requerirán separar estado, persistencia y UI.
 - Si el proyecto sigue creciendo, conviene dividir `game.js` por dominios: entrada, audio, entidades, render y persistencia.
 
 ## Ejecutar el proyecto
@@ -142,7 +145,7 @@ El deploy está definido en `.github/workflows/deploy.yml`.
 - Excluye `.github`, `legacy` e `.idea` del contenido publicado.
 
 ## Directorio legacy
-
+ 
 La carpeta `legacy/` conserva material previo y de referencia:
 
 - `legacy/main.py`: versión original del juego en `Python/Pygame`, con assets locales, música y lógica clásica.
@@ -168,6 +171,9 @@ Esta carpeta no interviene en la versión web actual, pero sí aporta contexto h
 3. Skins cosméticas desbloqueables y seleccionables.
 4. Ajustes de accesibilidad visual: `alto contraste` y `efectos reducidos`.
 5. Power-ups avanzados: `freeze`, `piercing` y `drone wing`.
+6. Meta rediseñada con categorías (`inicio`, `progresion`, `habilidad`, `modos`, `coleccion`, `meta`).
+7. Recompensas explícitas por logro: skins e insignias persistentes.
+8. Progreso parcial visible, hitos cercanos y catálogo estructurado en pausa/game over.
 
 ### Mejoras de bajo coste pendientes
 
@@ -183,7 +189,7 @@ Esta carpeta no interviene en la versión web actual, pero sí aporta contexto h
 ### Mejoras que exigen más arquitectura
 
 1. Guardado de progreso.
-2. Sistema de logros o misiones.
+2. Misiones semanales o de temporada.
 3. Ranking online/global.
 4. Modo multijugador.
 5. Integración con servicios externos.
