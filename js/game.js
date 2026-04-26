@@ -368,6 +368,142 @@ const CHALLENGE_DEFS = [
   }
 ];
 
+const ENEMY_ROLE_DEFS = {
+  classic: {
+    label: 'CLASSIC',
+    hp: 1,
+    shootWeight: 1,
+    moveBoost: 0,
+    bulletSpeedBonus: 0,
+    scoreMultiplier: 1
+  },
+  shooter: {
+    label: 'SHOOTER',
+    hp: 1,
+    shootWeight: 2.5,
+    moveBoost: 0.4,
+    bulletSpeedBonus: 0.45,
+    scoreMultiplier: 1.35
+  },
+  scout: {
+    label: 'SCOUT',
+    hp: 1,
+    shootWeight: 1.1,
+    moveBoost: 1.8,
+    bulletSpeedBonus: 0.2,
+    scoreMultiplier: 1.25
+  },
+  tank: {
+    label: 'TANK',
+    hp: 2,
+    shootWeight: 0.7,
+    moveBoost: -0.2,
+    bulletSpeedBonus: -0.15,
+    scoreMultiplier: 1.8
+  }
+};
+
+const WAVE_PATTERNS = {
+  classic_grid: {
+    id: 'classic_grid',
+    label: 'GRID',
+    gapScaleX: 1,
+    rowShifts: [0, 0, 0],
+    masks: ['11111111', '11111111', '11111111']
+  },
+  split_wings: {
+    id: 'split_wings',
+    label: 'SPLIT WINGS',
+    gapScaleX: 1.04,
+    rowShifts: [0, 10, 0],
+    masks: ['11100111', '11100111', '01100110']
+  },
+  spearhead: {
+    id: 'spearhead',
+    label: 'SPEARHEAD',
+    gapScaleX: 0.98,
+    rowShifts: [0, 0, 0],
+    masks: ['00011000', '00111100', '11111111']
+  },
+  staggered: {
+    id: 'staggered',
+    label: 'STAGGERED',
+    gapScaleX: 0.95,
+    rowShifts: [-18, 18, -10],
+    masks: ['11111111', '11111111', '11111111']
+  },
+  fortress: {
+    id: 'fortress',
+    label: 'FORTRESS',
+    gapScaleX: 0.72,
+    rowShifts: [0, 0, 0],
+    masks: ['01111110', '11100111', '01111110']
+  }
+};
+
+const UFO_VARIANTS = {
+  bonus: {
+    label: 'BONUS',
+    points: 150,
+    speed: 2.05,
+    color: '#ff66cc',
+    guaranteePowerUp: false
+  },
+  cargo: {
+    label: 'CARGO',
+    points: 110,
+    speed: 1.7,
+    color: '#7ef2d5',
+    guaranteePowerUp: true
+  },
+  phantom: {
+    label: 'PHANTOM',
+    points: 220,
+    speed: 3.15,
+    color: '#ffd966',
+    guaranteePowerUp: false
+  }
+};
+
+const BOSS_PROFILES = {
+  striker: {
+    id: 'striker',
+    label: 'STRIKER',
+    hpBase: 18,
+    hpStep: 4,
+    speedBase: 2.7,
+    speedStep: 0.09,
+    baseY: 68,
+    movePattern: 'striker',
+    volley: 'spread',
+    rewardMultiplier: 1
+  },
+  pulse: {
+    id: 'pulse',
+    label: 'PULSE',
+    hpBase: 22,
+    hpStep: 5,
+    speedBase: 2.05,
+    speedStep: 0.07,
+    baseY: 78,
+    movePattern: 'pulse',
+    volley: 'burst',
+    rewardMultiplier: 1.12
+  },
+  warden: {
+    id: 'warden',
+    label: 'WARDEN',
+    hpBase: 28,
+    hpStep: 6,
+    speedBase: 1.55,
+    speedStep: 0.05,
+    baseY: 74,
+    movePattern: 'warden',
+    volley: 'wall',
+    rewardMultiplier: 1.25
+  }
+};
+
 function normalizeDifficulty(value) {
   return Object.prototype.hasOwnProperty.call(DIFFICULTY_PRESETS, value) ? value : 'normal';
 }
@@ -614,6 +750,110 @@ function formatDifficultyLabel(value) {
 
 function formatModeLabel(value) {
   return value === 'timeattack' ? 'CONTRARRELOJ' : 'CLASICO';
+}
+
+function getThreatLevel(currentLevel = level) {
+  if (currentLevel <= 4) return currentLevel;
+  return 4 + (currentLevel - 4) * 0.72;
+}
+
+function getWavePatternForLevel(currentLevel, mode = gameSettings.mode) {
+  if (currentLevel <= 1) return WAVE_PATTERNS.classic_grid;
+  const sequence = mode === 'timeattack'
+    ? ['spearhead', 'split_wings', 'staggered', 'classic_grid', 'fortress']
+    : ['split_wings', 'spearhead', 'staggered', 'classic_grid', 'fortress'];
+  const unlockIndex = currentLevel >= 6 ? sequence.length : Math.max(1, Math.min(sequence.length - 1, currentLevel - 1));
+  const pool = sequence.slice(0, unlockIndex);
+  return WAVE_PATTERNS[pool[(currentLevel - 2) % pool.length]];
+}
+
+function pickWeightedValue(weightedEntries) {
+  const totalWeight = weightedEntries.reduce((sum, [, weight]) => sum + weight, 0);
+  let roll = Math.random() * totalWeight;
+  for (const [value, weight] of weightedEntries) {
+    roll -= weight;
+    if (roll <= 0) return value;
+  }
+  return weightedEntries[weightedEntries.length - 1][0];
+}
+
+function getEnemyRoleForSlot(row, col, pattern, currentLevel, mode = gameSettings.mode) {
+  if (currentLevel <= 1) return 'classic';
+  const isOuter = col <= 1 || col >= COLS - 2;
+  const isCenter = col >= 2 && col <= COLS - 3;
+  const weightedRoles = [['classic', 6]];
+
+  if (currentLevel >= 3 && row === 0) weightedRoles.push(['shooter', mode === 'timeattack' ? 4 : 3]);
+  if (currentLevel >= 4 && (pattern.id === 'staggered' || isOuter)) weightedRoles.push(['scout', pattern.id === 'staggered' ? 4 : 2]);
+  if (currentLevel >= 6 && pattern.id === 'split_wings' && isOuter) weightedRoles.push(['shooter', 2]);
+  if (currentLevel >= 7 && ((pattern.id === 'fortress' && row > 0 && isCenter) || (pattern.id === 'spearhead' && row === 2 && isCenter))) {
+    weightedRoles.push(['tank', 4]);
+  }
+  if (currentLevel >= 8 && mode === 'timeattack') weightedRoles.push(['scout', 2]);
+
+  return pickWeightedValue(weightedRoles);
+}
+
+function getEnemyBasePoints(row) {
+  return row === 0 ? 30 : row === 1 ? 20 : 10;
+}
+
+function getEnemyScore(enemy) {
+  const roleDef = ENEMY_ROLE_DEFS[enemy.type] || ENEMY_ROLE_DEFS.classic;
+  return Math.round(getEnemyBasePoints(enemy.row) * roleDef.scoreMultiplier);
+}
+
+function getBossProfileForLevel(currentLevel, mode = gameSettings.mode) {
+  const cycle = Math.max(0, Math.floor(currentLevel / 3) - 1);
+  const sequence = mode === 'timeattack'
+    ? ['pulse', 'striker', 'warden']
+    : ['striker', 'pulse', 'warden'];
+  return BOSS_PROFILES[sequence[cycle % sequence.length]];
+}
+
+function getBossBaseReward(profile) {
+  return Math.round((500 + level * 50) * profile.rewardMultiplier);
+}
+
+function rollUfoVariant(currentLevel, mode = gameSettings.mode) {
+  const weighted = [['bonus', 6]];
+  if (currentLevel >= 3) weighted.push(['cargo', mode === 'timeattack' ? 2 : 3]);
+  if (currentLevel >= 5) weighted.push(['phantom', mode === 'timeattack' ? 4 : 2]);
+  return pickWeightedValue(weighted);
+}
+
+function getEnemyRoleColor(enemy) {
+  const colors = getCurrentTheme().enemyRows;
+  if (enemy.type === 'shooter') return '#ffe36b';
+  if (enemy.type === 'scout') return '#6cf5ff';
+  if (enemy.type === 'tank') return '#ffa165';
+  return colors[enemy.row];
+}
+
+function getBossAccentColor(profileId = boss.profileId) {
+  if (profileId === 'pulse') return '#ffd66f';
+  if (profileId === 'warden') return '#8fe0ff';
+  return '#ff5f98';
+}
+
+function getUfoVariantDef(variantId = ufo.variant) {
+  const variant = UFO_VARIANTS[variantId] || UFO_VARIANTS.bonus;
+  return { id: variantId in UFO_VARIANTS ? variantId : 'bonus', ...variant };
+}
+
+function createEnemyBullet(sourceEnemy, extra = {}) {
+  const preset = getDifficultyConfig();
+  const threatLevel = getThreatLevel();
+  enemyBullets.push({
+    x: sourceEnemy.x + sourceEnemy.w / 2 - 2,
+    y: sourceEnemy.y + sourceEnemy.h,
+    w: 4,
+    h: 12,
+    speed: preset.enemyBulletBase + (threatLevel - 1) * preset.enemyBulletStep + (sourceEnemy.bulletSpeedBonus || 0),
+    fromBoss: false,
+    tint: sourceEnemy.type === 'shooter' ? '#ffd666' : sourceEnemy.type === 'scout' ? '#7be6ff' : sourceEnemy.type === 'tank' ? '#ff9a5f' : '#ff6600',
+    ...extra
+  });
 }
 
 function formatPlayedAt(value) {
@@ -1029,7 +1269,7 @@ function updateHudStatus() {
   powerupStatusEl.textContent = labels.length ? labels.join(' · ') : 'SIN POWER-UPS';
 
   bossStatusEl.hidden = !boss.active;
-  if (boss.active) bossStatusEl.textContent = `BOSS ${boss.hp}/${boss.maxHp}`;
+  if (boss.active) bossStatusEl.textContent = `BOSS ${boss.label} ${boss.hp}/${boss.maxHp}`;
   gameWrapper.classList.toggle('is-boss-fight', boss.active);
   gameWrapper.classList.toggle('is-critical-time', activeMode === 'timeattack' && running && timeLeftMs <= 15000);
 }
@@ -1707,7 +1947,8 @@ const HEARTBEAT_NOTES = [160, 130, 100, 80];
 
 function tickHeartbeat(aliveCount) {
   heartbeatTimer++;
-  const interval = Math.max(6, Math.round(30 * (aliveCount / TOTAL_ENEMIES)));
+  const densityBase = Math.max(1, currentWaveEnemyCount || TOTAL_ENEMIES);
+  const interval = Math.max(6, Math.round(30 * (aliveCount / densityBase)));
   if (heartbeatTimer >= interval) {
     heartbeatTimer = 0;
     beep(HEARTBEAT_NOTES[heartbeatIdx++ % 4], 0.04, 'square', 0.06);
@@ -1913,7 +2154,8 @@ function getFreezeFactor() {
 
 function getEnemyShootInterval() {
   const preset = getDifficultyConfig();
-  return Math.max(36, Math.round((110 - (level - 1) * 10) * preset.enemyShootFactor * (activeEffects.freeze > 0 ? 2.25 : 1)));
+  const threatLevel = getThreatLevel();
+  return Math.max(42, Math.round((110 - (threatLevel - 1) * 8) * preset.enemyShootFactor * (activeEffects.freeze > 0 ? 2.25 : 1)));
 }
 
 const explosions = [];
@@ -2057,7 +2299,7 @@ function collectPowerUp(powerUp) {
   updateHudStatus();
 }
 
-const ufo = { active: false, x: 0, y: 28, w: 50, h: 20, speed: 2, dir: 1 };
+const ufo = { active: false, x: 0, y: 28, w: 50, h: 20, speed: 2, dir: 1, variant: 'bonus', points: 150 };
 let ufoSpawnTimer = 0;
 
 function getUfoSpawnInterval() {
@@ -2099,6 +2341,8 @@ const ROWS = 3;
 const E_W = 34;
 const E_H = 22;
 const TOTAL_ENEMIES = COLS * ROWS;
+let currentWaveEnemyCount = TOTAL_ENEMIES;
+let currentWavePattern = WAVE_PATTERNS.classic_grid;
 
 const boss = {
   active: false,
@@ -2111,7 +2355,10 @@ const boss = {
   dir: 1,
   speed: 2.2,
   phase: 0,
-  shootTimer: 0
+  shootTimer: 0,
+  profileId: 'striker',
+  label: 'STRIKER',
+  baseY: 68
 };
 
 function resetBoss() {
@@ -2121,47 +2368,79 @@ function resetBoss() {
   boss.shootTimer = 0;
   boss.entryTimer = 0;
   boss.flashTimer = 0;
+  boss.profileId = 'striker';
+  boss.label = 'STRIKER';
+  boss.baseY = 68;
 }
 
 function shouldSpawnBossForLevel(currentLevel) {
   return currentLevel > 0 && currentLevel % 3 === 0;
 }
 
-function getEnemyLayout() {
+function getEnemyLayout(pattern = currentWavePattern) {
   const totalW = COLS * E_W;
-  const gapX = Math.floor((canvas.width - totalW - 20) / (COLS - 1));
+  const patternScale = pattern?.gapScaleX || 1;
+  const gapX = Math.floor(((canvas.width - totalW - 20) / (COLS - 1)) * patternScale);
   const marginX = 10;
-  const startY = Math.min(65 + (level - 1) * 15, 140);
-  const gapY = 46;
+  const startY = Math.min((pattern?.startYBase || 65) + (level - 1) * 15, pattern?.maxStartY || 140);
+  const gapY = pattern?.gapY || 46;
   return { marginX, gapX, gapY, startY };
 }
 
 function getEnemyTickInterval() {
   const preset = getDifficultyConfig();
   const alive = enemies.filter(enemy => enemy.alive).length;
-  const base = Math.max(4, 26 - (level - 1) * 2);
-  return Math.max(3, Math.round(base * preset.enemyTickFactor * (alive / TOTAL_ENEMIES) * (activeEffects.freeze > 0 ? 2.4 : 1)));
+  const threatLevel = getThreatLevel();
+  const base = Math.max(5, 26 - (threatLevel - 1) * 1.7);
+  return Math.max(3, Math.round(base * preset.enemyTickFactor * (alive / Math.max(1, currentWaveEnemyCount)) * (activeEffects.freeze > 0 ? 2.4 : 1)));
+}
+
+function getAliveEnemyBounds(enemyList = enemies) {
+  const active = enemyList.filter(enemy => enemy.alive);
+  if (!active.length) return null;
+  return {
+    left: Math.min(...active.map(enemy => enemy.x)),
+    right: Math.max(...active.map(enemy => enemy.x + enemy.w))
+  };
 }
 
 function spawnEnemies() {
   enemies.length = 0;
-  const { marginX, gapX, gapY, startY } = getEnemyLayout();
+  currentWavePattern = getWavePatternForLevel(level, currentRunStats.mode || gameSettings.mode);
+  const { marginX, gapX, gapY, startY } = getEnemyLayout(currentWavePattern);
+  let aliveCount = 0;
 
   for (let row = 0; row < ROWS; row++) {
     for (let col = 0; col < COLS; col++) {
-      const missingIntroEnemy = level === 1 && row === 0 && col % 2 === 1;
+      const rowMask = currentWavePattern.masks?.[row] || '11111111';
+      const maskedOut = rowMask[col] === '0';
+      const introEaseOut = level === 1 && row === 0 && col % 2 === 1;
+      const alive = !maskedOut && !introEaseOut;
+      const role = alive ? getEnemyRoleForSlot(row, col, currentWavePattern, level, currentRunStats.mode || gameSettings.mode) : 'classic';
+      const roleDef = ENEMY_ROLE_DEFS[role] || ENEMY_ROLE_DEFS.classic;
+      if (alive) aliveCount++;
       enemies.push({
-        x: marginX + col * (E_W + gapX),
+        x: marginX + col * (E_W + gapX) + (currentWavePattern.rowShifts?.[row] || 0),
         y: startY + row * (E_H + gapY),
         w: E_W,
         h: E_H,
-        alive: !missingIntroEnemy,
+        alive,
         row,
-        pose: 0
+        col,
+        pose: 0,
+        type: role,
+        hp: roleDef.hp,
+        maxHp: roleDef.hp,
+        shootWeight: roleDef.shootWeight,
+        moveBoost: roleDef.moveBoost,
+        bulletSpeedBonus: roleDef.bulletSpeedBonus,
+        scoreValue: Math.round(getEnemyBasePoints(row) * roleDef.scoreMultiplier),
+        flashTimer: 0
       });
     }
   }
 
+  currentWaveEnemyCount = Math.max(1, aliveCount);
   enemyDir = 1;
   enemyTickTimer = 0;
   pendingDrop = false;
@@ -2182,26 +2461,31 @@ function awardTimeBonus(ms) {
 }
 
 function startBossFight() {
+  const profile = getBossProfileForLevel(level, currentRunStats.mode || gameSettings.mode);
+  const threatLevel = getThreatLevel();
   bossEncounteredThisLevel = true;
   boss.active = true;
-  boss.maxHp = 18 + Math.max(0, Math.floor(level / 3) - 1) * 6;
+  boss.profileId = profile.id;
+  boss.label = profile.label;
+  boss.maxHp = profile.hpBase + Math.max(0, Math.floor(threatLevel / 3) - 1) * profile.hpStep;
   boss.hp = boss.maxHp;
-  boss.speed = 2.2 + Math.min(1.2, (level - 1) * 0.08);
+  boss.speed = profile.speedBase + Math.min(1.15, (threatLevel - 1) * profile.speedStep);
   boss.dir = Math.random() < 0.5 ? -1 : 1;
   boss.phase = Math.random() * Math.PI * 2;
   boss.shootTimer = 0;
   boss.entryTimer = 84;
   boss.flashTimer = 0;
+  boss.baseY = profile.baseY;
   boss.x = canvas.width / 2 - boss.w / 2;
   boss.y = -boss.h - 24;
   playerBullets.length = 0;
   enemyBullets.length = 0;
   powerUps.length = 0;
-  spawnFloatingText(canvas.width / 2, 92, 'BOSS FIGHT', '#ff7db3');
+  spawnFloatingText(canvas.width / 2, 92, `${profile.label} BOSS`, getBossAccentColor(profile.id));
   spawnShockwave(canvas.width / 2, canvas.height * 0.32, 'rgba(255,70,135,0.32)', 26, 3.8);
   spawnParticleBurst(canvas.width / 2, canvas.height * 0.32, {
     count: 22,
-    color: '#ff5f98',
+    color: getBossAccentColor(profile.id),
     speedMin: 1.8,
     speedMax: 5.2,
     lifeMin: 24,
@@ -2225,21 +2509,22 @@ function completeLevel() {
 }
 
 function defeatBoss() {
+  const reward = getBossBaseReward(BOSS_PROFILES[boss.profileId] || BOSS_PROFILES.striker);
   currentRunStats.bossesDefeated++;
-  score += 500 + level * 50;
+  score += reward;
   scoreEl.textContent = score;
   syncHighscore();
   spawnExplosion(boss.x + boss.w / 2, boss.y + boss.h / 2, 36);
   spawnShockwave(boss.x + boss.w / 2, boss.y + boss.h / 2, 'rgba(255,95,152,0.55)', 30, 4.6);
   spawnParticleBurst(boss.x + boss.w / 2, boss.y + boss.h / 2, {
     count: 30,
-    color: '#ff6fa8',
+    color: getBossAccentColor(),
     speedMin: 2.2,
     speedMax: 6.2,
     lifeMin: 26,
     lifeMax: 48
   });
-  spawnFloatingText(boss.x + boss.w / 2, boss.y - 4, `+${500 + level * 50}`, '#ff7db3');
+  spawnFloatingText(boss.x + boss.w / 2, boss.y - 4, `+${reward}`, getBossAccentColor());
   awardTimeBonus(TIME_ATTACK_BOSS_BONUS_MS);
   addScreenShake(14);
   triggerCinematicFlash(0.22);
@@ -2262,30 +2547,46 @@ function updatePlayerBullets() {
     for (const enemy of enemies) {
       if (!enemy.alive) continue;
       if (rectsOverlap(bullet, enemy)) {
-        enemy.alive = false;
         hit = true;
-        combo++;
-        comboTimer = 90;
         currentRunStats.hits++;
-        currentRunStats.enemiesDestroyed++;
-        currentRunStats.maxCombo = Math.max(currentRunStats.maxCombo, combo);
-        const points = (enemy.row === 0 ? 30 : enemy.row === 1 ? 20 : 10) * (combo > 1 ? combo : 1);
-        score += points;
-        scoreEl.textContent = score;
-        syncHighscore();
-        spawnExplosion(enemy.x + enemy.w / 2, enemy.y + enemy.h / 2);
-        spawnParticleBurst(enemy.x + enemy.w / 2, enemy.y + enemy.h / 2, {
-          count: 9,
-          color: enemy.row === 0 ? '#ff44cc' : enemy.row === 1 ? '#4488ff' : '#ff8844',
-          speedMin: 1.4,
-          speedMax: 4.3,
-          lifeMin: 16,
-          lifeMax: 30
-        });
-        spawnShockwave(enemy.x + enemy.w / 2, enemy.y + enemy.h / 2, 'rgba(255,180,80,0.22)', 10, 2.5);
-        spawnFloatingText(enemy.x + enemy.w / 2, enemy.y, `${combo > 1 ? `x${combo} ` : ''}+${points}`, combo > 1 ? '#ff8800' : '#ffff00');
-        maybeDropPowerUp(enemy.x + enemy.w / 2, enemy.y + enemy.h / 2);
-        addScreenShake(combo > 2 ? 4 : 2);
+        enemy.hp = Math.max(0, enemy.hp - 1);
+        enemy.flashTimer = 5;
+        const enemyColor = getEnemyRoleColor(enemy);
+        if (enemy.hp <= 0) {
+          enemy.alive = false;
+          combo++;
+          comboTimer = 90;
+          currentRunStats.enemiesDestroyed++;
+          currentRunStats.maxCombo = Math.max(currentRunStats.maxCombo, combo);
+          const points = getEnemyScore(enemy) * (combo > 1 ? combo : 1);
+          score += points;
+          scoreEl.textContent = score;
+          syncHighscore();
+          spawnExplosion(enemy.x + enemy.w / 2, enemy.y + enemy.h / 2);
+          spawnParticleBurst(enemy.x + enemy.w / 2, enemy.y + enemy.h / 2, {
+            count: enemy.type === 'tank' ? 13 : enemy.type === 'scout' ? 11 : 9,
+            color: enemyColor,
+            speedMin: 1.4,
+            speedMax: 4.3,
+            lifeMin: 16,
+            lifeMax: 30
+          });
+          spawnShockwave(enemy.x + enemy.w / 2, enemy.y + enemy.h / 2, 'rgba(255,180,80,0.22)', enemy.type === 'tank' ? 12 : 10, enemy.type === 'tank' ? 3.2 : 2.5);
+          spawnFloatingText(enemy.x + enemy.w / 2, enemy.y, `${combo > 1 ? `x${combo} ` : ''}+${points}`, combo > 1 ? '#ff8800' : '#ffff00');
+          maybeDropPowerUp(enemy.x + enemy.w / 2, enemy.y + enemy.h / 2);
+          addScreenShake(combo > 2 ? 4 : enemy.type === 'tank' ? 3 : 2);
+        } else {
+          spawnParticleBurst(enemy.x + enemy.w / 2, enemy.y + enemy.h / 2, {
+            count: 6,
+            color: enemyColor,
+            speedMin: 0.8,
+            speedMax: 2.6,
+            lifeMin: 12,
+            lifeMax: 20
+          });
+          spawnFloatingText(enemy.x + enemy.w / 2, enemy.y - 2, `ARMOR ${enemy.hp}/${enemy.maxHp}`, '#ffd38a');
+          addScreenShake(1.4);
+        }
         soundHit();
         bullet.pierces -= 1;
         bullet.y -= 8;
@@ -2329,21 +2630,23 @@ function updatePlayerBullets() {
     }
 
     if (!hit && ufo.active && rectsOverlap(bullet, ufo)) {
+      const variant = getUfoVariantDef();
       currentRunStats.hits++;
       currentRunStats.ufoDestroyed++;
-      score += 150;
+      score += variant.points;
       scoreEl.textContent = score;
       syncHighscore();
       spawnExplosion(ufo.x + ufo.w / 2, ufo.y + ufo.h / 2);
       spawnParticleBurst(ufo.x + ufo.w / 2, ufo.y + ufo.h / 2, {
         count: 12,
-        color: '#ff66cc',
+        color: variant.color,
         speedMin: 1.6,
         speedMax: 4.6,
         lifeMin: 18,
         lifeMax: 34
       });
-      spawnFloatingText(ufo.x + ufo.w / 2, ufo.y, '+150', '#ff66cc');
+      spawnFloatingText(ufo.x + ufo.w / 2, ufo.y, `+${variant.points}`, variant.color);
+      if (variant.id === 'cargo') spawnPowerUp(ufo.x + ufo.w / 2, ufo.y + ufo.h / 2);
       ufo.active = false;
       hit = true;
       addScreenShake(4);
@@ -2380,10 +2683,12 @@ function updatePlayerBullets() {
 function updateBoss() {
   if (!boss.active) return;
   const freezeFactor = getFreezeFactor();
+  const profile = BOSS_PROFILES[boss.profileId] || BOSS_PROFILES.striker;
+  const threatLevel = getThreatLevel();
 
   if (boss.entryTimer > 0) {
     boss.entryTimer--;
-    boss.y += (70 - boss.y) * 0.12;
+    boss.y += ((boss.baseY || 70) - boss.y) * 0.12;
     boss.phase += 0.05 * freezeFactor;
     boss.flashTimer = Math.max(0, (boss.flashTimer || 0) - 1);
     if (boss.entryTimer === 0) {
@@ -2395,8 +2700,16 @@ function updateBoss() {
   }
 
   boss.phase += 0.035 * freezeFactor;
-  boss.x += boss.dir * boss.speed * freezeFactor;
-  boss.y = 68 + Math.sin(boss.phase) * 10;
+  if (profile.movePattern === 'pulse') {
+    boss.x += boss.dir * boss.speed * 0.82 * freezeFactor;
+    boss.y = boss.baseY + Math.sin(boss.phase * 1.4) * 14;
+  } else if (profile.movePattern === 'warden') {
+    boss.x += boss.dir * boss.speed * 0.68 * freezeFactor;
+    boss.y = boss.baseY + Math.sin(boss.phase * 0.8) * 7;
+  } else {
+    boss.x += boss.dir * boss.speed * freezeFactor;
+    boss.y = boss.baseY + Math.sin(boss.phase) * 10;
+  }
   boss.flashTimer = Math.max(0, (boss.flashTimer || 0) - 1);
 
   if (boss.x <= 18 || boss.x + boss.w >= canvas.width - 18) {
@@ -2405,18 +2718,27 @@ function updateBoss() {
 
   boss.shootTimer++;
   const preset = getDifficultyConfig();
-  const shootInterval = Math.max(32, Math.round((72 * preset.enemyShootFactor - (boss.maxHp - boss.hp) * 1.2) * (activeEffects.freeze > 0 ? 2.35 : 1)));
+  const shootIntervalBase = profile.volley === 'wall' ? 88 : profile.volley === 'burst' ? 64 : 72;
+  const shootInterval = Math.max(34, Math.round((shootIntervalBase * preset.enemyShootFactor - (boss.maxHp - boss.hp) * 1.05) * (activeEffects.freeze > 0 ? 2.35 : 1)));
   if (boss.shootTimer >= shootInterval) {
     boss.shootTimer = 0;
-    const spread = boss.hp <= Math.ceil(boss.maxHp / 2) ? [-36, 0, 36] : [-28, 28];
+    let spread = [-28, 28];
+    if (profile.volley === 'burst') {
+      spread = boss.hp <= Math.ceil(boss.maxHp / 2) ? [-34, 0, 34] : [-18, 18];
+    } else if (profile.volley === 'wall') {
+      spread = [-48, -20, 0, 20, 48];
+    } else if (boss.hp <= Math.ceil(boss.maxHp / 2)) {
+      spread = [-36, 0, 36];
+    }
     for (const offset of spread) {
       enemyBullets.push({
         x: boss.x + boss.w / 2 + offset - 3,
         y: boss.y + boss.h - 2,
         w: 6,
         h: 14,
-        speed: preset.enemyBulletBase + 1.1 + (level - 1) * 0.16,
-        fromBoss: true
+        speed: preset.enemyBulletBase + 1.1 + (threatLevel - 1) * 0.13 + (profile.volley === 'burst' ? 0.18 : profile.volley === 'wall' ? -0.08 : 0),
+        fromBoss: true,
+        tint: getBossAccentColor(profile.id)
       });
     }
   }
@@ -2488,6 +2810,9 @@ function updateVisualEffects() {
   if (screenShake < 0.08) screenShake = 0;
   cinematicFlash *= 0.9;
   if (cinematicFlash < 0.01) cinematicFlash = 0;
+  for (const enemy of enemies) {
+    enemy.flashTimer = Math.max(0, (enemy.flashTimer || 0) - 1);
+  }
 
   for (const star of stars) {
     star.y += star.speed + (boss.active ? 0.18 : 0.04);
@@ -2597,21 +2922,37 @@ function update() {
 
       if (pendingDrop) {
         enemies.forEach(enemy => {
-          if (enemy.alive) enemy.y += ENEMY_STEP_Y;
+          if (enemy.alive) {
+            enemy.y += ENEMY_STEP_Y;
+            enemy.pose = enemyAnimFrame % 2;
+          }
         });
         enemyDir *= -1;
         pendingDrop = false;
       } else {
-        enemies.forEach(enemy => {
-          if (enemy.alive) {
-            enemy.x += enemyDir * ENEMY_STEP_X;
-            enemy.pose = enemyAnimFrame % 2;
-          }
-        });
+        const bounds = getAliveEnemyBounds(aliveEnemies);
+        if (bounds) {
+          const desiredStep = enemyDir * ENEMY_STEP_X;
+          let appliedStep = desiredStep;
 
-        const leftX = Math.min(...aliveEnemies.map(enemy => enemy.x));
-        const rightX = Math.max(...aliveEnemies.map(enemy => enemy.x + enemy.w));
-        if (rightX >= canvas.width - 8 || leftX <= 8) pendingDrop = true;
+          if (enemyDir > 0 && bounds.right + desiredStep > canvas.width - 8) {
+            appliedStep = canvas.width - 8 - bounds.right;
+          } else if (enemyDir < 0 && bounds.left + desiredStep < 8) {
+            appliedStep = 8 - bounds.left;
+          }
+
+          enemies.forEach(enemy => {
+            if (enemy.alive) {
+              enemy.x += appliedStep;
+              enemy.pose = enemyAnimFrame % 2;
+            }
+          });
+
+          const nextBounds = getAliveEnemyBounds(aliveEnemies);
+          if (nextBounds && (nextBounds.right >= canvas.width - 8 || nextBounds.left <= 8)) {
+            pendingDrop = true;
+          }
+        }
       }
     }
 
@@ -2623,21 +2964,33 @@ function update() {
       enemyShootTimer = 0;
       const columns = {};
       for (const enemy of aliveEnemies) {
-        const columnKey = Math.round(enemy.x / (E_W + 10));
-        if (!columns[columnKey] || enemy.y > columns[columnKey].y) columns[columnKey] = enemy;
+        const columnKey = enemy.col;
+        if (!columns[columnKey]) columns[columnKey] = [];
+        columns[columnKey].push(enemy);
       }
-      const shooters = Object.values(columns);
+      const shooters = Object.values(columns).map(columnEnemies => columnEnemies.reduce((lowest, enemy) => (
+        enemy.y > lowest.y ? enemy : lowest
+      )));
       if (shooters.length) {
-        const shooter = shooters[Math.floor(Math.random() * shooters.length)];
-        const preset = getDifficultyConfig();
-        enemyBullets.push({
-          x: shooter.x + shooter.w / 2 - 2,
-          y: shooter.y + shooter.h,
-          w: 4,
-          h: 12,
-          speed: preset.enemyBulletBase + (level - 1) * preset.enemyBulletStep,
-          fromBoss: false
-        });
+        const weightedShooters = shooters.map(enemy => [enemy, enemy.shootWeight || 1]);
+        const totalWeight = weightedShooters.reduce((sum, [, weight]) => sum + weight, 0);
+        let roll = Math.random() * totalWeight;
+        let primaryShooter = weightedShooters[0][0];
+        for (const [enemy, weight] of weightedShooters) {
+          roll -= weight;
+          if (roll <= 0) {
+            primaryShooter = enemy;
+            break;
+          }
+        }
+        createEnemyBullet(primaryShooter);
+        if ((level >= 7 || currentRunStats.mode === 'timeattack') && shooters.length > 2 && Math.random() < (currentRunStats.mode === 'timeattack' ? 0.34 : 0.16)) {
+          const secondaryPool = shooters.filter(enemy => enemy !== primaryShooter);
+          if (secondaryPool.length) {
+            const secondary = secondaryPool[Math.floor(Math.random() * secondaryPool.length)];
+            createEnemyBullet(secondary, { speed: (getDifficultyConfig().enemyBulletBase + (getThreatLevel() - 1) * getDifficultyConfig().enemyBulletStep + (secondary.bulletSpeedBonus || 0)) * 0.92 });
+          }
+        }
       }
     }
   } else {
@@ -2651,7 +3004,11 @@ function update() {
   ufoSpawnTimer++;
   if (!ufo.active && !boss.active && ufoSpawnTimer >= getUfoSpawnInterval()) {
     ufoSpawnTimer = 0;
+    const variant = getUfoVariantDef(rollUfoVariant(level, currentRunStats.mode || gameSettings.mode));
     ufo.active = true;
+    ufo.variant = variant.id;
+    ufo.points = variant.points;
+    ufo.speed = variant.speed;
     ufo.dir = Math.random() < 0.5 ? 1 : -1;
     ufo.x = ufo.dir === 1 ? -ufo.w : canvas.width;
   }
@@ -2743,12 +3100,32 @@ function rectsOverlap(a, b) {
 }
 
 function drawAlien(enemy) {
-  const colors = getCurrentTheme().enemyRows;
-  const color = colors[enemy.row];
+  const color = enemy.flashTimer > 0 ? '#ffffff' : getEnemyRoleColor(enemy);
+  ctx.save();
   ctx.fillStyle = color;
-  ctx.shadowBlur = 4;
+  ctx.shadowBlur = enemy.type === 'tank' ? 8 : 4;
   ctx.shadowColor = color;
-  if (enemy.pose === 0) {
+
+  if (enemy.type === 'scout') {
+    ctx.fillRect(enemy.x + 6, enemy.y + 6, enemy.w - 12, enemy.h - 10);
+    ctx.fillRect(enemy.x + 10, enemy.y + 2, 4, 6);
+    ctx.fillRect(enemy.x + enemy.w - 14, enemy.y + 2, 4, 6);
+    ctx.fillRect(enemy.x + 2, enemy.y + enemy.h - 6, 8, 4);
+    ctx.fillRect(enemy.x + enemy.w - 10, enemy.y + enemy.h - 6, 8, 4);
+  } else if (enemy.type === 'shooter') {
+    ctx.fillRect(enemy.x + 5, enemy.y + 5, enemy.w - 10, enemy.h - 9);
+    ctx.fillRect(enemy.x + enemy.w / 2 - 4, enemy.y - 1, 8, 8);
+    ctx.fillRect(enemy.x + enemy.w / 2 - 2, enemy.y + enemy.h - 2, 4, 7);
+    ctx.fillRect(enemy.x + 4, enemy.y + enemy.h - 5, 6, 5);
+    ctx.fillRect(enemy.x + enemy.w - 10, enemy.y + enemy.h - 5, 6, 5);
+  } else if (enemy.type === 'tank') {
+    ctx.fillRect(enemy.x + 3, enemy.y + 4, enemy.w - 6, enemy.h - 8);
+    ctx.fillRect(enemy.x + 8, enemy.y, enemy.w - 16, 7);
+    ctx.fillRect(enemy.x + 1, enemy.y + enemy.h - 7, 10, 7);
+    ctx.fillRect(enemy.x + enemy.w - 11, enemy.y + enemy.h - 7, 10, 7);
+    ctx.fillStyle = enemy.flashTimer > 0 ? '#fff6db' : 'rgba(255,244,210,0.7)';
+    ctx.fillRect(enemy.x + 10, enemy.y + 10, enemy.w - 20, 4);
+  } else if (enemy.pose === 0) {
     ctx.fillRect(enemy.x + 4, enemy.y + 4, enemy.w - 8, enemy.h - 8);
     ctx.fillRect(enemy.x + 6, enemy.y, 4, 6);
     ctx.fillRect(enemy.x + enemy.w - 10, enemy.y, 4, 6);
@@ -2761,7 +3138,7 @@ function drawAlien(enemy) {
     ctx.fillRect(enemy.x + 2, enemy.y + enemy.h - 4, 8, 4);
     ctx.fillRect(enemy.x + enemy.w - 10, enemy.y + enemy.h - 4, 8, 4);
   }
-  ctx.shadowBlur = 0;
+  ctx.restore();
 }
 
 function drawPixelHeart(x, y, scale, color) {
@@ -2844,18 +3221,30 @@ function drawBoss() {
   if (!boss.active) return;
 
   ctx.save();
-  const bossColor = boss.flashTimer > 0 ? '#ffe4ee' : '#ff2f7d';
+  const accent = getBossAccentColor();
+  const bossColor = boss.flashTimer > 0 ? '#ffeef6' : accent;
   ctx.fillStyle = bossColor;
   ctx.shadowBlur = boss.entryTimer > 0 ? 26 : 16;
-  ctx.shadowColor = boss.flashTimer > 0 ? '#ffffff' : '#ff2f7d';
+  ctx.shadowColor = boss.flashTimer > 0 ? '#ffffff' : accent;
   ctx.fillRect(boss.x + 18, boss.y + 12, boss.w - 36, 22);
   ctx.fillRect(boss.x + 10, boss.y + 24, boss.w - 20, 16);
   ctx.fillRect(boss.x + boss.w / 2 - 12, boss.y + 2, 24, 14);
   ctx.fillRect(boss.x + 18, boss.y + 40, 18, 12);
   ctx.fillRect(boss.x + boss.w - 36, boss.y + 40, 18, 12);
-  ctx.fillStyle = '#ffc6da';
-  ctx.fillRect(boss.x + 38, boss.y + 26, 12, 6);
-  ctx.fillRect(boss.x + boss.w - 50, boss.y + 26, 12, 6);
+  if (boss.profileId === 'pulse') {
+    ctx.fillStyle = '#fff0b5';
+    ctx.fillRect(boss.x + 30, boss.y + 18, boss.w - 60, 8);
+    ctx.fillRect(boss.x + boss.w / 2 - 5, boss.y + 34, 10, 16);
+  } else if (boss.profileId === 'warden') {
+    ctx.fillStyle = '#dff7ff';
+    ctx.fillRect(boss.x + 26, boss.y + 18, 18, 12);
+    ctx.fillRect(boss.x + boss.w - 44, boss.y + 18, 18, 12);
+    ctx.fillRect(boss.x + 48, boss.y + 32, boss.w - 96, 6);
+  } else {
+    ctx.fillStyle = '#ffc6da';
+    ctx.fillRect(boss.x + 38, boss.y + 26, 12, 6);
+    ctx.fillRect(boss.x + boss.w - 50, boss.y + 26, 12, 6);
+  }
   ctx.restore();
 
   const barWidth = 180;
@@ -2864,9 +3253,9 @@ function drawBoss() {
   const barY = 18;
   ctx.fillStyle = 'rgba(255,255,255,0.08)';
   ctx.fillRect(barX, barY, barWidth, 8);
-  ctx.fillStyle = '#ff5f98';
+  ctx.fillStyle = accent;
   ctx.fillRect(barX, barY, barWidth * ratio, 8);
-  ctx.strokeStyle = 'rgba(255,95,152,0.5)';
+  ctx.strokeStyle = boss.profileId === 'pulse' ? 'rgba(255,214,111,0.5)' : boss.profileId === 'warden' ? 'rgba(143,224,255,0.5)' : 'rgba(255,95,152,0.5)';
   ctx.strokeRect(barX, barY, barWidth, 8);
 
   if (boss.entryTimer > 0) {
@@ -2959,7 +3348,7 @@ function draw() {
   ctx.shadowBlur = 0;
 
   enemyBullets.forEach(bullet => {
-    ctx.fillStyle = bullet.fromBoss ? '#ff2f7d' : '#ff6600';
+    ctx.fillStyle = bullet.tint || (bullet.fromBoss ? '#ff2f7d' : '#ff6600');
     ctx.fillRect(bullet.x, bullet.y, bullet.w, bullet.h);
   });
 
@@ -2968,17 +3357,26 @@ function draw() {
   });
 
   if (ufo.active) {
-    ctx.fillStyle = theme.ufo;
+    const variant = getUfoVariantDef();
+    ctx.fillStyle = variant.color;
     ctx.shadowBlur = 8;
-    ctx.shadowColor = theme.ufo;
+    ctx.shadowColor = variant.color;
     ctx.fillRect(ufo.x + 10, ufo.y + 6, ufo.w - 20, ufo.h - 10);
     ctx.fillRect(ufo.x, ufo.y + 12, ufo.w, 8);
     ctx.fillRect(ufo.x + ufo.w / 2 - 6, ufo.y, 12, 8);
+    if (variant.id === 'cargo') {
+      ctx.fillRect(ufo.x + 20, ufo.y + 4, 10, 6);
+      ctx.fillRect(ufo.x + ufo.w - 30, ufo.y + 4, 10, 6);
+    } else if (variant.id === 'phantom') {
+      ctx.globalAlpha = 0.35;
+      ctx.fillRect(ufo.x + 6, ufo.y + 10, ufo.w - 12, 6);
+      ctx.globalAlpha = 1;
+    }
     ctx.shadowBlur = 0;
-    ctx.fillStyle = '#ffaacc';
+    ctx.fillStyle = variant.color;
     ctx.font = '10px Courier New';
     ctx.textAlign = 'center';
-    ctx.fillText('150', ufo.x + ufo.w / 2, ufo.y - 2);
+    ctx.fillText(`${variant.points}`, ufo.x + ufo.w / 2, ufo.y - 2);
     ctx.textAlign = 'left';
   }
 
@@ -3017,10 +3415,10 @@ function draw() {
 
   if (boss.active && boss.entryTimer > 0) {
     ctx.globalAlpha = Math.min(0.9, boss.entryTimer / 84);
-    ctx.fillStyle = '#ff7db3';
+    ctx.fillStyle = getBossAccentColor();
     ctx.font = `bold ${Math.floor(canvas.width / 18)}px Courier New`;
     ctx.textAlign = 'center';
-    ctx.fillText('WARNING', canvas.width / 2, canvas.height * 0.28);
+    ctx.fillText(`${boss.label} WARNING`, canvas.width / 2, canvas.height * 0.28);
     ctx.globalAlpha = 1;
     ctx.textAlign = 'left';
   }
@@ -3185,10 +3583,15 @@ function startGame() {
   levelScreenTimer = 0;
   musicStep = 0;
   ufo.active = false;
+  ufo.variant = 'bonus';
+  ufo.points = UFO_VARIANTS.bonus.points;
+  ufo.speed = UFO_VARIANTS.bonus.speed;
   ufoSpawnTimer = 0;
   bossEncounteredThisLevel = false;
   heartbeatTimer = 0;
   heartbeatIdx = 0;
+  currentWavePattern = WAVE_PATTERNS.classic_grid;
+  currentWaveEnemyCount = TOTAL_ENEMIES;
   playerBullets.length = 0;
   enemyBullets.length = 0;
   powerUps.length = 0;

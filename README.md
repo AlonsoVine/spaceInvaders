@@ -37,6 +37,10 @@ Implementación web del clásico **Space Invaders** con una base muy ligera: `HT
 - Power-ups simples: disparo rápido, escudo y corazón de curación.
 - Curación limitada a un máximo de `3` vidas.
 - Boss arcade al final de cada ciclo de `3` niveles.
+- Oleadas variadas con formaciones `grid`, `split wings`, `spearhead`, `staggered` y `fortress`.
+- Enemigos con roles diferenciados: `classic`, `shooter`, `scout` y `tank`.
+- Variantes de UFO con comportamiento y recompensa propia: `bonus`, `cargo` y `phantom`.
+- Bosses con perfiles alternos: `striker`, `pulse` y `warden`.
 - HUD de vidas con corazones pixel art y estado activo de partida.
 - Fondo dinámico, partículas, shockwaves y screen shake con estética arcade renovada.
 - Entrada cinematográfica del boss y feedback visual reforzado en impactos y pickups.
@@ -88,6 +92,7 @@ spaceInvaders/
 
 - Estado global de partida: `score`, `lives`, `level`, `running`, `paused`, `combo`, `frameCount`.
 - Modos y progreso: clásico, contrarreloj, bosses por ciclo y power-ups temporales.
+- Composición de oleadas: patrones, roles enemigos, UFOs variantes y bosses por perfil.
 - Persistencia: lectura y escritura en `localStorage` para récord, historial, ajustes y estadísticas.
 - Audio: generación procedural de efectos con `AudioContext`.
 - Entrada: teclado, botón de inicio y controles táctiles.
@@ -174,6 +179,14 @@ Esta carpeta no interviene en la versión web actual, pero sí aporta contexto h
 6. Meta rediseñada con categorías (`inicio`, `progresion`, `habilidad`, `modos`, `coleccion`, `meta`).
 7. Recompensas explícitas por logro: skins e insignias persistentes.
 8. Progreso parcial visible, hitos cercanos y catálogo estructurado en pausa/game over.
+
+### Lote 5 implementado
+
+1. Formaciones de oleada variadas con escalado por nivel y modo.
+2. Roles enemigos con diferencias reales de resistencia, disparo y prioridad táctica.
+3. UFOs `bonus`, `cargo` y `phantom` con velocidad y recompensa propias.
+4. Bosses `striker`, `pulse` y `warden` con patrones alternos.
+5. Escalado de presión más inteligente entre early, mid y late game.
 
 ### Mejoras de bajo coste pendientes
 
