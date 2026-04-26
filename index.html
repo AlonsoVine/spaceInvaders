@@ -38,6 +38,10 @@
               <span class="card-badge">ANTES DE JUGAR</span>
             </div>
             <div class="setting-row">
+              <label for="skin-select">SKIN</label>
+              <select id="skin-select"></select>
+            </div>
+            <div class="setting-row">
               <label for="mode-select">MODO</label>
               <select id="mode-select">
                 <option value="classic" selected>CLASICO</option>
@@ -55,6 +59,14 @@
             <label class="setting-toggle" for="toggle-vibration">
               <input id="toggle-vibration" type="checkbox" checked />
               <span>VIBRACION</span>
+            </label>
+            <label class="setting-toggle" for="toggle-reduced-effects">
+              <input id="toggle-reduced-effects" type="checkbox" />
+              <span>EFECTOS REDUCIDOS</span>
+            </label>
+            <label class="setting-toggle" for="toggle-high-contrast">
+              <input id="toggle-high-contrast" type="checkbox" />
+              <span>ALTO CONTRASTE</span>
             </label>
             <p id="settings-note">Los cambios se aplican al iniciar la siguiente partida.</p>
           </section>
@@ -81,6 +93,15 @@
               <span class="card-badge">HISTORIAL</span>
             </div>
             <div id="stats-history"></div>
+          </section>
+
+          <section id="meta-panel" class="overlay-card" aria-label="Progreso y desafios">
+            <div class="card-head">
+              <h2>PROGRESO</h2>
+              <span class="card-badge">META</span>
+            </div>
+            <div id="challenge-summary"></div>
+            <div id="achievement-summary"></div>
           </section>
         </div>
 

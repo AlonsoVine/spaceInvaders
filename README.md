@@ -38,6 +38,11 @@ Implementación web del clásico **Space Invaders** con una base muy ligera: `HT
 - Curación limitada a un máximo de `3` vidas.
 - Boss arcade al final de cada ciclo de `3` niveles.
 - HUD de vidas con corazones pixel art y estado activo de partida.
+- Fondo dinámico, partículas, shockwaves y screen shake con estética arcade renovada.
+- Entrada cinematográfica del boss y feedback visual reforzado en impactos y pickups.
+- Logros persistentes, desafío activo rotatorio y skins desbloqueables.
+- Ajustes de accesibilidad visual con `efectos reducidos` y `alto contraste`.
+- Nuevos power-ups: `freeze`, `piercing` y `drone wing`.
 - Estadísticas de partida y acumuladas.
 - Guardado local de récord (`si_hs`), historial enriquecido (`si_history`) y estadísticas acumuladas (`si_stats`).
 
@@ -156,10 +161,17 @@ Esta carpeta no interviene en la versión web actual, pero sí aporta contexto h
 4. Boss al final de cada ciclo de `3` niveles.
 5. Primera oleada del nivel 1 suavizada con media fila superior ausente.
 
+### Lote 4 implementado
+
+1. Logros persistentes con desbloqueo por hitos jugables.
+2. Desafio activo diario/rotatorio mostrado en el overlay.
+3. Skins cosméticas desbloqueables y seleccionables.
+4. Ajustes de accesibilidad visual: `alto contraste` y `efectos reducidos`.
+5. Power-ups avanzados: `freeze`, `piercing` y `drone wing`.
+
 ### Mejoras de bajo coste pendientes
 
 1. Tutorial interactivo de primera partida.
-2. Mejoras visuales del feedback de power-ups.
 
 ### Mejoras de impacto medio pendientes
 
