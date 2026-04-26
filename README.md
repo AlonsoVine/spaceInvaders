@@ -29,9 +29,15 @@ Implementación web del clásico **Space Invaders** con una base muy ligera: `HT
 - Música de fondo procedural con control de activación y volumen.
 - Soporte para pantalla completa.
 - Panel inicial de ajustes con dificultad y vibración.
+- Selector de modo entre clásico y contrarreloj.
 - Atajos visibles y accesos directos para música/fullscreen.
 - Vibración en dispositivos compatibles al recibir daño.
 - Transición entre niveles y dificultad progresiva.
+- Primera oleada suavizada en nivel 1 para facilitar la entrada al juego.
+- Power-ups simples: disparo rápido, escudo y corazón de curación.
+- Curación limitada a un máximo de `3` vidas.
+- Boss arcade al final de cada ciclo de `3` niveles.
+- HUD de vidas con corazones pixel art y estado activo de partida.
 - Estadísticas de partida y acumuladas.
 - Guardado local de récord (`si_hs`), historial enriquecido (`si_history`) y estadísticas acumuladas (`si_stats`).
 
@@ -73,17 +79,18 @@ spaceInvaders/
 `js/game.js` concentra toda la lógica. A nivel práctico funciona como un único módulo con estas responsabilidades:
 
 - Estado global de partida: `score`, `lives`, `level`, `running`, `paused`, `combo`, `frameCount`.
+- Modos y progreso: clásico, contrarreloj, bosses por ciclo y power-ups temporales.
 - Persistencia: lectura y escritura en `localStorage` para récord, historial, ajustes y estadísticas.
 - Audio: generación procedural de efectos con `AudioContext`.
 - Entrada: teclado, botón de inicio y controles táctiles.
-- Sistemas de juego: jugador, bala del jugador, balas enemigas, escudos, enemigos, UFO, explosiones, textos flotantes y tracking de métricas.
+- Sistemas de juego: jugador, balas múltiples del jugador, balas enemigas, escudos, enemigos, UFO, boss, power-ups, explosiones, textos flotantes y tracking de métricas.
 - Bucle principal: `update()` + `draw()` + `requestAnimationFrame(loop)`.
 
 ### 4. Flujo de una partida
 
-1. `startGame()` reinicia estado, HUD, enemigos y escudos.
+1. `startGame()` reinicia estado, HUD, modo elegido, enemigos, boss y escudos.
 2. `loop()` ejecuta actualización y render mientras `running` sea `true`.
-3. `update()` resuelve movimiento, disparos, colisiones, combos, avance de nivel y muerte.
+3. `update()` resuelve movimiento, disparos, colisiones, power-ups, contrarreloj, avance de nivel, boss y muerte.
 4. `draw()` renderiza todos los elementos del juego sobre el `canvas`.
 5. `gameOver()` guarda puntuación, muestra historial y reabre el overlay.
 
@@ -105,7 +112,7 @@ spaceInvaders/
 
 ### Qué implica esto para futuras mejoras
 
-- Mejoras pequeñas como música, dificultad o fullscreen son directas.
+- Mejoras pequeñas como música, dificultad, fullscreen o ajustes siguen siendo directas.
 - Funcionalidades como ranking online, logros, guardado de progreso o editor de niveles requerirán separar estado, persistencia y UI.
 - Si el proyecto sigue creciendo, conviene dividir `game.js` por dominios: entrada, audio, entidades, render y persistencia.
 
@@ -141,19 +148,25 @@ Esta carpeta no interviene en la versión web actual, pero sí aporta contexto h
 
 ## Roadmap de mejoras
 
-### Mejoras de bajo coste
+### Lote 3 implementado
+
+1. Selector de modo `clasico` / `contrarreloj`.
+2. Power-ups simples con `disparo rapido`, `escudo` y `corazon`.
+3. Recuperacion de vida limitada a `3` corazones como maximo.
+4. Boss al final de cada ciclo de `3` niveles.
+5. Primera oleada del nivel 1 suavizada con media fila superior ausente.
+
+### Mejoras de bajo coste pendientes
 
 1. Tutorial interactivo de primera partida.
+2. Mejoras visuales del feedback de power-ups.
 
-### Mejoras de impacto medio
+### Mejoras de impacto medio pendientes
 
 1. Animaciones avanzadas.
-2. Power-ups.
-3. Efectos de partículas.
-4. Personalización de controles.
-5. Selección de skins o temas.
-6. Jefe final por ciclo de niveles.
-7. Modo contrarreloj.
+2. Efectos de partículas.
+3. Personalización de controles.
+4. Selección de skins o temas.
 
 ### Mejoras que exigen más arquitectura
 

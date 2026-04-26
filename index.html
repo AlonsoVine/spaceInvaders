@@ -11,8 +11,14 @@
     <div id="header">
       <span>PTS: <strong id="score">0</strong></span>
       <span>RÉC: <strong id="highscore">0</strong></span>
-      <span>VIDAS: <strong id="lives">3</strong></span>
+      <span>VIDAS: <strong id="lives" aria-label="3 vidas"></strong></span>
       <span>NIV: <strong id="level">1</strong></span>
+      <span>MODO: <strong id="mode-label">CLASICO</strong></span>
+      <span>TIEMPO: <strong id="timer">LIBRE</strong></span>
+    </div>
+    <div id="status-bar" aria-live="polite">
+      <span id="boss-status" class="status-chip" hidden>BOSS</span>
+      <span id="powerup-status" class="status-chip">SIN POWER-UPS</span>
     </div>
 
     <canvas id="gameCanvas" width="800" height="600"></canvas>
@@ -30,6 +36,13 @@
             <div class="card-head">
               <h2>AJUSTES</h2>
               <span class="card-badge">ANTES DE JUGAR</span>
+            </div>
+            <div class="setting-row">
+              <label for="mode-select">MODO</label>
+              <select id="mode-select">
+                <option value="classic" selected>CLASICO</option>
+                <option value="timeattack">CONTRARRELOJ</option>
+              </select>
             </div>
             <div class="setting-row">
               <label for="difficulty-select">DIFICULTAD</label>
