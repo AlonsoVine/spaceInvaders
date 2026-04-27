@@ -30,6 +30,11 @@ const highContrastToggle = document.getElementById('toggle-high-contrast');
 const btnMusic = document.getElementById('btn-music');
 const btnFullscreen = document.getElementById('btn-fullscreen');
 const musicVolumeEl = document.getElementById('music-volume');
+const fxVolumeEl = document.getElementById('fx-volume');
+const musicVolumeValueEl = document.getElementById('music-volume-value');
+const fxVolumeValueEl = document.getElementById('fx-volume-value');
+const btnOpenTutorial = document.getElementById('btn-open-tutorial');
+const btnResetProfile = document.getElementById('btn-reset-profile');
 const fullscreenTarget = document.body;
 const gameSettingsPanel = document.getElementById('game-settings-panel');
 const visualSettingsPanel = document.getElementById('visual-settings-panel');
@@ -54,6 +59,12 @@ const shipPreviewCanvas = document.getElementById('ship-preview-canvas');
 const shipPreviewCtx = shipPreviewCanvas ? shipPreviewCanvas.getContext('2d') : null;
 const challengeSummaryEl = document.getElementById('challenge-summary');
 const achievementSummaryEl = document.getElementById('achievement-summary');
+const overlayDialog = document.getElementById('overlay-dialog');
+const overlayDialogTitle = document.getElementById('overlay-dialog-title');
+const overlayDialogBadge = document.getElementById('overlay-dialog-badge');
+const overlayDialogBody = document.getElementById('overlay-dialog-body');
+const btnDialogSecondary = document.getElementById('btn-dialog-secondary');
+const btnDialogPrimary = document.getElementById('btn-dialog-primary');
 
 const SETTINGS_KEY = 'si_settings';
 const HISTORY_KEY = 'si_history';
@@ -310,6 +321,29 @@ const BESTIARY_DEFS = {
     tipCopy: 'El Warden no corre, pero te encierra. Prioriza posiciones seguras y no te dejes arrastrar a los bordes.'
   }
 };
+
+const TUTORIAL_SLIDES = [
+  {
+    title: 'CONTROLES BASE',
+    copy: 'Muévete con flechas o táctil, dispara con espacio y pausa con P o ESC cuando necesites leer la situación.'
+  },
+  {
+    title: 'POWER-UPS',
+    copy: 'Corazón, escudo y mejoras temporales cambian tu margen. No recojas por recoger: intenta hacerlo cuando te den tempo real.'
+  },
+  {
+    title: 'UFO Y EVENTOS',
+    copy: 'No todos los UFO valen lo mismo. Cargo, disruptor o jackpot cambian puntos, drops y ritmo de la run.'
+  },
+  {
+    title: 'ELITES Y BOSSES',
+    copy: 'Las escuadras élite y los bosses rompen la rutina. Prioriza lectura, espacio libre y ventanas de disparo, no solo daño bruto.'
+  },
+  {
+    title: 'META Y ARCHIVO',
+    copy: 'Objetivos, bestiario y colección te dicen qué perseguir después. Usa la portada para entrar a cada partida con un propósito claro.'
+  }
+];
 
 const ACHIEVEMENT_DEFS = [
   {
@@ -828,6 +862,15 @@ function normalizeShipSkin(value) {
   return Object.prototype.hasOwnProperty.call(SHIP_SKIN_DEFS, value) ? value : 'classic';
 }
 
+function normalizeAudioVolume(value, fallback = 0.22) {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? Math.min(0.6, Math.max(0, parsed)) : fallback;
+}
+
+function formatVolumePercent(value) {
+  return `${Math.round((normalizeAudioVolume(value, 0) / 0.6) * 100)}%`;
+}
+
 function loadSettings() {
   try {
     const stored = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
@@ -837,11 +880,12 @@ function loadSettings() {
       skin: normalizeSkin(stored.skin),
       shipSkin: normalizeShipSkin(stored.shipSkin),
       vibration: stored.vibration !== false,
+      fxVolume: normalizeAudioVolume(stored.fxVolume, 0.22),
       reducedEffects: stored.reducedEffects === true,
       highContrast: stored.highContrast === true
     };
   } catch {
-    return { difficulty: 'normal', mode: 'classic', skin: 'classic', shipSkin: 'classic', vibration: true, reducedEffects: false, highContrast: false };
+    return { difficulty: 'normal', mode: 'classic', skin: 'classic', shipSkin: 'classic', vibration: true, fxVolume: 0.22, reducedEffects: false, highContrast: false };
   }
 }
 
@@ -1287,6 +1331,7 @@ function applySettingsUI() {
   if (skinSelect) skinSelect.value = gameSettings.skin;
   if (shipSkinSelect) shipSkinSelect.value = gameSettings.shipSkin;
   vibrationToggle.checked = gameSettings.vibration;
+  if (fxVolumeEl) fxVolumeEl.value = gameSettings.fxVolume.toFixed(2);
   if (reducedEffectsToggle) reducedEffectsToggle.checked = gameSettings.reducedEffects;
   if (highContrastToggle) highContrastToggle.checked = gameSettings.highContrast;
   applyVisualPreferences();
@@ -2196,16 +2241,131 @@ function renderBestiaryEntry(def) {
           ${def.stats.map(stat => `<span class="bestiary-stat">${stat}</span>`).join('')}
         </div>
         <div class="start-objective-item-meta">
-          <span class="objective-reward">DERROTAS ${defeated}</span>
-          <span class="objective-progress${defeated > 0 ? ' is-complete' : ''}">${defeated > 0 ? `Registrado x${defeated}` : 'Aún sin derrotas'}</span>
+          <span class="objective-progress${defeated > 0 ? ' is-complete' : ''}">${defeated > 0 ? `Derrotado x${defeated}` : 'Aún sin derrotas'}</span>
         </div>
       </div>
     </article>
   `;
 }
 
+function getRewardUnlockSource(type, id) {
+  const achievement = ACHIEVEMENT_DEFS.find(def => def.reward?.type === type && def.reward.id === id);
+  if (achievement) return achievement.title;
+  if (id === 'classic') return 'BASE';
+  return 'POR DESCUBRIR';
+}
+
+function renderCollectionItem({ title, copy, unlocked, active = false, source, tone = 'neutral' }) {
+  return `
+    <article class="collection-item${unlocked ? ' is-unlocked' : ' is-locked'}${active ? ' is-active' : ''}" data-tone="${tone}">
+      <div class="collection-item-head">
+        <div class="collection-item-copy">
+          <strong class="achievement-title">${title}</strong>
+          <span class="achievement-copy">${copy}</span>
+        </div>
+        <span class="achievement-state${unlocked ? ' is-unlocked' : ''}">${active ? 'ACTIVA' : unlocked ? 'DESBLOQUEADA' : 'BLOQUEADA'}</span>
+      </div>
+      <span class="achievement-meta">${source}</span>
+    </article>
+  `;
+}
+
+function renderCollectionPanel() {
+  const skinItems = Object.entries(SKIN_THEMES).map(([id, def]) => renderCollectionItem({
+    title: def.label,
+    copy: `Tema de cabina con acento ${def.accent}.`,
+    unlocked: metaState.unlockedSkins.includes(id),
+    active: gameSettings.skin === id,
+    source: getRewardUnlockSource('skin', id),
+    tone: id
+  })).join('');
+
+  const shipItems = Object.entries(SHIP_SKIN_DEFS).map(([id, def]) => renderCollectionItem({
+    title: def.label,
+    copy: def.copy,
+    unlocked: metaState.unlockedShipSkins.includes(id),
+    active: gameSettings.shipSkin === id,
+    source: getRewardUnlockSource('shipSkin', id),
+    tone: 'ship'
+  })).join('');
+
+  const badgeItems = Object.entries(BADGE_DEFS).map(([id, def]) => renderCollectionItem({
+    title: def.label,
+    copy: def.copy,
+    unlocked: metaState.unlockedBadges.includes(id),
+    source: getRewardUnlockSource('badge', id),
+    tone: 'badge'
+  })).join('');
+
+  return `
+    <div class="collection-shell">
+      <div class="bestiary-overview">
+        <div class="bestiary-overview-copy">
+          <span class="achievement-kicker">COLECCION META</span>
+          <strong class="achievement-title">INVENTARIO DESBLOQUEABLE</strong>
+          <span class="achievement-copy">Revisa qué ya forma parte de tu perfil y qué recompensa sigue esperando a que la ganes.</span>
+        </div>
+        <div class="bestiary-overview-stats">
+          <div class="achievement-overview-stat">
+            <span class="achievement-overview-label">Skins</span>
+            <strong>${metaState.unlockedSkins.length}/${Object.keys(SKIN_THEMES).length}</strong>
+          </div>
+          <div class="achievement-overview-stat">
+            <span class="achievement-overview-label">Naves</span>
+            <strong>${metaState.unlockedShipSkins.length}/${Object.keys(SHIP_SKIN_DEFS).length}</strong>
+          </div>
+          <div class="achievement-overview-stat">
+            <span class="achievement-overview-label">Insignias</span>
+            <strong>${metaState.unlockedBadges.length}/${Object.keys(BADGE_DEFS).length}</strong>
+          </div>
+        </div>
+      </div>
+      <div class="collection-grid">
+        <section class="collection-group">
+          <div class="collection-group-head">
+            <strong>SKINS</strong>
+            <span>${metaState.unlockedSkins.length} activas o desbloqueadas</span>
+          </div>
+          <div class="collection-list">${skinItems}</div>
+        </section>
+        <section class="collection-group">
+          <div class="collection-group-head">
+            <strong>NAVES</strong>
+            <span>${metaState.unlockedShipSkins.length} modelos</span>
+          </div>
+          <div class="collection-list">${shipItems}</div>
+        </section>
+        <section class="collection-group">
+          <div class="collection-group-head">
+            <strong>INSIGNIAS</strong>
+            <span>${metaState.unlockedBadges.length} conseguidas</span>
+          </div>
+          <div class="collection-list">${badgeItems}</div>
+        </section>
+      </div>
+    </div>
+  `;
+}
+
 function renderBestiaryPanel() {
   if (!bestiaryBrowserEl) return;
+  const guideTabs = `
+    <div class="guide-tabs" role="tablist" aria-label="Archivo de juego">
+      <button type="button" class="guide-tab${guidePanelTab === 'bestiary' ? ' is-active' : ''}" data-guide-tab="bestiary" role="tab" aria-selected="${guidePanelTab === 'bestiary'}">BESTIARIO</button>
+      <button type="button" class="guide-tab${guidePanelTab === 'collection' ? ' is-active' : ''}" data-guide-tab="collection" role="tab" aria-selected="${guidePanelTab === 'collection'}">EQUIPACION</button>
+    </div>
+  `;
+
+  if (guidePanelTab === 'collection') {
+    bestiaryBrowserEl.innerHTML = `
+      <div class="guide-shell">
+        ${guideTabs}
+        ${renderCollectionPanel()}
+      </div>
+    `;
+    return;
+  }
+
   const activeCategory = BESTIARY_CATEGORIES.includes(bestiaryTab) ? bestiaryTab : 'invaders';
   const categoryEntries = Object.values(BESTIARY_DEFS).filter(def => def.category === activeCategory);
   const seenCount = countBestiarySeen(metaState, Object.keys(BESTIARY_DEFS));
@@ -2213,42 +2373,137 @@ function renderBestiaryPanel() {
   const categorySeen = countBestiarySeen(metaState, categoryEntries.map(def => def.id));
 
   bestiaryBrowserEl.innerHTML = `
-    <div class="bestiary-shell">
-      <div class="bestiary-overview">
-        <div class="bestiary-overview-copy">
-          <span class="achievement-kicker">GUIA DE AMENAZAS</span>
-          <strong class="achievement-title">ARCHIVO DE COMBATE</strong>
-          <span class="achievement-copy">Cada ficha resume vida, presión ofensiva, movilidad y el número de veces que ya la has derribado.</span>
+    <div class="guide-shell">
+      ${guideTabs}
+      <div class="bestiary-shell">
+        <div class="bestiary-overview">
+          <div class="bestiary-overview-copy">
+            <span class="achievement-kicker">GUIA DE AMENAZAS</span>
+            <strong class="achievement-title">ARCHIVO DE COMBATE</strong>
+            <span class="achievement-copy">Cada ficha resume vida, presión ofensiva, movilidad y el número de veces que ya la has derribado.</span>
+          </div>
+          <div class="bestiary-overview-stats">
+            <div class="achievement-overview-stat">
+              <span class="achievement-overview-label">Entradas vistas</span>
+              <strong>${seenCount}/${Object.keys(BESTIARY_DEFS).length}</strong>
+            </div>
+            <div class="achievement-overview-stat">
+              <span class="achievement-overview-label">Categoría activa</span>
+              <strong>${categorySeen}/${categoryEntries.length}</strong>
+            </div>
+            <div class="achievement-overview-stat">
+              <span class="achievement-overview-label">Derrotados totales</span>
+              <strong>${totalDefeats}</strong>
+            </div>
+          </div>
         </div>
-        <div class="bestiary-overview-stats">
-          <div class="achievement-overview-stat">
-            <span class="achievement-overview-label">Entradas vistas</span>
-            <strong>${seenCount}/${Object.keys(BESTIARY_DEFS).length}</strong>
-          </div>
-          <div class="achievement-overview-stat">
-            <span class="achievement-overview-label">Categoría activa</span>
-            <strong>${categorySeen}/${categoryEntries.length}</strong>
-          </div>
-          <div class="achievement-overview-stat">
-            <span class="achievement-overview-label">Derrotas</span>
-            <strong>${totalDefeats}</strong>
-          </div>
+        <div class="bestiary-tabs" role="tablist" aria-label="Categorias del bestiario">
+          ${BESTIARY_CATEGORIES.map(category => `
+            <button type="button" class="bestiary-tab${activeCategory === category ? ' is-active' : ''}" data-bestiary-tab="${category}" role="tab" aria-selected="${activeCategory === category}">
+              ${BESTIARY_CATEGORY_LABELS[category]}
+              <span>${countBestiarySeen(metaState, Object.values(BESTIARY_DEFS).filter(def => def.category === category).map(def => def.id))}/${Object.values(BESTIARY_DEFS).filter(def => def.category === category).length}</span>
+            </button>
+          `).join('')}
         </div>
-      </div>
-      <div class="bestiary-tabs" role="tablist" aria-label="Categorias del bestiario">
-        ${BESTIARY_CATEGORIES.map(category => `
-          <button type="button" class="bestiary-tab${activeCategory === category ? ' is-active' : ''}" data-bestiary-tab="${category}" role="tab" aria-selected="${activeCategory === category}">
-            ${BESTIARY_CATEGORY_LABELS[category]}
-            <span>${countBestiarySeen(metaState, Object.values(BESTIARY_DEFS).filter(def => def.category === category).map(def => def.id))}/${Object.values(BESTIARY_DEFS).filter(def => def.category === category).length}</span>
-          </button>
-        `).join('')}
-      </div>
-      <div class="bestiary-grid">
-        ${categoryEntries.map(renderBestiaryEntry).join('')}
+        <div class="bestiary-grid">
+          ${categoryEntries.map(renderBestiaryEntry).join('')}
+        </div>
       </div>
     </div>
   `;
   renderBestiaryPreviews();
+}
+
+function openOverlayDialog(state) {
+  if (!overlayDialog || !overlayDialogBody || !overlayDialogTitle || !overlayDialogBadge) return;
+  overlayDialogState = state;
+  renderOverlayDialog();
+  overlayDialog.hidden = false;
+}
+
+function closeOverlayDialog() {
+  if (!overlayDialog) return;
+  overlayDialog.hidden = true;
+  overlayDialogState = null;
+}
+
+function renderOverlayDialog() {
+  if (!overlayDialogState || !overlayDialogBody || !overlayDialogTitle || !overlayDialogBadge) return;
+  if (overlayDialogState.type === 'tutorial') {
+    const slide = TUTORIAL_SLIDES[overlayDialogState.step] || TUTORIAL_SLIDES[0];
+    overlayDialogTitle.textContent = slide.title;
+    overlayDialogBadge.textContent = `${overlayDialogState.step + 1}/${TUTORIAL_SLIDES.length}`;
+    overlayDialogBody.innerHTML = `
+      <div class="dialog-copy">
+        <p>${slide.copy}</p>
+      </div>
+    `;
+    btnDialogSecondary.textContent = overlayDialogState.step === 0 ? 'CERRAR' : 'ANTERIOR';
+    btnDialogPrimary.textContent = overlayDialogState.step === TUTORIAL_SLIDES.length - 1 ? 'LISTO' : 'SIGUIENTE';
+  } else if (overlayDialogState.type === 'reset') {
+    overlayDialogTitle.textContent = 'REINICIAR PERFIL';
+    overlayDialogBadge.textContent = 'CONFIRMACION';
+    overlayDialogBody.innerHTML = `
+      <div class="dialog-copy">
+        <p>Se borrarán récord, historial, estadísticas, logros, bestiario, colección e insignias.</p>
+        <p>Tus ajustes de partida y audio se mantendrán, pero la skin y la nave activas volverán a la base si dejan de estar desbloqueadas.</p>
+      </div>
+    `;
+    btnDialogSecondary.textContent = 'CANCELAR';
+    btnDialogPrimary.textContent = 'REINICIAR';
+  }
+}
+
+function openTutorialOverlay() {
+  openOverlayDialog({ type: 'tutorial', step: 0 });
+}
+
+function createDefaultAggregateStats() {
+  return {
+    gamesPlayed: 0,
+    totalScore: 0,
+    totalShots: 0,
+    totalHits: 0,
+    totalEnemiesDestroyed: 0,
+    totalUfoDestroyed: 0,
+    totalPowerUpsCollected: 0,
+    totalBossesDefeated: 0,
+    totalClassicGames: 0,
+    totalTimeAttackGames: 0,
+    bestLevel: 1,
+    bestCombo: 1,
+    bestTimeAttackScore: 0,
+    bestAccuracy25: 0,
+    bestAccuracy35: 0,
+    totalTimeMs: 0
+  };
+}
+
+function resetProfileProgress() {
+  localStorage.removeItem('si_hs');
+  localStorage.removeItem(HISTORY_KEY);
+  localStorage.removeItem(AGGREGATE_STATS_KEY);
+  localStorage.removeItem(META_KEY);
+  highscore = 0;
+  highscoreEl.textContent = '0';
+  scoreHistory = [];
+  aggregateStats = createDefaultAggregateStats();
+  metaState = loadMetaState();
+  currentChallenge = getCurrentChallengeDefinition();
+  progressPanelTab = 'pending';
+  startObjectivesTab = 'pending';
+  guidePanelTab = 'bestiary';
+  bestiaryTab = 'invaders';
+  sanitizeSelectedSkin();
+  sanitizeSelectedShipSkin();
+  gameSettings.skin = 'classic';
+  gameSettings.shipSkin = 'classic';
+  persistGameSettings();
+  applySettingsUI();
+  renderMetaPanel();
+  renderStartScreenPanels();
+  updateHudStatus();
+  closeOverlayDialog();
 }
 
 function wrapCanvasText(context, text, maxWidth) {
@@ -2421,6 +2676,7 @@ function renderStartScreenPanels() {
   const skinNoteEl = document.getElementById('skin-note');
   const shipNoteEl = document.getElementById('ship-note');
   const settingsNoteEl = document.getElementById('settings-note');
+  const audioNoteEl = document.getElementById('audio-note');
   if (startObjectivesCountEl) {
     startObjectivesCountEl.textContent = `${unlockedAchievements}/${ACHIEVEMENT_DEFS.length}`;
   }
@@ -2445,6 +2701,9 @@ function renderStartScreenPanels() {
   }
   if (settingsNoteEl) {
     settingsNoteEl.textContent = 'La preview se actualiza al instante y la nave se usa en la siguiente partida.';
+  }
+  if (audioNoteEl) {
+    audioNoteEl.textContent = `Música ${musicEnabled ? 'activa' : 'silenciada'} al ${formatVolumePercent(musicVolume)} · FX al ${formatVolumePercent(gameSettings.fxVolume)}.`;
   }
 
   startSummaryEl.innerHTML = `
@@ -2564,6 +2823,7 @@ function returnToMenu() {
   running = false;
   paused = false;
   showingLevelScreen = false;
+  closeOverlayDialog();
   activeTutorialPrompt = null;
   pendingTutorialPromptQueue.length = 0;
   pendingIntroTutorial = false;
@@ -2583,6 +2843,7 @@ function returnToMenu() {
 function setOverlayMode(mode, entry = null) {
   overlayMode = mode;
   overlay.dataset.mode = mode;
+  closeOverlayDialog();
   renderStatsPanel();
   renderMetaPanel();
   renderStartScreenPanels();
@@ -2660,10 +2921,12 @@ let currentRunStats = createRunStats();
 let overlayMode = 'start';
 let progressPanelTab = 'pending';
 let startObjectivesTab = 'pending';
+let guidePanelTab = 'bestiary';
 let bestiaryTab = 'invaders';
 let activeTutorialPrompt = null;
 let pendingTutorialPromptQueue = [];
 let pendingIntroTutorial = false;
+let overlayDialogState = null;
 evaluateAchievements('profile', { silent: true });
 evaluateAchievements('end', { silent: true });
 evaluateAchievements('meta', { silent: true });
@@ -2675,6 +2938,7 @@ highscoreEl.textContent = highscore;
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
 let audioCtx;
 let musicGain = null;
+let fxGain = null;
 let musicLoop = null;
 let musicStep = 0;
 let musicEnabled = localStorage.getItem('si_music_enabled');
@@ -2703,8 +2967,13 @@ const MUSIC_MELODY = [
 ];
 
 function updateMusicUI() {
-  btnMusic.textContent = `MUSICA: ${musicEnabled ? 'ON' : 'OFF'}`;
-  musicVolumeEl.value = musicVolume.toFixed(2);
+  if (btnMusic) btnMusic.textContent = `MUSICA: ${musicEnabled ? 'ON' : 'OFF'}`;
+  if (musicVolumeEl) musicVolumeEl.value = musicVolume.toFixed(2);
+  if (fxVolumeEl) fxVolumeEl.value = gameSettings.fxVolume.toFixed(2);
+  if (musicVolumeValueEl) musicVolumeValueEl.textContent = formatVolumePercent(musicVolume);
+  if (fxVolumeValueEl) fxVolumeValueEl.textContent = formatVolumePercent(gameSettings.fxVolume);
+  if (musicVolumeEl) musicVolumeEl.setAttribute('aria-valuetext', formatVolumePercent(musicVolume));
+  if (fxVolumeEl) fxVolumeEl.setAttribute('aria-valuetext', formatVolumePercent(gameSettings.fxVolume));
 }
 
 function updateFullscreenUI() {
@@ -2731,6 +3000,11 @@ function ensureMusicBus() {
     musicGain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
     musicGain.connect(audioCtx.destination);
   }
+  if (!fxGain) {
+    fxGain = audioCtx.createGain();
+    fxGain.gain.setValueAtTime(Math.max(0.0001, gameSettings.fxVolume), audioCtx.currentTime);
+    fxGain.connect(audioCtx.destination);
+  }
   if (!musicLoop) {
     musicLoop = setInterval(() => {
       if (!audioCtx || audioCtx.state !== 'running') return;
@@ -2738,6 +3012,7 @@ function ensureMusicBus() {
     }, 190);
   }
   syncMusicGain();
+  syncFxGain();
 }
 
 function syncMusicGain() {
@@ -2747,6 +3022,15 @@ function syncMusicGain() {
   musicGain.gain.cancelScheduledValues(now);
   musicGain.gain.setValueAtTime(musicGain.gain.value || 0.0001, now);
   musicGain.gain.linearRampToValueAtTime(target, now + 0.12);
+}
+
+function syncFxGain() {
+  if (!audioCtx || !fxGain) return;
+  const now = audioCtx.currentTime;
+  const target = Math.max(0.0001, gameSettings.fxVolume);
+  fxGain.gain.cancelScheduledValues(now);
+  fxGain.gain.setValueAtTime(fxGain.gain.value || 0.0001, now);
+  fxGain.gain.linearRampToValueAtTime(target, now + 0.08);
 }
 
 function initAudio() {
@@ -2760,7 +3044,7 @@ function beep(freq, duration, type = 'square', vol = 0.12) {
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
   osc.connect(gain);
-  gain.connect(audioCtx.destination);
+  gain.connect(fxGain || audioCtx.destination);
   osc.type = type;
   osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
   gain.gain.setValueAtTime(vol, audioCtx.currentTime);
@@ -2922,6 +3206,24 @@ musicVolumeEl.addEventListener('input', event => {
   updateMusicUI();
   syncMusicGain();
 });
+if (fxVolumeEl) {
+  fxVolumeEl.addEventListener('input', event => {
+    initAudio();
+    gameSettings.fxVolume = normalizeAudioVolume(event.target.value, gameSettings.fxVolume);
+    persistGameSettings();
+    updateMusicUI();
+    syncFxGain();
+    renderStartScreenPanels();
+  });
+}
+if (btnOpenTutorial) {
+  btnOpenTutorial.addEventListener('click', openTutorialOverlay);
+}
+if (btnResetProfile) {
+  btnResetProfile.addEventListener('click', () => {
+    openOverlayDialog({ type: 'reset' });
+  });
+}
 difficultySelect.addEventListener('change', event => {
   gameSettings.difficulty = normalizeDifficulty(event.target.value);
   persistGameSettings();
@@ -3000,12 +3302,62 @@ startAchievementsEl.addEventListener('click', event => {
 });
 if (bestiaryBrowserEl) {
   bestiaryBrowserEl.addEventListener('click', event => {
+    const guideTrigger = event.target.closest('[data-guide-tab]');
+    if (guideTrigger) {
+      const nextGuideTab = guideTrigger.dataset.guideTab === 'collection' ? 'collection' : 'bestiary';
+      if (guidePanelTab !== nextGuideTab) {
+        guidePanelTab = nextGuideTab;
+        renderBestiaryPanel();
+      }
+      return;
+    }
     const trigger = event.target.closest('[data-bestiary-tab]');
     if (!trigger) return;
     const nextTab = BESTIARY_CATEGORIES.includes(trigger.dataset.bestiaryTab) ? trigger.dataset.bestiaryTab : 'invaders';
     if (bestiaryTab === nextTab) return;
     bestiaryTab = nextTab;
     renderBestiaryPanel();
+  });
+}
+if (btnDialogSecondary) {
+  btnDialogSecondary.addEventListener('click', () => {
+    if (!overlayDialogState) {
+      closeOverlayDialog();
+      return;
+    }
+    if (overlayDialogState.type === 'tutorial' && overlayDialogState.step > 0) {
+      overlayDialogState.step -= 1;
+      renderOverlayDialog();
+      return;
+    }
+    closeOverlayDialog();
+  });
+}
+if (btnDialogPrimary) {
+  btnDialogPrimary.addEventListener('click', () => {
+    if (!overlayDialogState) {
+      closeOverlayDialog();
+      return;
+    }
+    if (overlayDialogState.type === 'tutorial') {
+      if (overlayDialogState.step >= TUTORIAL_SLIDES.length - 1) {
+        closeOverlayDialog();
+      } else {
+        overlayDialogState.step += 1;
+        renderOverlayDialog();
+      }
+      return;
+    }
+    if (overlayDialogState.type === 'reset') {
+      resetProfileProgress();
+    }
+  });
+}
+if (overlayDialog) {
+  overlayDialog.addEventListener('click', event => {
+    if (event.target === overlayDialog) {
+      closeOverlayDialog();
+    }
   });
 }
 document.addEventListener('fullscreenchange', updateFullscreenUI);
@@ -3357,7 +3709,7 @@ function shouldOmitEarlyEnemy(currentLevel, row, col, maskedOut) {
     return false;
   }
 
-  if (currentLevel >= 2 && currentLevel <= 8) {
+  if (currentLevel >= 2 && currentLevel <= 9) {
     if (row === ROWS - 1 && (col === 0 || col === COLS - 1)) return true;
   }
 
@@ -4659,6 +5011,7 @@ function gameOver(reason = 'defeat') {
 
 function startGame() {
   const preset = getDifficultyConfig();
+  closeOverlayDialog();
   currentChallenge = getCurrentChallengeDefinition();
   currentRunStats = createRunStats();
   currentRunStats.startedAt = Date.now();
