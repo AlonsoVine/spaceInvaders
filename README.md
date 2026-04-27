@@ -54,6 +54,10 @@ Implementación web del clásico **Space Invaders** con una base muy ligera: `HT
 - Tutorial contextual de primera partida con avisos breves en combate.
 - Bestiario persistente en portada con enemigos, UFOs, élites y bosses, más contador de derrotas por tipo.
 - Nuevos logros meta ligados a descubrimiento del bestiario y caza de amenazas concretas.
+- Volumen separado para `musica` y `fx` desde el dashboard inicial.
+- Tutorial rejugable en overlay desde la zona de ajustes de partida.
+- Reinicio de perfil con confirmación desde UI manteniendo la base de ajustes.
+- Colección meta unificada con el bestiario en una misma zona navegable.
 - Nuevos power-ups: `freeze`, `piercing` y `drone wing`.
 - Estadísticas de partida y acumuladas.
 - Guardado local de récord (`si_hs`), historial enriquecido (`si_history`), estadísticas acumuladas (`si_stats`) y meta persistente (`si_meta`).
@@ -202,7 +206,7 @@ Esta carpeta no interviene en la versión web actual, pero sí aporta contexto h
 
 ### Mejoras de bajo coste pendientes
 
-1. Volumen separado para `musica` y `fx`.
+1. Reset fino por categorías de progreso o ajustes.
 
 ### Mejoras de impacto medio pendientes
 

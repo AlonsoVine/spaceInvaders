@@ -471,6 +471,72 @@ body.reduced-effects #game-wrapper::before {
   letter-spacing: 1px;
 }
 
+.settings-subsection {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(0,255,136,0.1);
+  background: rgba(0,255,136,0.03);
+}
+
+.setting-row-slider {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  align-items: center;
+}
+
+.setting-inline-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.setting-row-slider .setting-inline-controls {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.setting-volume-value {
+  flex: 0 0 44px;
+  width: 44px;
+  text-align: right;
+  color: #9ad9b8;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+.setting-row-slider input[type="range"] {
+  flex: 1 1 220px;
+  width: 220px;
+  min-width: 0;
+}
+
+.settings-action-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+#btn-open-tutorial,
+#btn-reset-profile {
+  padding: 8px 14px;
+  border: 1px solid rgba(0,255,136,0.22);
+  background: rgba(0,255,136,0.06);
+  color: #d8f7e7;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+
+#btn-open-tutorial:hover,
+#btn-reset-profile:hover,
+#btn-open-tutorial:active,
+#btn-reset-profile:active {
+  background: rgba(0,255,136,0.14);
+}
+
 #difficulty-select {
   min-width: 130px;
   max-width: 100%;
@@ -493,6 +559,13 @@ body.reduced-effects #game-wrapper::before {
   color: #00ff88;
   font-family: 'Courier New', monospace;
   font-size: 12px;
+}
+
+#music-volume,
+#fx-volume {
+  width: min(220px, 48vw);
+  flex: 0 1 220px;
+  accent-color: #00ff88;
 }
 
 .setting-toggle {
@@ -785,9 +858,43 @@ body.reduced-effects #game-wrapper::before {
 .bestiary-shell,
 .bestiary-overview,
 .bestiary-overview-copy,
-.bestiary-title-wrap {
+.bestiary-title-wrap,
+.guide-shell,
+.collection-shell {
   display: grid;
   gap: 12px;
+}
+
+.guide-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 4px;
+  border: 1px solid rgba(0,255,136,0.1);
+  background: rgba(0,255,136,0.03);
+}
+
+.guide-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 180px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #86b89d;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+}
+
+.guide-tab.is-active {
+  border-color: rgba(0,255,136,0.28);
+  background: linear-gradient(180deg, rgba(0,255,136,0.14), rgba(0,255,136,0.06));
+  color: #00ff88;
+  box-shadow: 0 0 0 1px rgba(0,255,136,0.08) inset;
 }
 
 .bestiary-overview {
@@ -900,6 +1007,126 @@ body.reduced-effects #game-wrapper::before {
   color: #9ad9b8;
   font-size: 10px;
   letter-spacing: 1px;
+}
+
+.collection-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.collection-group,
+.collection-list {
+  display: grid;
+  gap: 10px;
+}
+
+.collection-group {
+  padding: 12px;
+  border: 1px solid rgba(0,255,136,0.08);
+  background: rgba(0,255,136,0.02);
+}
+
+.collection-group-head,
+.collection-item-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.collection-group-head {
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(0,255,136,0.1);
+  color: #9ad9b8;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+.collection-group-head strong {
+  color: #00ff88;
+  font-size: 12px;
+}
+
+.collection-item,
+.dialog-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.collection-item {
+  padding: 12px;
+  border: 1px solid rgba(0,255,136,0.1);
+  background: linear-gradient(180deg, rgba(0,255,136,0.04), rgba(0,255,136,0.02));
+}
+
+.collection-item.is-locked {
+  border-color: rgba(0,255,136,0.07);
+  background: linear-gradient(180deg, rgba(0,255,136,0.02), rgba(0,255,136,0.01));
+}
+
+.collection-item.is-active {
+  border-color: rgba(255,239,136,0.18);
+  box-shadow: inset 0 0 0 1px rgba(255,239,136,0.08);
+}
+
+.collection-item-copy {
+  display: grid;
+  gap: 4px;
+}
+
+#overlay-dialog {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0,0,0,0.54);
+  backdrop-filter: blur(6px);
+}
+
+#overlay-dialog[hidden] {
+  display: none !important;
+}
+
+#overlay-dialog-card {
+  width: min(100%, 560px);
+  padding: 18px 20px;
+  border: 1px solid rgba(0,255,136,0.18);
+  background: linear-gradient(180deg, rgba(0,18,11,0.96), rgba(1,7,5,0.98));
+  box-shadow: 0 20px 48px rgba(0,0,0,0.36);
+  display: grid;
+  gap: 16px;
+}
+
+#overlay-dialog-body {
+  color: #b6d4c1;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+#overlay-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+#btn-dialog-secondary,
+#btn-dialog-primary {
+  padding: 10px 16px;
+  border: 1px solid rgba(0,255,136,0.22);
+  background: rgba(0,255,136,0.06);
+  color: #d8f7e7;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+
+#btn-dialog-primary {
+  background: linear-gradient(180deg, rgba(17,255,146,0.24), rgba(0,217,111,0.18));
+  color: #f5fff9;
 }
 
 #overlay[data-mode="start"] #start-achievements {
@@ -1334,12 +1561,6 @@ body.reduced-effects #game-wrapper::before {
   background: rgba(0,255,136,0.18);
 }
 
-#music-volume {
-  width: min(180px, 40vw);
-  flex: 0 1 180px;
-  accent-color: #00ff88;
-}
-
 #meta-footer {
   display: flex;
   flex-direction: column;
@@ -1565,7 +1786,8 @@ body:fullscreen #meta-footer {
     display: none;
   }
 
-  #music-volume {
+  #music-volume,
+  #fx-volume {
     width: 100px;
   }
 }
@@ -1705,6 +1927,7 @@ body:fullscreen #meta-footer {
     flex-basis: 100%;
   }
 
+  .guide-tab,
   .bestiary-tab {
     flex-basis: 100%;
   }
@@ -1725,7 +1948,8 @@ body:fullscreen #meta-footer {
   }
 
   .bestiary-grid,
-  .bestiary-overview-stats {
+  .bestiary-overview-stats,
+  .collection-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1736,6 +1960,25 @@ body:fullscreen #meta-footer {
   .bestiary-head {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .settings-action-row,
+  .collection-group-head,
+  .collection-item-head,
+  #overlay-dialog-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .setting-row-slider .setting-inline-controls {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  #music-volume,
+  #fx-volume {
+    width: 100%;
+    flex-basis: 100%;
   }
 
   #overlay[data-mode="gameover"] #overlay-panels,
@@ -1765,7 +2008,8 @@ body:fullscreen #meta-footer {
     min-width: auto;
   }
 
-  #music-volume {
+  #music-volume,
+  #fx-volume {
     flex-basis: min(220px, 68vw);
     width: min(220px, 68vw);
   }
@@ -1821,7 +2065,8 @@ body:fullscreen #meta-footer {
     display: none;
   }
 
-  body:has(#overlay.visible) #music-volume {
+  body:has(#overlay.visible) #music-volume,
+  body:has(#overlay.visible) #fx-volume {
     flex-basis: min(240px, 66vw);
     width: min(240px, 66vw);
   }

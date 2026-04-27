@@ -57,9 +57,31 @@
               <input id="toggle-vibration" type="checkbox" checked />
               <span>VIBRACION</span>
             </label>
+            <div class="settings-subsection">
+              <div class="setting-row setting-row-slider">
+                <label for="music-volume">MUSICA</label>
+                <div class="setting-inline-controls">
+                  <span id="music-volume-value" class="setting-volume-value">58%</span>
+                  <input id="music-volume" type="range" min="0" max="0.6" step="0.05" value="0.35" />
+                </div>
+              </div>
+              <div class="setting-row setting-row-slider">
+                <label for="fx-volume">EFECTOS</label>
+                <div class="setting-inline-controls">
+                  <span id="fx-volume-value" class="setting-volume-value">37%</span>
+                  <input id="fx-volume" type="range" min="0" max="0.6" step="0.05" value="0.22" />
+                </div>
+              </div>
+              <div class="settings-action-row">
+                <button id="btn-fullscreen" type="button">FULLSCREEN</button>
+                <button id="btn-open-tutorial" type="button">VER TUTORIAL</button>
+              </div>
+              <button id="btn-reset-profile" type="button">REINICIAR PERFIL</button>
+            </div>
             <div class="card-note-list">
               <p id="mode-note" class="card-note">Clasico para progresión libre. Contrarreloj para presión constante.</p>
               <p id="difficulty-note" class="card-note">Fácil para entrar rápido; normal como base; difícil para sesiones largas.</p>
+              <p id="audio-note" class="card-note">Ajusta música y efectos sin salir del dashboard.</p>
             </div>
           </section>
 
@@ -105,9 +127,9 @@
             <div id="start-achievements"></div>
           </section>
 
-          <section id="bestiary-panel" class="overlay-card" aria-label="Bestiario y guía de amenazas">
+          <section id="bestiary-panel" class="overlay-card" aria-label="Coleccion de juego">
             <div class="card-head">
-              <h2>BESTIARIO</h2>
+              <h2>COLECCION</h2>
               <span class="card-badge">GUIA</span>
             </div>
             <p class="card-intro">Consulta enemigos, UFOs, élites y bosses con sus rasgos clave y tu historial frente a ellos.</p>
@@ -156,6 +178,19 @@
           </div>
         </div>
       </div>
+      <div id="overlay-dialog" hidden>
+        <div id="overlay-dialog-card" role="dialog" aria-modal="true" aria-labelledby="overlay-dialog-title">
+          <div class="card-head">
+            <h2 id="overlay-dialog-title">GUIA</h2>
+            <span id="overlay-dialog-badge" class="card-badge">SISTEMA</span>
+          </div>
+          <div id="overlay-dialog-body"></div>
+          <div id="overlay-dialog-actions">
+            <button id="btn-dialog-secondary" type="button">CERRAR</button>
+            <button id="btn-dialog-primary" type="button">SIGUIENTE</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -165,11 +200,8 @@
     <button id="btn-right">▶</button>
   </div>
 
-  <div id="audio-controls" aria-label="Controles de audio">
-    <button id="btn-fullscreen" type="button">FULLSCREEN</button>
+  <div id="audio-controls" aria-label="Controles rapidos de audio">
     <button id="btn-music" type="button">MUSICA: ON</button>
-    <label for="music-volume">VOL</label>
-    <input id="music-volume" type="range" min="0" max="0.6" step="0.05" value="0.35" />
   </div>
 
   <div id="meta-footer">
