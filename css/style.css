@@ -439,6 +439,23 @@ body.reduced-effects #game-wrapper::before {
   gap: 12px;
 }
 
+#ship-preview-frame {
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  border: 1px solid rgba(0,255,136,0.12);
+  background:
+    linear-gradient(180deg, rgba(0,255,136,0.05), rgba(0,255,136,0.02)),
+    rgba(0,255,136,0.015);
+}
+
+#ship-preview-canvas {
+  display: block;
+  width: min(100%, 220px);
+  height: auto;
+  image-rendering: pixelated;
+}
+
 .setting-row {
   display: flex;
   align-items: center;
@@ -466,6 +483,7 @@ body.reduced-effects #game-wrapper::before {
 }
 
 #skin-select,
+#ship-skin-select,
 #mode-select {
   min-width: 130px;
   max-width: 100%;
@@ -503,7 +521,6 @@ body.reduced-effects #game-wrapper::before {
 }
 
 #start-summary,
-#start-objective,
 #start-achievements {
   display: grid;
   gap: 10px;
@@ -765,13 +782,129 @@ body.reduced-effects #game-wrapper::before {
   gap: 4px;
 }
 
-#overlay[data-mode="start"] #start-objective {
+.bestiary-shell,
+.bestiary-overview,
+.bestiary-overview-copy,
+.bestiary-title-wrap {
+  display: grid;
+  gap: 12px;
+}
+
+.bestiary-overview {
+  padding: 14px;
+  border: 1px solid rgba(0,255,136,0.12);
+  background:
+    linear-gradient(180deg, rgba(0,255,136,0.08), rgba(0,255,136,0.025)),
+    rgba(0,255,136,0.02);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.03),
+    0 10px 26px rgba(0,0,0,0.18);
+}
+
+.bestiary-overview-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.bestiary-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 4px;
+  border: 1px solid rgba(0,255,136,0.1);
+  background: rgba(0,255,136,0.03);
+}
+
+.bestiary-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1 1 180px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #86b89d;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+}
+
+.bestiary-tab span {
+  color: #fff;
+}
+
+.bestiary-tab.is-active {
+  border-color: rgba(0,255,136,0.28);
+  background: linear-gradient(180deg, rgba(0,255,136,0.14), rgba(0,255,136,0.06));
+  color: #00ff88;
+  box-shadow: 0 0 0 1px rgba(0,255,136,0.08) inset;
+}
+
+.bestiary-grid {
+  display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: stretch;
+  gap: 12px;
+}
+
+.bestiary-entry {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(0,255,136,0.1);
+  background: linear-gradient(180deg, rgba(0,255,136,0.04), rgba(0,255,136,0.02));
+}
+
+.bestiary-entry.is-unseen {
+  border-color: rgba(0,255,136,0.08);
+  background: linear-gradient(180deg, rgba(0,255,136,0.025), rgba(0,255,136,0.012));
+}
+
+.bestiary-preview {
+  display: block;
+  width: 96px;
+  height: 56px;
+  image-rendering: pixelated;
+}
+
+.bestiary-copy {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.bestiary-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.bestiary-stat-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bestiary-stat {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 4px 8px;
+  border: 1px solid rgba(0,255,136,0.1);
+  background: rgba(0,255,136,0.04);
+  color: #9ad9b8;
+  font-size: 10px;
+  letter-spacing: 1px;
 }
 
 #overlay[data-mode="start"] #start-achievements {
   gap: 14px;
+  margin-top: 2px;
 }
 
 #overlay[data-mode="start"] .start-objective-tab-panel {
@@ -951,6 +1084,11 @@ body.reduced-effects #game-wrapper::before {
 .achievement-tab-panel {
   display: grid;
   gap: 12px;
+}
+
+#overlay[data-mode="gameover"] .achievement-tab-panel {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
 }
 
 .challenge-line,
@@ -1270,10 +1408,16 @@ body.reduced-effects #game-wrapper::before {
   grid-column: 1 / -1;
 }
 
+#overlay[data-mode="start"] #bestiary-panel {
+  order: 5;
+  grid-column: 1 / -1;
+}
+
 #overlay[data-mode="start"] #game-settings-panel,
 #overlay[data-mode="start"] #visual-settings-panel,
 #overlay[data-mode="start"] #start-summary-panel,
-#overlay[data-mode="start"] #start-objectives-panel {
+#overlay[data-mode="start"] #start-objectives-panel,
+#overlay[data-mode="start"] #bestiary-panel {
   min-height: 280px;
 }
 
@@ -1474,7 +1618,8 @@ body:fullscreen #meta-footer {
   #overlay[data-mode="start"] #game-settings-panel,
   #overlay[data-mode="start"] #visual-settings-panel,
   #overlay[data-mode="start"] #start-summary-panel,
-  #overlay[data-mode="start"] #start-objectives-panel {
+  #overlay[data-mode="start"] #start-objectives-panel,
+  #overlay[data-mode="start"] #bestiary-panel {
     min-height: 0;
   }
 
@@ -1482,6 +1627,7 @@ body:fullscreen #meta-footer {
   #visual-settings-panel { order: 3; }
   #start-summary-panel { order: 1; }
   #start-objectives-panel { order: 4; }
+  #bestiary-panel { order: 5; }
 
   #overlay-panels {
     grid-template-columns: 1fr;
@@ -1559,7 +1705,10 @@ body:fullscreen #meta-footer {
     flex-basis: 100%;
   }
 
-  #overlay[data-mode="start"] #start-objective,
+  .bestiary-tab {
+    flex-basis: 100%;
+  }
+
   #overlay[data-mode="start"] .start-objective-tab-panel {
     grid-template-columns: 1fr;
   }
@@ -1575,9 +1724,24 @@ body:fullscreen #meta-footer {
     grid-template-columns: 1fr;
   }
 
+  .bestiary-grid,
+  .bestiary-overview-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .bestiary-entry {
+    grid-template-columns: 1fr;
+  }
+
+  .bestiary-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   #overlay[data-mode="gameover"] #overlay-panels,
   #overlay[data-mode="gameover"] #run-panel,
-  #overlay[data-mode="gameover"] #meta-panel {
+  #overlay[data-mode="gameover"] #meta-panel,
+  #overlay[data-mode="gameover"] .achievement-tab-panel {
     grid-template-columns: 1fr;
     grid-column: auto;
   }
@@ -1691,6 +1855,7 @@ body:fullscreen #meta-footer {
   }
 
   #skin-select,
+  #ship-skin-select,
   #mode-select {
     width: 100%;
     min-width: 0;
@@ -1712,7 +1877,8 @@ body:fullscreen #meta-footer {
   #overlay[data-mode="start"] #game-settings-panel,
   #overlay[data-mode="start"] #visual-settings-panel,
   #overlay[data-mode="start"] #start-summary-panel,
-  #overlay[data-mode="start"] #start-objectives-panel {
+  #overlay[data-mode="start"] #start-objectives-panel,
+  #overlay[data-mode="start"] #bestiary-panel {
     min-height: 0;
   }
 
@@ -1731,7 +1897,8 @@ body:fullscreen #meta-footer {
   }
 
   #overlay[data-mode="start"] #start-summary-panel,
-  #overlay[data-mode="start"] #start-objectives-panel {
+  #overlay[data-mode="start"] #start-objectives-panel,
+  #overlay[data-mode="start"] #bestiary-panel {
     grid-column: auto;
   }
 }

@@ -21,6 +21,7 @@ const overlayMsg = document.getElementById('overlay-msg');
 const btnStart = document.getElementById('btn-start');
 const btnMenu = document.getElementById('btn-menu');
 const skinSelect = document.getElementById('skin-select');
+const shipSkinSelect = document.getElementById('ship-skin-select');
 const difficultySelect = document.getElementById('difficulty-select');
 const modeSelect = document.getElementById('mode-select');
 const vibrationToggle = document.getElementById('toggle-vibration');
@@ -34,6 +35,7 @@ const gameSettingsPanel = document.getElementById('game-settings-panel');
 const visualSettingsPanel = document.getElementById('visual-settings-panel');
 const startSummaryPanel = document.getElementById('start-summary-panel');
 const startObjectivesPanel = document.getElementById('start-objectives-panel');
+const bestiaryPanel = document.getElementById('bestiary-panel');
 const startObjectivesCountEl = document.getElementById('start-objectives-count');
 const runPanel = document.getElementById('run-panel');
 const runPanelTitle = document.getElementById('run-panel-title');
@@ -47,6 +49,9 @@ const statsHistoryEl = document.getElementById('stats-history');
 const startSummaryEl = document.getElementById('start-summary');
 const startObjectiveEl = document.getElementById('start-objective');
 const startAchievementsEl = document.getElementById('start-achievements');
+const bestiaryBrowserEl = document.getElementById('bestiary-browser');
+const shipPreviewCanvas = document.getElementById('ship-preview-canvas');
+const shipPreviewCtx = shipPreviewCanvas ? shipPreviewCanvas.getContext('2d') : null;
 const challengeSummaryEl = document.getElementById('challenge-summary');
 const achievementSummaryEl = document.getElementById('achievement-summary');
 
@@ -54,7 +59,7 @@ const SETTINGS_KEY = 'si_settings';
 const HISTORY_KEY = 'si_history';
 const AGGREGATE_STATS_KEY = 'si_stats';
 const META_KEY = 'si_meta';
-const MAX_LIVES = 3;
+const MAX_LIVES = 5;
 const LEVEL_SCREEN_DURATION = 120;
 const TIME_ATTACK_DURATION_MS = 90000;
 const TIME_ATTACK_WAVE_BONUS_MS = 7000;
@@ -124,6 +129,25 @@ const SKIN_THEMES = {
   }
 };
 
+const SHIP_SKIN_DEFS = {
+  classic: {
+    label: 'CLASSIC',
+    copy: 'La silueta base del arcade.'
+  },
+  arrow: {
+    label: 'ARROW',
+    copy: 'Perfil estrecho y más agresivo.'
+  },
+  bulwark: {
+    label: 'BULWARK',
+    copy: 'Casco ancho y pesado para runs largas.'
+  },
+  nova: {
+    label: 'NOVA',
+    copy: 'Cabina afilada para sesiones de precisión.'
+  }
+};
+
 const BADGE_DEFS = {
   rookie: { label: 'ROOKIE', copy: 'Has firmado tu primera salida.' },
   vanguard: { label: 'VANGUARD', copy: 'Ya controlas la transición al nivel 2.' },
@@ -137,7 +161,154 @@ const BADGE_DEFS = {
   sentinel: { label: 'SENTINEL', copy: 'Los bosses ya forman parte de tu rutina.' },
   chrono: { label: 'CHRONO', copy: 'Has entrado en el ritmo del contrarreloj.' },
   operative: { label: 'OPERATIVE', copy: 'Cumples objetivos activos con constancia.' },
-  commander: { label: 'COMMANDER', copy: 'Tu disciplina meta ya es visible.' }
+  commander: { label: 'COMMANDER', copy: 'Tu disciplina meta ya es visible.' },
+  spotter: { label: 'SPOTTER', copy: 'Reconoces todas las siluetas base del frente.' },
+  radar: { label: 'RADAR', copy: 'Ya lees el tráfico UFO como un patrón conocido.' },
+  breacher: { label: 'BREACHER', copy: 'Las élites dejan de parecer encuentros aislados.' },
+  archivist: { label: 'ARCHIVIST', copy: 'Tu archivo de amenazas ya tiene criterio real.' },
+  breaker: { label: 'BREAKER', copy: 'Sabes desarmar lo más duro del tablero.' }
+};
+
+const BESTIARY_CATEGORY_LABELS = {
+  invaders: 'INVADERS',
+  ufo: 'UFO',
+  elite: 'ELITES',
+  boss: 'BOSSES'
+};
+
+const BESTIARY_CATEGORIES = ['invaders', 'ufo', 'elite', 'boss'];
+
+const BESTIARY_DEFS = {
+  enemy_classic: {
+    id: 'enemy_classic',
+    category: 'invaders',
+    title: 'CLASSIC',
+    copy: 'La base de la oleada. Sigue siendo la referencia del ritmo clásico.',
+    preview: { kind: 'enemy', type: 'classic' },
+    stats: ['VIDA 1', 'ATAQUE BASE', 'MOVILIDAD ESTANDAR', '10-30 PTS'],
+    tipTitle: 'INVADER BASE',
+    tipCopy: 'El clásico define el ritmo de la formación. Aprende su cadencia antes de perseguir objetivos más raros.'
+  },
+  enemy_shooter: {
+    id: 'enemy_shooter',
+    category: 'invaders',
+    title: 'SHOOTER',
+    copy: 'Prioridad táctica. Dispara más y aprieta columnas enteras si lo dejas vivo.',
+    preview: { kind: 'enemy', type: 'shooter' },
+    stats: ['VIDA 1', 'ATAQUE ALTO', 'MOVILIDAD ESTANDAR', '+35% PTS'],
+    tipTitle: 'SHOOTER DETECTADO',
+    tipCopy: 'Si una columna se ensucia, limpia primero al shooter. Es el tipo que más castiga el desorden.'
+  },
+  enemy_scout: {
+    id: 'enemy_scout',
+    category: 'invaders',
+    title: 'SCOUT',
+    copy: 'Silueta ligera y más nerviosa. Sube la lectura de espacio en oleadas vivas.',
+    preview: { kind: 'enemy', type: 'scout' },
+    stats: ['VIDA 1', 'ATAQUE MEDIO', 'MOVILIDAD ALTA', '+25% PTS'],
+    tipTitle: 'SCOUT ENTRANTE',
+    tipCopy: 'El scout no aguanta mucho, pero acelera la sensación de presión. Córtalo antes de que cierre huecos.'
+  },
+  enemy_tank: {
+    id: 'enemy_tank',
+    category: 'invaders',
+    title: 'TANK',
+    copy: 'Blindado corto pero molesto. Exige dos impactos y rompe inercias de limpieza rápida.',
+    preview: { kind: 'enemy', type: 'tank' },
+    stats: ['VIDA 2', 'ATAQUE BAJO', 'MOVILIDAD BAJA', '+80% PTS'],
+    tipTitle: 'TANK LOCALIZADO',
+    tipCopy: 'El tank pide dos impactos. Tenlo presente al disparar desde huecos cortos o perderás tempo.'
+  },
+  ufo_bonus: {
+    id: 'ufo_bonus',
+    category: 'ufo',
+    title: 'BONUS UFO',
+    copy: 'El objetivo clásico de puntos. Merece atención cuando el campo está bajo control.',
+    preview: { kind: 'ufo', type: 'bonus' },
+    stats: ['VIDA 1', 'ATAQUE NULO', 'VELOCIDAD ALTA', '150 PTS'],
+    tipTitle: 'UFO BONUS',
+    tipCopy: 'Si la línea está limpia, ve a por él. No rompe la partida, pero premia reflejos y lectura.'
+  },
+  ufo_cargo: {
+    id: 'ufo_cargo',
+    category: 'ufo',
+    title: 'CARGO UFO',
+    copy: 'Variante de apoyo. Su destrucción garantiza power-up y cambia el valor de la persecución.',
+    preview: { kind: 'ufo', type: 'cargo' },
+    stats: ['VIDA 1', 'ATAQUE NULO', 'VELOCIDAD MEDIA', '110 PTS + DROP'],
+    tipTitle: 'CARGO UFO',
+    tipCopy: 'El cargo siempre compensa si puedes abrir hueco. Es la ruta rápida hacia más herramientas.'
+  },
+  ufo_disruptor: {
+    id: 'ufo_disruptor',
+    category: 'ufo',
+    title: 'DISRUPTOR UFO',
+    copy: 'No dispara, pero castiga si escapa acelerando la presión general de la oleada.',
+    preview: { kind: 'ufo', type: 'disruptor' },
+    stats: ['VIDA 1', 'ATAQUE INDIRECTO', 'VELOCIDAD ALTA', '170 PTS'],
+    tipTitle: 'DISRUPTOR UFO',
+    tipCopy: 'Si este se va, la oleada se vuelve más incómoda. Vale la pena priorizarlo aunque no dé drop.'
+  },
+  ufo_jackpot: {
+    id: 'ufo_jackpot',
+    category: 'ufo',
+    title: 'JACKPOT UFO',
+    copy: 'Raro, rápido y rentable. Condensa puntos y tiempo extra en una sola ventana corta.',
+    preview: { kind: 'ufo', type: 'jackpot' },
+    stats: ['VIDA 1', 'ATAQUE NULO', 'VELOCIDAD MUY ALTA', '280 PTS + TIEMPO'],
+    tipTitle: 'JACKPOT UFO',
+    tipCopy: 'Aparece poco y cruza rápido. Si lo lees a tiempo, puede cambiar la economía de la run.'
+  },
+  elite_escort: {
+    id: 'elite_escort',
+    category: 'elite',
+    title: 'ESCORT',
+    copy: 'Escolta ligera del miniboss. Mete presión lateral y sostiene el encuentro si la ignoras.',
+    preview: { kind: 'elite', type: 'escort' },
+    stats: ['VIDA 2', 'ATAQUE MEDIO', 'VELOCIDAD MEDIA', '90 PTS'],
+    tipTitle: 'ESCOLTA ELITE',
+    tipCopy: 'Las escorts abren ángulos raros. Si el líder dura demasiado, ellas convierten el encuentro en una trampa.'
+  },
+  elite_leader: {
+    id: 'elite_leader',
+    category: 'elite',
+    title: 'MINI LEADER',
+    copy: 'Centro de la escuadra élite. Aguanta mucho más y marca un pico intermedio de tensión.',
+    preview: { kind: 'elite', type: 'leader' },
+    stats: ['VIDA 7', 'ATAQUE ALTO', 'VELOCIDAD MEDIA', '220 PTS'],
+    tipTitle: 'MINIBOSS LOCALIZADO',
+    tipCopy: 'La escuadra élite entra para romper la linealidad. Corta escorts si el campo se cierra y vuelve al líder.'
+  },
+  boss_striker: {
+    id: 'boss_striker',
+    category: 'boss',
+    title: 'STRIKER',
+    copy: 'Boss agresivo y directo. Su patrón horizontal pide reflejos y limpieza de timing.',
+    preview: { kind: 'boss', type: 'striker' },
+    stats: ['VIDA ESCALADA', 'ATAQUE ALTO', 'MOVIMIENTO AGRESIVO', '500+ PTS'],
+    tipTitle: 'BOSS STRIKER',
+    tipCopy: 'El Striker premia la lectura rápida. Mantén centro limpio y evita gastar balas cuando se abre demasiado.'
+  },
+  boss_pulse: {
+    id: 'boss_pulse',
+    category: 'boss',
+    title: 'PULSE',
+    copy: 'Boss de ráfagas y pulsos. Castiga más por ritmo que por velocidad pura.',
+    preview: { kind: 'boss', type: 'pulse' },
+    stats: ['VIDA ESCALADA', 'ATAQUE EN RAFAGAS', 'MOVIMIENTO MEDIO', '500+ PTS'],
+    tipTitle: 'BOSS PULSE',
+    tipCopy: 'El Pulse no corre tanto, pero cambia la cadencia. Dispara entre ráfagas, no contra ellas.'
+  },
+  boss_warden: {
+    id: 'boss_warden',
+    category: 'boss',
+    title: 'WARDEN',
+    copy: 'Boss más pesado y controlador. Cierra espacio con menos prisa y más presencia.',
+    preview: { kind: 'boss', type: 'warden' },
+    stats: ['VIDA ESCALADA', 'ATAQUE DE CONTROL', 'MOVIMIENTO BAJO', '500+ PTS'],
+    tipTitle: 'BOSS WARDEN',
+    tipCopy: 'El Warden no corre, pero te encierra. Prioriza posiciones seguras y no te dejes arrastrar a los bordes.'
+  }
 };
 
 const ACHIEVEMENT_DEFS = [
@@ -192,6 +363,16 @@ const ACHIEVEMENT_DEFS = [
     status: ctx => buildLevelStatus(ctx.bestLevel, 8)
   },
   {
+    id: 'boss_5',
+    title: 'MURALLA DE ACERO',
+    copy: 'Derrota 5 bosses en total y desbloquea un chasis pesado para la nave.',
+    category: 'PROGRESION',
+    tier: 'MASTER',
+    reward: { type: 'shipSkin', id: 'bulwark' },
+    track: 'profile',
+    status: ctx => buildCountStatus(ctx.totalBossesDefeated, 5, 'BOSS')
+  },
+  {
     id: 'combo_4',
     title: 'COMBO X4',
     copy: 'Encadena un combo x4. Es el punto donde empieza a sentirse el flow.',
@@ -230,6 +411,16 @@ const ACHIEVEMENT_DEFS = [
     reward: { type: 'badge', id: 'scope' },
     track: 'end',
     status: ctx => buildPercentStatus(ctx.bestAccuracy25, 60, 25)
+  },
+  {
+    id: 'vector_precise',
+    title: 'VECTOR FINO',
+    copy: 'Cierra una partida con 55% de precisión y 20 disparos o más para desbloquear una nave ágil.',
+    category: 'HABILIDAD',
+    tier: 'CORE',
+    reward: { type: 'shipSkin', id: 'arrow' },
+    track: 'end',
+    status: ctx => buildPercentStatus(ctx.bestAccuracy25, 55, 20)
   },
   {
     id: 'sharpshooter',
@@ -292,6 +483,16 @@ const ACHIEVEMENT_DEFS = [
     status: ctx => buildScoreStatus(ctx.aggregate.bestTimeAttackScore, 1800)
   },
   {
+    id: 'time_vector',
+    title: 'VECTOR NOVA',
+    copy: 'Lleva el contrarreloj a 2400 puntos para desbloquear una nueva silueta de nave.',
+    category: 'MODOS',
+    tier: 'MASTER',
+    reward: { type: 'shipSkin', id: 'nova' },
+    track: 'end',
+    status: ctx => buildScoreStatus(ctx.aggregate.bestTimeAttackScore, 2400)
+  },
+  {
     id: 'challenge_streak',
     title: 'OPERATIVO',
     copy: 'Completa 3 desafíos activos. Es la puerta de entrada a la meta persistente.',
@@ -310,6 +511,56 @@ const ACHIEVEMENT_DEFS = [
     reward: { type: 'badge', id: 'commander' },
     track: 'meta',
     status: ctx => buildCountStatus(ctx.meta.challengeCompletions, 7, 'SELLO')
+  },
+  {
+    id: 'bestiary_invaders',
+    title: 'GUIA DE FRENTE',
+    copy: 'Descubre los 4 tipos de invader y abre la capa base del bestiario.',
+    category: 'COLECCION',
+    tier: 'BASE',
+    reward: { type: 'badge', id: 'spotter' },
+    track: 'meta',
+    status: ctx => buildCountStatus(countBestiarySeen(ctx.meta, ['enemy_classic', 'enemy_shooter', 'enemy_scout', 'enemy_tank']), 4, 'TIPOS')
+  },
+  {
+    id: 'bestiary_ufo',
+    title: 'TRAFICO INTERCEPTADO',
+    copy: 'Registra las 4 variantes de UFO para leer mejor sus ventanas de valor.',
+    category: 'COLECCION',
+    tier: 'CORE',
+    reward: { type: 'badge', id: 'radar' },
+    track: 'meta',
+    status: ctx => buildCountStatus(countBestiarySeen(ctx.meta, ['ufo_bonus', 'ufo_cargo', 'ufo_disruptor', 'ufo_jackpot']), 4, 'UFO')
+  },
+  {
+    id: 'mini_squad',
+    title: 'BRECHA ELITE',
+    copy: 'Derrota a la escuadra élite una vez y desbloquea la lectura de encuentros intermedios.',
+    category: 'PROGRESION',
+    tier: 'CORE',
+    reward: { type: 'badge', id: 'breacher' },
+    track: 'meta',
+    status: ctx => buildCountStatus(getBestiaryDefeatCount(ctx.meta, 'elite_leader'), 1, 'SQUAD')
+  },
+  {
+    id: 'boss_archive',
+    title: 'ARCHIVO BOSS',
+    copy: 'Derrota al menos una vez a Striker, Pulse y Warden para completar el archivo principal.',
+    category: 'COLECCION',
+    tier: 'ELITE',
+    reward: { type: 'badge', id: 'archivist' },
+    track: 'meta',
+    status: ctx => buildCountStatus(countBestiaryDefeated(ctx.meta, ['boss_striker', 'boss_pulse', 'boss_warden']), 3, 'PERFILES')
+  },
+  {
+    id: 'tank_breaker',
+    title: 'ROMPETANQUES',
+    copy: 'Elimina 20 tanks para demostrar que controlas el ritmo frente a armaduras cortas.',
+    category: 'HABILIDAD',
+    tier: 'CORE',
+    reward: { type: 'badge', id: 'breaker' },
+    track: 'meta',
+    status: ctx => buildCountStatus(getBestiaryDefeatCount(ctx.meta, 'enemy_tank'), 20, 'TANKS')
   }
 ];
 
@@ -447,22 +698,79 @@ const UFO_VARIANTS = {
     points: 150,
     speed: 2.05,
     color: '#ff66cc',
-    guaranteePowerUp: false
+    guaranteePowerUp: false,
+    escapeEffect: null
   },
   cargo: {
     label: 'CARGO',
     points: 110,
     speed: 1.7,
     color: '#7ef2d5',
-    guaranteePowerUp: true
+    guaranteePowerUp: true,
+    escapeEffect: null
   },
-  phantom: {
-    label: 'PHANTOM',
-    points: 220,
-    speed: 3.15,
+  disruptor: {
+    label: 'DISRUPTOR',
+    points: 170,
+    speed: 2.35,
+    color: '#9e8bff',
+    guaranteePowerUp: false,
+    escapeEffect: 'disrupt'
+  },
+  jackpot: {
+    label: 'JACKPOT',
+    points: 280,
+    speed: 3.25,
     color: '#ffd966',
-    guaranteePowerUp: false
+    guaranteePowerUp: false,
+    escapeEffect: 'jackpot'
   }
+};
+
+const WAVE_EVENT_DEFS = {
+  standard: {
+    id: 'standard',
+    label: 'GRID ESTANDAR',
+    copy: 'Oleada limpia y ritmo base.',
+    tickFactor: 1,
+    shootFactor: 1,
+    ufoFactor: 1,
+    powerUpFactor: 1
+  },
+  hunter: {
+    id: 'hunter',
+    label: 'CAZA ABIERTA',
+    copy: 'Más tiradores activos y presión sostenida.',
+    tickFactor: 1,
+    shootFactor: 0.9,
+    ufoFactor: 0.95,
+    powerUpFactor: 1
+  },
+  armored: {
+    id: 'armored',
+    label: 'CAPA BLINDADA',
+    copy: 'Más frontales duros, menos ritmo bruto.',
+    tickFactor: 1.08,
+    shootFactor: 1.08,
+    ufoFactor: 1.05,
+    powerUpFactor: 1.1
+  },
+  bonus: {
+    id: 'bonus',
+    label: 'RUTA BONUS',
+    copy: 'Menos presión, más UFO y más drops.',
+    tickFactor: 1.1,
+    shootFactor: 1.12,
+    ufoFactor: 0.72,
+    powerUpFactor: 1.4
+  }
+};
+
+const MINI_BOSS_DEF = {
+  leaderHp: 7,
+  escortHp: 2,
+  speedBase: 2.15,
+  reward: 420
 };
 
 const BOSS_PROFILES = {
@@ -516,6 +824,10 @@ function normalizeSkin(value) {
   return Object.prototype.hasOwnProperty.call(SKIN_THEMES, value) ? value : 'classic';
 }
 
+function normalizeShipSkin(value) {
+  return Object.prototype.hasOwnProperty.call(SHIP_SKIN_DEFS, value) ? value : 'classic';
+}
+
 function loadSettings() {
   try {
     const stored = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
@@ -523,12 +835,13 @@ function loadSettings() {
       difficulty: normalizeDifficulty(stored.difficulty),
       mode: normalizeGameMode(stored.mode),
       skin: normalizeSkin(stored.skin),
+      shipSkin: normalizeShipSkin(stored.shipSkin),
       vibration: stored.vibration !== false,
       reducedEffects: stored.reducedEffects === true,
       highContrast: stored.highContrast === true
     };
   } catch {
-    return { difficulty: 'normal', mode: 'classic', skin: 'classic', vibration: true, reducedEffects: false, highContrast: false };
+    return { difficulty: 'normal', mode: 'classic', skin: 'classic', shipSkin: 'classic', vibration: true, reducedEffects: false, highContrast: false };
   }
 }
 
@@ -539,6 +852,10 @@ function loadMetaState() {
       ? stored.unlockedSkins.map(normalizeSkin).filter((value, index, array) => array.indexOf(value) === index)
       : ['classic'];
     if (!unlockedSkins.includes('classic')) unlockedSkins.unshift('classic');
+    const unlockedShipSkins = Array.isArray(stored.unlockedShipSkins)
+      ? stored.unlockedShipSkins.map(normalizeShipSkin).filter((value, index, array) => array.indexOf(value) === index)
+      : ['classic'];
+    if (!unlockedShipSkins.includes('classic')) unlockedShipSkins.unshift('classic');
     const unlockedBadges = Array.isArray(stored.unlockedBadges)
       ? stored.unlockedBadges.filter(id => BADGE_DEFS[id]).filter((value, index, array) => array.indexOf(value) === index)
       : [];
@@ -581,22 +898,41 @@ function loadMetaState() {
       : (typeof stored.latestUnlock === 'string' && stored.latestUnlock
           ? [{ type: 'legacy', title: stored.latestUnlock, detail: 'Desbloqueo heredado', reward: '', at: null }]
           : []);
+    const bestiary = stored.bestiary && typeof stored.bestiary === 'object'
+      ? {
+          seen: stored.bestiary.seen && typeof stored.bestiary.seen === 'object'
+            ? Object.fromEntries(Object.keys(BESTIARY_DEFS).map(id => [id, stored.bestiary.seen[id] === true]))
+            : {},
+          defeated: stored.bestiary.defeated && typeof stored.bestiary.defeated === 'object'
+            ? Object.fromEntries(Object.keys(BESTIARY_DEFS).map(id => [id, Math.max(0, Number(stored.bestiary.defeated[id]) || 0)]))
+            : {}
+        }
+      : { seen: {}, defeated: {} };
+    const tutorialFlags = stored.tutorialFlags && typeof stored.tutorialFlags === 'object'
+      ? Object.fromEntries(Object.entries(stored.tutorialFlags).map(([key, value]) => [key, value === true]))
+      : {};
     return {
       unlockedSkins,
+      unlockedShipSkins,
       unlockedBadges,
       achievements,
       completedChallenges,
       challengeCompletions: Math.max(0, Number(stored.challengeCompletions) || 0),
-      unlockLog
+      unlockLog,
+      bestiary,
+      tutorialFlags
     };
   } catch {
     return {
       unlockedSkins: ['classic'],
+      unlockedShipSkins: ['classic'],
       unlockedBadges: [],
       achievements: {},
       completedChallenges: {},
       challengeCompletions: 0,
-      unlockLog: []
+      unlockLog: [],
+      bestiary: { seen: {}, defeated: {} },
+      tutorialFlags: {}
     };
   }
 }
@@ -718,15 +1054,243 @@ function saveAggregateStats() {
   localStorage.setItem(AGGREGATE_STATS_KEY, JSON.stringify(aggregateStats));
 }
 
+function fillModelRect(ctxRef, x, y, w, h, rx, ry, rw, rh) {
+  const px = Math.round(x + rx * w);
+  const py = Math.round(y + ry * h);
+  const pw = Math.max(2, Math.round(rw * w));
+  const ph = Math.max(2, Math.round(rh * h));
+  ctxRef.fillRect(px, py, pw, ph);
+}
+
+function fillShipRect(ctxRef, x, y, w, h, rx, ry, rw, rh) {
+  fillModelRect(ctxRef, x, y, w, h, rx, ry, rw, rh);
+}
+
+function drawPlayerShipModel(ctxRef, x, y, w, h, model = gameSettings.shipSkin, color = '#00ff88', { glow = 0 } = {}) {
+  if (!ctxRef) return;
+  ctxRef.save();
+  ctxRef.fillStyle = color;
+  if (glow > 0) {
+    ctxRef.shadowBlur = glow;
+    ctxRef.shadowColor = color;
+  }
+
+  switch (normalizeShipSkin(model)) {
+    case 'arrow':
+      fillShipRect(ctxRef, x, y, w, h, 0.42, 0.0, 0.16, 0.44);
+      fillShipRect(ctxRef, x, y, w, h, 0.29, 0.42, 0.42, 0.28);
+      fillShipRect(ctxRef, x, y, w, h, 0.12, 0.54, 0.18, 0.18);
+      fillShipRect(ctxRef, x, y, w, h, 0.70, 0.54, 0.18, 0.18);
+      fillShipRect(ctxRef, x, y, w, h, 0.03, 0.66, 0.14, 0.16);
+      fillShipRect(ctxRef, x, y, w, h, 0.83, 0.66, 0.14, 0.16);
+      break;
+    case 'bulwark':
+      fillShipRect(ctxRef, x, y, w, h, 0.18, 0.0, 0.18, 0.3);
+      fillShipRect(ctxRef, x, y, w, h, 0.64, 0.0, 0.18, 0.3);
+      fillShipRect(ctxRef, x, y, w, h, 0.26, 0.26, 0.48, 0.28);
+      fillShipRect(ctxRef, x, y, w, h, 0.06, 0.54, 0.88, 0.24);
+      fillShipRect(ctxRef, x, y, w, h, 0.0, 0.66, 0.16, 0.18);
+      fillShipRect(ctxRef, x, y, w, h, 0.84, 0.66, 0.16, 0.18);
+      break;
+    case 'nova':
+      fillShipRect(ctxRef, x, y, w, h, 0.42, 0.0, 0.16, 0.36);
+      fillShipRect(ctxRef, x, y, w, h, 0.3, 0.22, 0.4, 0.18);
+      fillShipRect(ctxRef, x, y, w, h, 0.14, 0.42, 0.72, 0.2);
+      fillShipRect(ctxRef, x, y, w, h, 0.0, 0.56, 0.18, 0.18);
+      fillShipRect(ctxRef, x, y, w, h, 0.82, 0.56, 0.18, 0.18);
+      fillShipRect(ctxRef, x, y, w, h, 0.22, 0.68, 0.16, 0.16);
+      fillShipRect(ctxRef, x, y, w, h, 0.62, 0.68, 0.16, 0.16);
+      break;
+    case 'classic':
+    default:
+      fillShipRect(ctxRef, x, y, w, h, 0.2, 0.4, 0.6, 0.6);
+      fillShipRect(ctxRef, x, y, w, h, 0.425, 0.0, 0.15, 0.5);
+      fillShipRect(ctxRef, x, y, w, h, 0.0, 0.6, 0.25, 0.2);
+      fillShipRect(ctxRef, x, y, w, h, 0.75, 0.6, 0.25, 0.2);
+      break;
+  }
+  ctxRef.restore();
+}
+
+function drawEnemyModel(ctxRef, x, y, w, h, type = 'classic', color = '#00ff88', { glow = 4, pose = 0, flash = false } = {}) {
+  if (!ctxRef) return;
+  ctxRef.save();
+  ctxRef.fillStyle = color;
+  if (glow > 0) {
+    ctxRef.shadowBlur = glow;
+    ctxRef.shadowColor = color;
+  }
+
+  if (type === 'scout') {
+    fillModelRect(ctxRef, x, y, w, h, 0.17, 0.19, 0.66, 0.56);
+    fillModelRect(ctxRef, x, y, w, h, 0.28, 0.06, 0.11, 0.25);
+    fillModelRect(ctxRef, x, y, w, h, 0.61, 0.06, 0.11, 0.25);
+    fillModelRect(ctxRef, x, y, w, h, 0.06, 0.75, 0.22, 0.19);
+    fillModelRect(ctxRef, x, y, w, h, 0.72, 0.75, 0.22, 0.19);
+  } else if (type === 'shooter') {
+    fillModelRect(ctxRef, x, y, w, h, 0.14, 0.16, 0.72, 0.59);
+    fillModelRect(ctxRef, x, y, w, h, 0.39, -0.03, 0.22, 0.25);
+    fillModelRect(ctxRef, x, y, w, h, 0.44, 0.78, 0.11, 0.22);
+    fillModelRect(ctxRef, x, y, w, h, 0.11, 0.69, 0.17, 0.16);
+    fillModelRect(ctxRef, x, y, w, h, 0.72, 0.69, 0.17, 0.16);
+  } else if (type === 'tank') {
+    fillModelRect(ctxRef, x, y, w, h, 0.08, 0.13, 0.84, 0.63);
+    fillModelRect(ctxRef, x, y, w, h, 0.22, 0, 0.56, 0.22);
+    fillModelRect(ctxRef, x, y, w, h, 0.03, 0.78, 0.28, 0.22);
+    fillModelRect(ctxRef, x, y, w, h, 0.69, 0.78, 0.28, 0.22);
+    ctxRef.fillStyle = flash ? '#fff6db' : 'rgba(255,244,210,0.7)';
+    fillModelRect(ctxRef, x, y, w, h, 0.28, 0.31, 0.44, 0.13);
+  } else if (pose === 0) {
+    fillModelRect(ctxRef, x, y, w, h, 0.11, 0.13, 0.78, 0.63);
+    fillModelRect(ctxRef, x, y, w, h, 0.17, 0, 0.11, 0.19);
+    fillModelRect(ctxRef, x, y, w, h, 0.72, 0, 0.11, 0.19);
+    fillModelRect(ctxRef, x, y, w, h, 0, 0.75, 0.22, 0.19);
+    fillModelRect(ctxRef, x, y, w, h, 0.78, 0.75, 0.22, 0.19);
+  } else {
+    fillModelRect(ctxRef, x, y, w, h, 0.11, 0.13, 0.78, 0.63);
+    fillModelRect(ctxRef, x, y, w, h, 0.22, 0, 0.11, 0.25);
+    fillModelRect(ctxRef, x, y, w, h, 0.67, 0, 0.11, 0.25);
+    fillModelRect(ctxRef, x, y, w, h, 0.06, 0.81, 0.22, 0.13);
+    fillModelRect(ctxRef, x, y, w, h, 0.72, 0.81, 0.22, 0.13);
+  }
+  ctxRef.restore();
+}
+
+function drawUfoModel(ctxRef, x, y, w, h, variantId = 'bonus', color = '#ff4f8f', { glow = 8, showPoints = false, points = 0 } = {}) {
+  if (!ctxRef) return;
+  const variant = getUfoVariantDef(variantId);
+  ctxRef.save();
+  ctxRef.fillStyle = color;
+  if (glow > 0) {
+    ctxRef.shadowBlur = glow;
+    ctxRef.shadowColor = color;
+  }
+  fillModelRect(ctxRef, x, y, w, h, 0.17, 0.25, 0.66, 0.58);
+  fillModelRect(ctxRef, x, y, w, h, 0, 0.5, 1, 0.33);
+  fillModelRect(ctxRef, x, y, w, h, 0.4, 0, 0.2, 0.33);
+  if (variant.id === 'cargo') {
+    fillModelRect(ctxRef, x, y, w, h, 0.33, 0.17, 0.17, 0.25);
+    fillModelRect(ctxRef, x, y, w, h, 0.67, 0.17, 0.17, 0.25);
+    fillModelRect(ctxRef, x, y, w, h, 0.43, 0.63, 0.13, 0.25);
+  } else if (variant.id === 'disruptor') {
+    fillModelRect(ctxRef, x, y, w, h, 0.13, 0.17, 0.13, 0.33);
+    fillModelRect(ctxRef, x, y, w, h, 0.74, 0.17, 0.13, 0.33);
+    fillModelRect(ctxRef, x, y, w, h, 0.47, 0.08, 0.07, 0.92);
+  } else if (variant.id === 'jackpot') {
+    fillModelRect(ctxRef, x, y, w, h, 0.07, 0.42, 0.1, 0.42);
+    fillModelRect(ctxRef, x, y, w, h, 0.83, 0.42, 0.1, 0.42);
+    ctxRef.fillStyle = '#fff4b3';
+    fillModelRect(ctxRef, x, y, w, h, 0.33, 0.21, 0.34, 0.21);
+    ctxRef.fillStyle = color;
+  }
+  ctxRef.restore();
+
+  if (showPoints) {
+    ctxRef.save();
+    ctxRef.fillStyle = color;
+    ctxRef.font = '10px Courier New';
+    ctxRef.textAlign = 'center';
+    ctxRef.fillText(`${points || variant.points}`, x + w / 2, y - 2);
+    ctxRef.restore();
+  }
+}
+
+function drawMiniBossShipModel(ctxRef, x, y, w, h, role = 'escort', color = '#7be6ff', { glow = 8, flash = false } = {}) {
+  if (!ctxRef) return;
+  const baseColor = flash ? '#ffffff' : color;
+  ctxRef.save();
+  ctxRef.fillStyle = baseColor;
+  if (glow > 0) {
+    ctxRef.shadowBlur = glow;
+    ctxRef.shadowColor = baseColor;
+  }
+  if (role === 'leader') {
+    fillModelRect(ctxRef, x, y, w, h, 0.13, 0.24, 0.74, 0.41);
+    fillModelRect(ctxRef, x, y, w, h, 0.04, 0.53, 0.92, 0.24);
+    fillModelRect(ctxRef, x, y, w, h, 0.42, 0.06, 0.17, 0.29);
+    fillModelRect(ctxRef, x, y, w, h, 0.13, 0.76, 0.17, 0.18);
+    fillModelRect(ctxRef, x, y, w, h, 0.7, 0.76, 0.17, 0.18);
+  } else {
+    fillModelRect(ctxRef, x, y, w, h, 0.12, 0.25, 0.76, 0.5);
+    fillModelRect(ctxRef, x, y, w, h, 0.06, 0.5, 0.88, 0.25);
+    fillModelRect(ctxRef, x, y, w, h, 0.41, 0.08, 0.18, 0.25);
+  }
+  ctxRef.restore();
+}
+
+function drawBossModel(ctxRef, x, y, w, h, profileId = 'striker', color = '#ff5f98', { glow = 16, flash = false } = {}) {
+  if (!ctxRef) return;
+  const baseColor = flash ? '#ffeef6' : color;
+  ctxRef.save();
+  ctxRef.fillStyle = baseColor;
+  if (glow > 0) {
+    ctxRef.shadowBlur = glow;
+    ctxRef.shadowColor = flash ? '#ffffff' : color;
+  }
+  fillModelRect(ctxRef, x, y, w, h, 0.15, 0.18, 0.7, 0.32);
+  fillModelRect(ctxRef, x, y, w, h, 0.08, 0.36, 0.84, 0.24);
+  fillModelRect(ctxRef, x, y, w, h, 0.4, 0.03, 0.2, 0.2);
+  fillModelRect(ctxRef, x, y, w, h, 0.15, 0.61, 0.15, 0.17);
+  fillModelRect(ctxRef, x, y, w, h, 0.7, 0.61, 0.15, 0.17);
+  if (profileId === 'pulse') {
+    ctxRef.fillStyle = '#fff0b5';
+    fillModelRect(ctxRef, x, y, w, h, 0.25, 0.27, 0.5, 0.11);
+    fillModelRect(ctxRef, x, y, w, h, 0.46, 0.52, 0.08, 0.23);
+  } else if (profileId === 'warden') {
+    ctxRef.fillStyle = '#dff7ff';
+    fillModelRect(ctxRef, x, y, w, h, 0.22, 0.27, 0.15, 0.17);
+    fillModelRect(ctxRef, x, y, w, h, 0.63, 0.27, 0.15, 0.17);
+    fillModelRect(ctxRef, x, y, w, h, 0.4, 0.48, 0.2, 0.09);
+  } else {
+    ctxRef.fillStyle = '#ffc6da';
+    fillModelRect(ctxRef, x, y, w, h, 0.32, 0.39, 0.1, 0.09);
+    fillModelRect(ctxRef, x, y, w, h, 0.58, 0.39, 0.1, 0.09);
+  }
+  ctxRef.restore();
+}
+
+function renderShipPreview() {
+  if (!shipPreviewCtx || !shipPreviewCanvas) return;
+  const theme = getCurrentTheme();
+  const { width, height } = shipPreviewCanvas;
+  shipPreviewCtx.clearRect(0, 0, width, height);
+
+  const gradient = shipPreviewCtx.createLinearGradient(0, 0, 0, height);
+  gradient.addColorStop(0, 'rgba(1,18,11,0.96)');
+  gradient.addColorStop(1, 'rgba(1,7,5,0.98)');
+  shipPreviewCtx.fillStyle = gradient;
+  shipPreviewCtx.fillRect(0, 0, width, height);
+
+  shipPreviewCtx.strokeStyle = 'rgba(0,255,136,0.14)';
+  shipPreviewCtx.strokeRect(0.5, 0.5, width - 1, height - 1);
+  shipPreviewCtx.fillStyle = 'rgba(0,255,136,0.06)';
+  for (let row = 0; row < 5; row++) {
+    shipPreviewCtx.fillRect(12, 18 + row * 12, width - 24, 1);
+  }
+
+  drawPlayerShipModel(shipPreviewCtx, width / 2 - 42, 22, 84, 42, gameSettings.shipSkin, theme.player, { glow: 10 });
+
+  shipPreviewCtx.fillStyle = theme.playerBullet;
+  shipPreviewCtx.fillRect(width / 2 - 2, 10, 4, 8);
+  shipPreviewCtx.fillStyle = '#9ad9b8';
+  shipPreviewCtx.font = '10px Courier New';
+  shipPreviewCtx.textAlign = 'center';
+  shipPreviewCtx.fillText(getShipSkinLabel(gameSettings.shipSkin), width / 2, height - 10);
+  shipPreviewCtx.textAlign = 'left';
+}
+
 function applySettingsUI() {
   difficultySelect.value = gameSettings.difficulty;
   modeSelect.value = gameSettings.mode;
   refreshSkinOptions();
-  skinSelect.value = gameSettings.skin;
+  refreshShipSkinOptions();
+  if (skinSelect) skinSelect.value = gameSettings.skin;
+  if (shipSkinSelect) shipSkinSelect.value = gameSettings.shipSkin;
   vibrationToggle.checked = gameSettings.vibration;
-  reducedEffectsToggle.checked = gameSettings.reducedEffects;
-  highContrastToggle.checked = gameSettings.highContrast;
+  if (reducedEffectsToggle) reducedEffectsToggle.checked = gameSettings.reducedEffects;
+  if (highContrastToggle) highContrastToggle.checked = gameSettings.highContrast;
   applyVisualPreferences();
+  renderShipPreview();
 }
 
 function getDifficultyConfig() {
@@ -757,6 +1321,19 @@ function getThreatLevel(currentLevel = level) {
   return 4 + (currentLevel - 4) * 0.72;
 }
 
+function shouldSpawnMiniBossForLevel(currentLevel) {
+  return currentLevel >= 5 && currentLevel % 3 === 2;
+}
+
+function getWaveEventForLevel(currentLevel, mode = gameSettings.mode) {
+  if (currentLevel <= 2) return WAVE_EVENT_DEFS.standard;
+  const cycle = (currentLevel + (mode === 'timeattack' ? 1 : 0)) % 5;
+  if (currentLevel >= 4 && cycle === 0) return WAVE_EVENT_DEFS.bonus;
+  if (currentLevel >= 5 && cycle === 2) return WAVE_EVENT_DEFS.hunter;
+  if (currentLevel >= 6 && cycle === 4) return WAVE_EVENT_DEFS.armored;
+  return WAVE_EVENT_DEFS.standard;
+}
+
 function getWavePatternForLevel(currentLevel, mode = gameSettings.mode) {
   if (currentLevel <= 1) return WAVE_PATTERNS.classic_grid;
   const sequence = mode === 'timeattack'
@@ -782,6 +1359,7 @@ function getEnemyRoleForSlot(row, col, pattern, currentLevel, mode = gameSetting
   const isOuter = col <= 1 || col >= COLS - 2;
   const isCenter = col >= 2 && col <= COLS - 3;
   const weightedRoles = [['classic', 6]];
+  const eventId = currentWaveEvent.id;
 
   if (currentLevel >= 3 && row === 0) weightedRoles.push(['shooter', mode === 'timeattack' ? 4 : 3]);
   if (currentLevel >= 4 && (pattern.id === 'staggered' || isOuter)) weightedRoles.push(['scout', pattern.id === 'staggered' ? 4 : 2]);
@@ -790,6 +1368,8 @@ function getEnemyRoleForSlot(row, col, pattern, currentLevel, mode = gameSetting
     weightedRoles.push(['tank', 4]);
   }
   if (currentLevel >= 8 && mode === 'timeattack') weightedRoles.push(['scout', 2]);
+  if (eventId === 'hunter' && currentLevel >= 4) weightedRoles.push(['shooter', row === 0 ? 5 : 3]);
+  if (eventId === 'armored' && currentLevel >= 5 && row >= 1) weightedRoles.push(['tank', row === 2 ? 5 : 3]);
 
   return pickWeightedValue(weightedRoles);
 }
@@ -816,9 +1396,10 @@ function getBossBaseReward(profile) {
 }
 
 function rollUfoVariant(currentLevel, mode = gameSettings.mode) {
-  const weighted = [['bonus', 6]];
+  const weighted = [['bonus', 5]];
   if (currentLevel >= 3) weighted.push(['cargo', mode === 'timeattack' ? 2 : 3]);
-  if (currentLevel >= 5) weighted.push(['phantom', mode === 'timeattack' ? 4 : 2]);
+  if (currentLevel >= 5) weighted.push(['disruptor', mode === 'timeattack' ? 3 : 2]);
+  if (currentLevel >= 6) weighted.push(['jackpot', mode === 'timeattack' ? 2 : 1.5]);
   return pickWeightedValue(weighted);
 }
 
@@ -925,9 +1506,26 @@ function buildPercentStatus(value, target, shotsThreshold) {
   };
 }
 
+function getBestiaryDefeatCount(meta, id) {
+  return Math.max(0, Number(meta?.bestiary?.defeated?.[id]) || 0);
+}
+
+function countBestiarySeen(meta, ids) {
+  return ids.filter(id => meta?.bestiary?.seen?.[id] === true).length;
+}
+
+function countBestiaryDefeated(meta, ids) {
+  return ids.filter(id => getBestiaryDefeatCount(meta, id) > 0).length;
+}
+
+function getShipSkinLabel(id) {
+  return SHIP_SKIN_DEFS[id]?.label || SHIP_SKIN_DEFS.classic.label;
+}
+
 function getRewardLabel(reward) {
   if (!reward) return 'SIN RECOMPENSA EXTRA';
   if (reward.type === 'skin' && SKIN_THEMES[reward.id]) return `SKIN ${SKIN_THEMES[reward.id].label}`;
+  if (reward.type === 'shipSkin' && SHIP_SKIN_DEFS[reward.id]) return `NAVE ${SHIP_SKIN_DEFS[reward.id].label}`;
   if (reward.type === 'badge' && BADGE_DEFS[reward.id]) return `INSIGNIA ${BADGE_DEFS[reward.id].label}`;
   return 'RECOMPENSA META';
 }
@@ -945,6 +1543,26 @@ function createUnlockLogEntry(type, title, detail = '', reward = '') {
 function pushUnlockLog(entry) {
   metaState.unlockLog.unshift(entry);
   metaState.unlockLog = metaState.unlockLog.slice(0, 12);
+}
+
+function queueTutorialPrompt(key, title, copy, duration = 240) {
+  if (hasTutorialSeen(key) || activeTutorialPrompt?.key === key || pendingTutorialPromptQueue.some(entry => entry.key === key)) return false;
+  markTutorialSeen(key);
+  const prompt = { key, title, copy, timer: duration, maxTimer: duration };
+  pendingTutorialPromptQueue.push(prompt);
+  return true;
+}
+
+function updateTutorialPromptQueue() {
+  if (!running || paused) return;
+  if (!activeTutorialPrompt && pendingTutorialPromptQueue.length) {
+    activeTutorialPrompt = pendingTutorialPromptQueue.shift();
+  }
+  if (!activeTutorialPrompt) return;
+  activeTutorialPrompt.timer -= 1;
+  if (activeTutorialPrompt.timer <= 0) {
+    activeTutorialPrompt = null;
+  }
 }
 
 function getLatestUnlockEntry() {
@@ -1113,6 +1731,45 @@ function persistMetaState() {
   localStorage.setItem(META_KEY, JSON.stringify(metaState));
 }
 
+function hasTutorialSeen(key) {
+  return metaState.tutorialFlags?.[key] === true;
+}
+
+function markTutorialSeen(key) {
+  if (!metaState.tutorialFlags) metaState.tutorialFlags = {};
+  if (metaState.tutorialFlags[key]) return false;
+  metaState.tutorialFlags[key] = true;
+  persistMetaState();
+  return true;
+}
+
+function hasSeenBestiaryEntry(id) {
+  return metaState.bestiary?.seen?.[id] === true;
+}
+
+function markBestiarySeen(id, { showTip = true } = {}) {
+  const def = BESTIARY_DEFS[id];
+  if (!def) return false;
+  if (!metaState.bestiary) metaState.bestiary = { seen: {}, defeated: {} };
+  if (metaState.bestiary.seen[id] === true) return false;
+  metaState.bestiary.seen[id] = true;
+  persistMetaState();
+  if (showTip && def.tipTitle && def.tipCopy) {
+    queueTutorialPrompt(`bestiary:${id}`, def.tipTitle, def.tipCopy);
+  }
+  evaluateAchievements('meta');
+  return true;
+}
+
+function incrementBestiaryDefeat(id, amount = 1) {
+  const def = BESTIARY_DEFS[id];
+  if (!def) return;
+  if (!metaState.bestiary) metaState.bestiary = { seen: {}, defeated: {} };
+  metaState.bestiary.defeated[id] = Math.max(0, Number(metaState.bestiary.defeated[id]) || 0) + amount;
+  persistMetaState();
+  evaluateAchievements('meta');
+}
+
 function grantBadge(id, { silent = false } = {}) {
   if (!BADGE_DEFS[id] || metaState.unlockedBadges.includes(id)) return false;
   metaState.unlockedBadges.push(id);
@@ -1128,6 +1785,9 @@ function syncUnlockedRewardsFromAchievements() {
     if (def.reward.type === 'skin' && SKIN_THEMES[def.reward.id] && !metaState.unlockedSkins.includes(def.reward.id)) {
       metaState.unlockedSkins.push(def.reward.id);
     }
+    if (def.reward.type === 'shipSkin' && SHIP_SKIN_DEFS[def.reward.id] && !metaState.unlockedShipSkins.includes(def.reward.id)) {
+      metaState.unlockedShipSkins.push(def.reward.id);
+    }
     if (def.reward.type === 'badge') {
       grantBadge(def.reward.id, { silent: true });
     }
@@ -1137,6 +1797,13 @@ function syncUnlockedRewardsFromAchievements() {
 function sanitizeSelectedSkin() {
   if (!metaState.unlockedSkins.includes(gameSettings.skin)) {
     gameSettings.skin = 'classic';
+    persistGameSettings();
+  }
+}
+
+function sanitizeSelectedShipSkin() {
+  if (!metaState.unlockedShipSkins.includes(gameSettings.shipSkin)) {
+    gameSettings.shipSkin = 'classic';
     persistGameSettings();
   }
 }
@@ -1154,6 +1821,16 @@ function refreshSkinOptions() {
     return `<option value="${key}"${unlocked ? '' : ' disabled'}>${theme.label}${unlocked ? '' : ' · BLOQUEADA'}</option>`;
   }).join('');
   skinSelect.value = metaState.unlockedSkins.includes(selected) ? selected : 'classic';
+}
+
+function refreshShipSkinOptions() {
+  if (!shipSkinSelect) return;
+  const selected = gameSettings.shipSkin;
+  shipSkinSelect.innerHTML = Object.entries(SHIP_SKIN_DEFS).map(([key, def]) => {
+    const unlocked = metaState.unlockedShipSkins.includes(key);
+    return `<option value="${key}"${unlocked ? '' : ' disabled'}>${def.label}${unlocked ? '' : ' · BLOQUEADA'}</option>`;
+  }).join('');
+  shipSkinSelect.value = metaState.unlockedShipSkins.includes(selected) ? selected : 'classic';
 }
 
 function getChallengeProgressText(runStats = currentRunStats) {
@@ -1178,10 +1855,27 @@ function unlockSkin(id, { silent = false } = {}) {
   return true;
 }
 
+function unlockShipSkin(id, { silent = false } = {}) {
+  if (!SHIP_SKIN_DEFS[id] || metaState.unlockedShipSkins.includes(id)) return false;
+  metaState.unlockedShipSkins.push(id);
+  if (!silent) {
+    pushUnlockLog(createUnlockLogEntry('ship', SHIP_SKIN_DEFS[id].label, 'Modelo de nave desbloqueado.', `NAVE ${SHIP_SKIN_DEFS[id].label}`));
+  }
+  refreshShipSkinOptions();
+  if (!silent) {
+    spawnFloatingText(canvas.width / 2, canvas.height * 0.34, `NAVE ${SHIP_SKIN_DEFS[id].label}`, '#ffffff');
+    triggerCinematicFlash(0.08);
+  }
+  return true;
+}
+
 function grantReward(reward, { silent = false } = {}) {
   if (!reward) return false;
   if (reward.type === 'skin') {
     return unlockSkin(reward.id, { silent });
+  }
+  if (reward.type === 'shipSkin') {
+    return unlockShipSkin(reward.id, { silent });
   }
   if (reward.type === 'badge') {
     return grantBadge(reward.id, { silent });
@@ -1200,6 +1894,7 @@ function awardAchievement(id, { silent = false } = {}) {
   }
   persistMetaState();
   refreshSkinOptions();
+  refreshShipSkinOptions();
   if (silent) return true;
   spawnFloatingText(canvas.width / 2, canvas.height * 0.28, def.title, '#ffef88');
   spawnShockwave(canvas.width / 2, canvas.height * 0.28, 'rgba(255,239,136,0.38)', 18, 3.2);
@@ -1266,11 +1961,17 @@ function updateHudStatus() {
   if (activeEffects.freeze > 0) labels.push(`FREEZE ${Math.ceil(activeEffects.freeze / 1000)}s`);
   if (activeEffects.piercing > 0) labels.push(`PIERCE ${Math.ceil(activeEffects.piercing / 1000)}s`);
   if (activeEffects.drone > 0) labels.push(`DRONES ${Math.ceil(activeEffects.drone / 1000)}s`);
+  if (currentWaveEvent?.id && currentWaveEvent.id !== 'standard' && running) labels.push(`EVENTO ${currentWaveEvent.label}`);
+  if (waveDisruptTimer > 0) labels.push(`DISRUPTOR ${Math.ceil(waveDisruptTimer / 1000)}s`);
   powerupStatusEl.textContent = labels.length ? labels.join(' · ') : 'SIN POWER-UPS';
 
-  bossStatusEl.hidden = !boss.active;
-  if (boss.active) bossStatusEl.textContent = `BOSS ${boss.label} ${boss.hp}/${boss.maxHp}`;
-  gameWrapper.classList.toggle('is-boss-fight', boss.active);
+  bossStatusEl.hidden = !boss.active && !miniBossSquad.active;
+  if (boss.active) bossStatusEl.textContent = `BOSS ${boss.label} P${boss.phaseIndex} ${boss.hp}/${boss.maxHp}`;
+  else if (miniBossSquad.active) {
+    const leader = miniBossSquad.ships.find(ship => ship.role === 'leader');
+    bossStatusEl.textContent = `MINI SQUAD ${leader ? `${leader.hp}/${leader.maxHp}` : '0/0'}`;
+  }
+  gameWrapper.classList.toggle('is-boss-fight', boss.active || miniBossSquad.active);
   gameWrapper.classList.toggle('is-critical-time', activeMode === 'timeattack' && running && timeLeftMs <= 15000);
 }
 
@@ -1391,14 +2092,230 @@ function renderAchievementPreview(def, progress, { compact = false } = {}) {
   `;
 }
 
+function renderAchievementOverviewCard({ unlockedAchievements, pendingAchievements }) {
+  return `
+    <div class="achievement-overview">
+      <div class="achievement-overview-head">
+        <div class="achievement-overview-copy">
+          <span class="achievement-kicker">PANORAMA META</span>
+          <strong class="achievement-title">PROGRESO GLOBAL</strong>
+          <span class="achievement-copy">La meta ya distingue entre inicio, progresión, habilidad, modos, colección y capa persistente.</span>
+        </div>
+        <span class="achievement-state">${unlockedAchievements}/${ACHIEVEMENT_DEFS.length} logros</span>
+      </div>
+      <div class="achievement-overview-stats">
+        <div class="achievement-overview-stat">
+          <span class="achievement-overview-label">Pendientes</span>
+          <strong>${pendingAchievements}</strong>
+        </div>
+        <div class="achievement-overview-stat">
+          <span class="achievement-overview-label">Completados</span>
+          <strong>${unlockedAchievements}</strong>
+        </div>
+        <div class="achievement-overview-stat">
+          <span class="achievement-overview-label">Insignias</span>
+          <strong>${metaState.unlockedBadges.length}</strong>
+        </div>
+      </div>
+      <span class="achievement-meta">${getLatestUnlockEntry() ? `${getLatestUnlockEntry().title} · ${getLatestUnlockEntry().reward || getLatestUnlockEntry().detail}` : 'Todavía no hay desbloqueos recientes.'}</span>
+    </div>
+  `;
+}
+
+function drawBestiaryEnemyPreview(ctxRef, type, color) {
+  drawEnemyModel(ctxRef, 12, 10, 72, 36, type, color, { glow: 10, pose: 0 });
+}
+
+function drawBestiaryUfoPreview(ctxRef, type, color) {
+  drawUfoModel(ctxRef, 12, 12, 72, 30, type, color, { glow: 10 });
+}
+
+function drawBestiaryElitePreview(ctxRef, type, color) {
+  drawMiniBossShipModel(ctxRef, 16, 10, 64, 36, type, color, { glow: 10 });
+}
+
+function drawBestiaryBossPreview(ctxRef, type, color) {
+  drawBossModel(ctxRef, 8, 8, 80, 40, type, color, { glow: 12 });
+}
+
+function renderBestiaryPreviews() {
+  if (!bestiaryBrowserEl) return;
+  const theme = getCurrentTheme();
+  bestiaryBrowserEl.querySelectorAll('.bestiary-preview').forEach(canvasEl => {
+    const previewId = canvasEl.dataset.bestiaryId;
+    const def = BESTIARY_DEFS[previewId];
+    if (!def) return;
+    const ctxRef = canvasEl.getContext('2d');
+    if (!ctxRef) return;
+    const { width, height } = canvasEl;
+    ctxRef.clearRect(0, 0, width, height);
+    const gradient = ctxRef.createLinearGradient(0, 0, 0, height);
+    gradient.addColorStop(0, 'rgba(1,18,11,0.98)');
+    gradient.addColorStop(1, 'rgba(1,7,5,0.98)');
+    ctxRef.fillStyle = gradient;
+    ctxRef.fillRect(0, 0, width, height);
+    ctxRef.strokeStyle = 'rgba(0,255,136,0.12)';
+    ctxRef.strokeRect(0.5, 0.5, width - 1, height - 1);
+    ctxRef.fillStyle = 'rgba(0,255,136,0.05)';
+    for (let row = 0; row < 4; row++) {
+      ctxRef.fillRect(12, 14 + row * 12, width - 24, 1);
+    }
+    const accent = def.preview.kind === 'enemy'
+      ? (def.preview.type === 'tank' ? '#ffa165' : def.preview.type === 'scout' ? '#6cf5ff' : def.preview.type === 'shooter' ? '#ffe36b' : theme.enemyRows[0])
+      : def.preview.kind === 'ufo'
+        ? getUfoVariantDef(def.preview.type).color
+        : def.preview.kind === 'elite'
+          ? (def.preview.type === 'leader' ? '#ffb35a' : '#7be6ff')
+          : getBossAccentColor(def.preview.type);
+    ctxRef.shadowBlur = 10;
+    ctxRef.shadowColor = accent;
+    if (def.preview.kind === 'enemy') drawBestiaryEnemyPreview(ctxRef, def.preview.type, accent);
+    else if (def.preview.kind === 'ufo') drawBestiaryUfoPreview(ctxRef, def.preview.type, accent);
+    else if (def.preview.kind === 'elite') drawBestiaryElitePreview(ctxRef, def.preview.type, accent);
+    else drawBestiaryBossPreview(ctxRef, def.preview.type, accent);
+    ctxRef.shadowBlur = 0;
+  });
+}
+
+function renderBestiaryEntry(def) {
+  const seen = hasSeenBestiaryEntry(def.id);
+  const defeated = getBestiaryDefeatCount(metaState, def.id);
+  return `
+    <article class="bestiary-entry${seen ? '' : ' is-unseen'}">
+      <canvas class="bestiary-preview" data-bestiary-id="${def.id}" width="96" height="56" aria-hidden="true"></canvas>
+      <div class="bestiary-copy">
+        <div class="bestiary-head">
+          <div class="bestiary-title-wrap">
+            <span class="objective-kicker">${BESTIARY_CATEGORY_LABELS[def.category]}</span>
+            <strong class="objective-title">${def.title}</strong>
+          </div>
+          <span class="achievement-state${seen ? ' is-unlocked' : ''}">${seen ? 'VISTO' : 'NO VISTO'}</span>
+        </div>
+        <span class="objective-copy">${def.copy}</span>
+        <div class="bestiary-stat-grid">
+          ${def.stats.map(stat => `<span class="bestiary-stat">${stat}</span>`).join('')}
+        </div>
+        <div class="start-objective-item-meta">
+          <span class="objective-reward">DERROTAS ${defeated}</span>
+          <span class="objective-progress${defeated > 0 ? ' is-complete' : ''}">${defeated > 0 ? `Registrado x${defeated}` : 'Aún sin derrotas'}</span>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+function renderBestiaryPanel() {
+  if (!bestiaryBrowserEl) return;
+  const activeCategory = BESTIARY_CATEGORIES.includes(bestiaryTab) ? bestiaryTab : 'invaders';
+  const categoryEntries = Object.values(BESTIARY_DEFS).filter(def => def.category === activeCategory);
+  const seenCount = countBestiarySeen(metaState, Object.keys(BESTIARY_DEFS));
+  const totalDefeats = Object.keys(BESTIARY_DEFS).reduce((sum, id) => sum + getBestiaryDefeatCount(metaState, id), 0);
+  const categorySeen = countBestiarySeen(metaState, categoryEntries.map(def => def.id));
+
+  bestiaryBrowserEl.innerHTML = `
+    <div class="bestiary-shell">
+      <div class="bestiary-overview">
+        <div class="bestiary-overview-copy">
+          <span class="achievement-kicker">GUIA DE AMENAZAS</span>
+          <strong class="achievement-title">ARCHIVO DE COMBATE</strong>
+          <span class="achievement-copy">Cada ficha resume vida, presión ofensiva, movilidad y el número de veces que ya la has derribado.</span>
+        </div>
+        <div class="bestiary-overview-stats">
+          <div class="achievement-overview-stat">
+            <span class="achievement-overview-label">Entradas vistas</span>
+            <strong>${seenCount}/${Object.keys(BESTIARY_DEFS).length}</strong>
+          </div>
+          <div class="achievement-overview-stat">
+            <span class="achievement-overview-label">Categoría activa</span>
+            <strong>${categorySeen}/${categoryEntries.length}</strong>
+          </div>
+          <div class="achievement-overview-stat">
+            <span class="achievement-overview-label">Derrotas</span>
+            <strong>${totalDefeats}</strong>
+          </div>
+        </div>
+      </div>
+      <div class="bestiary-tabs" role="tablist" aria-label="Categorias del bestiario">
+        ${BESTIARY_CATEGORIES.map(category => `
+          <button type="button" class="bestiary-tab${activeCategory === category ? ' is-active' : ''}" data-bestiary-tab="${category}" role="tab" aria-selected="${activeCategory === category}">
+            ${BESTIARY_CATEGORY_LABELS[category]}
+            <span>${countBestiarySeen(metaState, Object.values(BESTIARY_DEFS).filter(def => def.category === category).map(def => def.id))}/${Object.values(BESTIARY_DEFS).filter(def => def.category === category).length}</span>
+          </button>
+        `).join('')}
+      </div>
+      <div class="bestiary-grid">
+        ${categoryEntries.map(renderBestiaryEntry).join('')}
+      </div>
+    </div>
+  `;
+  renderBestiaryPreviews();
+}
+
+function wrapCanvasText(context, text, maxWidth) {
+  const words = String(text || '').split(/\s+/).filter(Boolean);
+  const lines = [];
+  let current = '';
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (context.measureText(candidate).width <= maxWidth || !current) {
+      current = candidate;
+    } else {
+      lines.push(current);
+      current = word;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
+
+function drawTutorialPrompt() {
+  if (!activeTutorialPrompt) return;
+  const elapsed = activeTutorialPrompt.maxTimer - activeTutorialPrompt.timer;
+  const alpha = Math.max(0, Math.min(1, elapsed / 14, activeTutorialPrompt.timer / 24));
+  const cardWidth = Math.min(canvas.width - 48, 470);
+  const cardX = (canvas.width - cardWidth) / 2;
+  const copyMaxWidth = cardWidth - 34;
+  const lineHeight = 16;
+  ctx.save();
+  ctx.font = "bold 13px 'Courier New', monospace";
+  const lines = wrapCanvasText(ctx, activeTutorialPrompt.copy, copyMaxWidth);
+  const cardHeight = 54 + lines.length * lineHeight;
+  const cardY = Math.max(54, canvas.height * 0.1);
+  const accent = activeTutorialPrompt.key.startsWith('bestiary:boss_')
+    ? '#ff8cb8'
+    : activeTutorialPrompt.key.startsWith('bestiary:ufo_')
+      ? '#ffe36b'
+      : activeTutorialPrompt.key.startsWith('bestiary:elite_')
+        ? '#ffb35a'
+        : '#00ff88';
+
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = 'rgba(1,8,5,0.92)';
+  ctx.fillRect(cardX, cardY, cardWidth, cardHeight);
+  ctx.strokeStyle = 'rgba(0,255,136,0.24)';
+  ctx.strokeRect(cardX + 0.5, cardY + 0.5, cardWidth - 1, cardHeight - 1);
+  ctx.fillStyle = accent;
+  ctx.fillRect(cardX + 10, cardY + 10, cardWidth - 20, 3);
+  ctx.shadowBlur = 14;
+  ctx.shadowColor = accent;
+  ctx.fillStyle = '#f4fff8';
+  ctx.textAlign = 'left';
+  ctx.fillText(activeTutorialPrompt.title, cardX + 16, cardY + 28);
+  ctx.shadowBlur = 0;
+  ctx.font = "12px 'Courier New', monospace";
+  ctx.fillStyle = '#b6d4c1';
+  lines.forEach((line, index) => {
+    ctx.fillText(line, cardX + 16, cardY + 48 + index * lineHeight);
+  });
+  ctx.restore();
+}
+
 function renderMetaPanel() {
   const context = buildAchievementContext({ live: overlayMode === 'pause' });
   const unlockedAchievements = countUnlockedAchievements();
   const pendingAchievements = ACHIEVEMENT_DEFS.length - unlockedAchievements;
-  const challengeCompleted = !!metaState.completedChallenges[getChallengeStamp()];
-  const challengeRatio = challengeCompleted ? 1 : (currentChallenge.progressRatio ? currentChallenge.progressRatio(currentRunStats) : 0);
-  const challengeMilestone = getChallengeMilestoneStatus();
   const unlockedSkins = metaState.unlockedSkins.map(id => SKIN_THEMES[id].label).join(' · ');
+  const unlockedShipSkins = metaState.unlockedShipSkins.map(id => getShipSkinLabel(id)).join(' · ');
   const unlockedBadges = metaState.unlockedBadges.length
     ? metaState.unlockedBadges.map(id => BADGE_DEFS[id].label).slice(0, 6).join(' · ')
     : 'Aun sin insignias';
@@ -1413,28 +2330,11 @@ function renderMetaPanel() {
     <div class="challenge-box">
       <div class="challenge-line">
         <div class="challenge-head">
-          <strong class="challenge-title">${currentChallenge.title}</strong>
-          <span class="challenge-state${challengeCompleted ? ' is-complete' : ''}">${challengeCompleted ? 'COMPLETADO HOY' : getChallengeProgressText()}</span>
-        </div>
-        <span class="challenge-copy">${currentChallenge.copy}</span>
-        ${renderProgressMeter(challengeRatio)}
-        <span class="challenge-progress">${currentChallenge.rewardCopy}</span>
-      </div>
-      <div class="challenge-line">
-        <div class="challenge-head">
-          <strong class="challenge-title">${challengeMilestone.title}</strong>
-          <span class="challenge-state">${challengeMilestone.progress}</span>
-        </div>
-        <span class="challenge-copy">${challengeMilestone.copy}</span>
-        ${renderProgressMeter(challengeMilestone.ratio)}
-        <span class="challenge-progress">SIGUIENTE RECOMPENSA · ${challengeMilestone.reward}</span>
-      </div>
-      <div class="challenge-line">
-        <div class="challenge-head">
           <strong class="challenge-title">INVENTARIO META</strong>
-          <span class="challenge-state">${metaState.unlockedSkins.length}/${Object.keys(SKIN_THEMES).length} skins · ${metaState.unlockedBadges.length}/${Object.keys(BADGE_DEFS).length} insignias</span>
+          <span class="challenge-state">${metaState.unlockedSkins.length}/${Object.keys(SKIN_THEMES).length} skins · ${metaState.unlockedShipSkins.length}/${Object.keys(SHIP_SKIN_DEFS).length} naves · ${metaState.unlockedBadges.length}/${Object.keys(BADGE_DEFS).length} insignias</span>
         </div>
         <span class="challenge-copy">Skins: ${unlockedSkins}</span>
+        <span class="challenge-copy">Naves: ${unlockedShipSkins}</span>
         <span class="challenge-progress">Insignias: ${unlockedBadges}</span>
       </div>
     </div>
@@ -1488,31 +2388,7 @@ function renderMetaPanel() {
 
   achievementSummaryEl.innerHTML = `
     <div class="achievement-box">
-      <div class="achievement-overview">
-        <div class="achievement-overview-head">
-          <div class="achievement-overview-copy">
-            <span class="achievement-kicker">PANORAMA META</span>
-            <strong class="achievement-title">PROGRESO GLOBAL</strong>
-            <span class="achievement-copy">La meta ya distingue entre inicio, progresión, habilidad, modos, colección y capa persistente.</span>
-          </div>
-          <span class="achievement-state">${unlockedAchievements}/${ACHIEVEMENT_DEFS.length} logros</span>
-        </div>
-        <div class="achievement-overview-stats">
-          <div class="achievement-overview-stat">
-            <span class="achievement-overview-label">Pendientes</span>
-            <strong>${pendingAchievements}</strong>
-          </div>
-          <div class="achievement-overview-stat">
-            <span class="achievement-overview-label">Completados</span>
-            <strong>${unlockedAchievements}</strong>
-          </div>
-          <div class="achievement-overview-stat">
-            <span class="achievement-overview-label">Insignias</span>
-            <strong>${metaState.unlockedBadges.length}</strong>
-          </div>
-        </div>
-        <span class="achievement-meta">${getLatestUnlockEntry() ? `${getLatestUnlockEntry().title} · ${getLatestUnlockEntry().reward || getLatestUnlockEntry().detail}` : 'Todavía no hay desbloqueos recientes.'}</span>
-      </div>
+      ${renderAchievementOverviewCard({ unlockedAchievements, pendingAchievements })}
       ${recentUnlocks ? `<div class="unlock-log">${recentUnlocks}</div>` : ''}
       <div class="achievement-tabs-shell">
         <div class="achievement-tabs" role="tablist" aria-label="Filtro de progreso">
@@ -1531,20 +2407,20 @@ function renderMetaPanel() {
 function renderStartScreenPanels() {
   const globalAccuracy = getAccuracyPercent(aggregateStats.totalShots, aggregateStats.totalHits);
   const latestSession = scoreHistory.length ? scoreHistory[0] : null;
-  const challengeCompleted = !!metaState.completedChallenges[getChallengeStamp()];
   const unlockedAchievements = countUnlockedAchievements();
   const pendingAchievements = ACHIEVEMENT_DEFS.length - unlockedAchievements;
   const averageScore = aggregateStats.gamesPlayed ? Math.round(aggregateStats.totalScore / aggregateStats.gamesPlayed) : 0;
   const bestLevel = aggregateStats.bestLevel || 1;
   const bestCombo = aggregateStats.bestCombo || 1;
   const startContext = buildAchievementContext();
-  const challengeMilestone = getChallengeMilestoneStatus();
   const pendingGroups = getPendingAchievementsByCategory(startContext);
   const completedGroups = getCompletedAchievementsByCategory();
 
   const modeNoteEl = document.getElementById('mode-note');
   const difficultyNoteEl = document.getElementById('difficulty-note');
   const skinNoteEl = document.getElementById('skin-note');
+  const shipNoteEl = document.getElementById('ship-note');
+  const settingsNoteEl = document.getElementById('settings-note');
   if (startObjectivesCountEl) {
     startObjectivesCountEl.textContent = `${unlockedAchievements}/${ACHIEVEMENT_DEFS.length}`;
   }
@@ -1562,7 +2438,13 @@ function renderStartScreenPanels() {
         : 'Normal mantiene el equilibrio base entre presión, progreso y control.';
   }
   if (skinNoteEl) {
-    skinNoteEl.textContent = `Skin activa ${SKIN_THEMES[gameSettings.skin].label}. ${metaState.unlockedSkins.length}/${Object.keys(SKIN_THEMES).length} desbloqueadas.`;
+    skinNoteEl.textContent = `Skin activa ${SKIN_THEMES[gameSettings.skin].label}. ${metaState.unlockedSkins.length}/${Object.keys(SKIN_THEMES).length} skins de cabina desbloqueadas.`;
+  }
+  if (shipNoteEl) {
+    shipNoteEl.textContent = `Nave activa ${getShipSkinLabel(gameSettings.shipSkin)}. ${metaState.unlockedShipSkins.length}/${Object.keys(SHIP_SKIN_DEFS).length} modelos desbloqueados por logros.`;
+  }
+  if (settingsNoteEl) {
+    settingsNoteEl.textContent = 'La preview se actualiza al instante y la nave se usa en la siguiente partida.';
   }
 
   startSummaryEl.innerHTML = `
@@ -1583,34 +2465,19 @@ function renderStartScreenPanels() {
         <span class="summary-label">PERFIL</span>
         <strong class="summary-value">${aggregateStats.gamesPlayed}</strong>
         <span class="summary-copy">${aggregateStats.gamesPlayed ? `${globalAccuracy}% global · media ${averageScore} pts · ${aggregateStats.totalBossesDefeated} bosses · ${aggregateStats.totalUfoDestroyed} UFO` : 'Aún no hay suficiente histórico para perfilar tu estilo.'}</span>
-        <span class="summary-meta">${aggregateStats.totalPowerUpsCollected} power-ups · ${metaState.unlockedBadges.length} insignias · ${metaState.unlockedSkins.length}/${Object.keys(SKIN_THEMES).length} skins</span>
+        <span class="summary-meta">${aggregateStats.totalPowerUpsCollected} power-ups · ${metaState.unlockedBadges.length} insignias · ${metaState.unlockedSkins.length}/${Object.keys(SKIN_THEMES).length} skins · ${metaState.unlockedShipSkins.length}/${Object.keys(SHIP_SKIN_DEFS).length} naves</span>
       </div>
     </div>
     <div class="summary-ribbon">
       <span class="summary-ribbon-label">ACTIVA</span>
-      <strong class="summary-ribbon-value">${formatModeLabel(gameSettings.mode)} · ${formatDifficultyLabel(gameSettings.difficulty)} · ${SKIN_THEMES[gameSettings.skin].label}</strong>
-      <span class="summary-ribbon-copy">${gameSettings.reducedEffects ? 'Efectos reducidos' : 'Visual completa'} · ${gameSettings.highContrast ? 'Alto contraste' : 'Contraste estándar'} · ${aggregateStats.totalTimeAttackGames} runs contrarreloj</span>
+      <strong class="summary-ribbon-value">${formatModeLabel(gameSettings.mode)} · ${formatDifficultyLabel(gameSettings.difficulty)} · ${SKIN_THEMES[gameSettings.skin].label} · ${getShipSkinLabel(gameSettings.shipSkin)}</strong>
+      <span class="summary-ribbon-copy">${metaState.unlockedSkins.length}/${Object.keys(SKIN_THEMES).length} skins de cabina · ${metaState.unlockedShipSkins.length}/${Object.keys(SHIP_SKIN_DEFS).length} naves · ${aggregateStats.totalTimeAttackGames} runs contrarreloj</span>
     </div>
   `;
 
-  startObjectiveEl.innerHTML = `
-    <div class="objective-card${challengeCompleted ? ' is-complete' : ''}">
-      <span class="objective-kicker">OBJETIVO ACTUAL</span>
-      <strong class="objective-title">${currentChallenge.title}</strong>
-      <span class="objective-copy">${currentChallenge.copy}</span>
-      <span class="objective-progress${challengeCompleted ? ' is-complete' : ''}">${challengeCompleted ? 'COMPLETADO HOY' : getChallengeProgressText()}</span>
-      ${renderProgressMeter(challengeCompleted ? 1 : (currentChallenge.progressRatio ? currentChallenge.progressRatio(currentRunStats) : 0))}
-      <span class="objective-reward">${currentChallenge.rewardCopy}</span>
-    </div>
-    <div class="objective-card">
-      <span class="objective-kicker">RUTA META</span>
-      <strong class="objective-title">${challengeMilestone.title}</strong>
-      <span class="objective-copy">${challengeMilestone.copy}</span>
-      <span class="objective-progress">${challengeMilestone.progress}</span>
-      ${renderProgressMeter(challengeMilestone.ratio)}
-      <span class="objective-reward">SIGUIENTE RECOMPENSA · ${challengeMilestone.reward}</span>
-    </div>
-  `;
+  if (startObjectiveEl) {
+    startObjectiveEl.innerHTML = '';
+  }
 
   const pendingTabBody = pendingGroups.length
     ? pendingGroups.map(({ category, items }) => `
@@ -1642,18 +2509,24 @@ function renderStartScreenPanels() {
 
   startAchievementsEl.innerHTML = `
     <div class="start-objectives-shell">
+      ${renderAchievementOverviewCard({ unlockedAchievements, pendingAchievements })}
       <div class="start-objective-tabs-shell">
         <div class="start-objective-tabs" role="tablist" aria-label="Estado de objetivos">
           <button type="button" class="start-objective-tab${startObjectivesTab === 'pending' ? ' is-active' : ''}" data-start-objectives-tab="pending" role="tab" aria-selected="${startObjectivesTab === 'pending'}">PENDIENTES <span>${pendingAchievements}</span></button>
           <button type="button" class="start-objective-tab${startObjectivesTab === 'completed' ? ' is-active' : ''}" data-start-objectives-tab="completed" role="tab" aria-selected="${startObjectivesTab === 'completed'}">LOGRADOS <span>${unlockedAchievements}</span></button>
         </div>
-        <span class="start-objective-tabs-caption">${startObjectivesTab === 'pending' ? 'Revisa todo lo que aún te queda por conseguir, empezando por lo más cercano.' : 'Consulta todos los hitos ya completados dentro de tu perfil actual.'}</span>
+        <span class="start-objective-tabs-caption">${startObjectivesTab === 'pending' ? 'El primer bloque pendiente marca tu siguiente hito más cercano y mejor recompensado.' : 'Consulta los hitos ya conseguidos y la recompensa que ya forma parte de tu perfil.'}</span>
       </div>
       <div class="start-objective-tab-panel" data-active-tab="${startObjectivesTab}">
         ${startObjectivesTab === 'pending' ? pendingTabBody : completedTabBody}
       </div>
     </div>
   `;
+
+  refreshSkinOptions();
+  refreshShipSkinOptions();
+  renderShipPreview();
+  renderBestiaryPanel();
 }
 
 function completeCurrentChallengeIfNeeded() {
@@ -1691,6 +2564,9 @@ function returnToMenu() {
   running = false;
   paused = false;
   showingLevelScreen = false;
+  activeTutorialPrompt = null;
+  pendingTutorialPromptQueue.length = 0;
+  pendingIntroTutorial = false;
   combo = 0;
   comboTimer = 0;
   screenShake = 0;
@@ -1721,6 +2597,7 @@ function setOverlayMode(mode, entry = null) {
     setPanelVisibility(visualSettingsPanel, true);
     setPanelVisibility(startSummaryPanel, true);
     setPanelVisibility(startObjectivesPanel, true);
+    setPanelVisibility(bestiaryPanel, true);
     setPanelVisibility(runPanel, false);
     setPanelVisibility(aggregatePanel, false);
     setPanelVisibility(historyPanel, false);
@@ -1738,6 +2615,7 @@ function setOverlayMode(mode, entry = null) {
     setPanelVisibility(visualSettingsPanel, false);
     setPanelVisibility(startSummaryPanel, false);
     setPanelVisibility(startObjectivesPanel, false);
+    setPanelVisibility(bestiaryPanel, false);
     setPanelVisibility(runPanel, true);
     setPanelVisibility(aggregatePanel, true);
     setPanelVisibility(historyPanel, true);
@@ -1760,6 +2638,7 @@ function setOverlayMode(mode, entry = null) {
     setPanelVisibility(visualSettingsPanel, false);
     setPanelVisibility(startSummaryPanel, false);
     setPanelVisibility(startObjectivesPanel, false);
+    setPanelVisibility(bestiaryPanel, false);
     setPanelVisibility(runPanel, true);
     setPanelVisibility(aggregatePanel, true);
     setPanelVisibility(historyPanel, true);
@@ -1773,6 +2652,7 @@ let gameSettings = loadSettings();
 let metaState = loadMetaState();
 syncUnlockedRewardsFromAchievements();
 sanitizeSelectedSkin();
+sanitizeSelectedShipSkin();
 let currentChallenge = getCurrentChallengeDefinition();
 let scoreHistory = loadScoreHistory();
 let aggregateStats = loadAggregateStats();
@@ -1780,6 +2660,10 @@ let currentRunStats = createRunStats();
 let overlayMode = 'start';
 let progressPanelTab = 'pending';
 let startObjectivesTab = 'pending';
+let bestiaryTab = 'invaders';
+let activeTutorialPrompt = null;
+let pendingTutorialPromptQueue = [];
+let pendingIntroTutorial = false;
 evaluateAchievements('profile', { silent: true });
 evaluateAchievements('end', { silent: true });
 evaluateAchievements('meta', { silent: true });
@@ -1970,8 +2854,10 @@ let lastFrameTime = 0;
 let timeLeftMs = 0;
 let shieldCharges = 0;
 let bossEncounteredThisLevel = false;
+let miniBossEncounteredThisLevel = false;
 let screenShake = 0;
 let cinematicFlash = 0;
+let waveDisruptTimer = 0;
 
 const activeEffects = { rapid: 0, freeze: 0, piercing: 0, drone: 0 };
 const player = { x: 0, y: canvas.height - 60, w: 40, h: 20, speed: 5, hit: false };
@@ -2054,6 +2940,20 @@ skinSelect.addEventListener('change', event => {
   renderMetaPanel();
   renderStartScreenPanels();
 });
+if (shipSkinSelect) {
+  shipSkinSelect.addEventListener('change', event => {
+    const nextShipSkin = normalizeShipSkin(event.target.value);
+    if (!metaState.unlockedShipSkins.includes(nextShipSkin)) {
+      refreshShipSkinOptions();
+      return;
+    }
+    gameSettings.shipSkin = nextShipSkin;
+    persistGameSettings();
+    applySettingsUI();
+    renderMetaPanel();
+    renderStartScreenPanels();
+  });
+}
 modeSelect.addEventListener('change', event => {
   gameSettings.mode = normalizeGameMode(event.target.value);
   persistGameSettings();
@@ -2066,18 +2966,22 @@ vibrationToggle.addEventListener('change', event => {
   persistGameSettings();
   renderStartScreenPanels();
 });
-reducedEffectsToggle.addEventListener('change', event => {
-  gameSettings.reducedEffects = !!event.target.checked;
-  persistGameSettings();
-  applySettingsUI();
-  renderStartScreenPanels();
-});
-highContrastToggle.addEventListener('change', event => {
-  gameSettings.highContrast = !!event.target.checked;
-  persistGameSettings();
-  applySettingsUI();
-  renderStartScreenPanels();
-});
+if (reducedEffectsToggle) {
+  reducedEffectsToggle.addEventListener('change', event => {
+    gameSettings.reducedEffects = !!event.target.checked;
+    persistGameSettings();
+    applySettingsUI();
+    renderStartScreenPanels();
+  });
+}
+if (highContrastToggle) {
+  highContrastToggle.addEventListener('change', event => {
+    gameSettings.highContrast = !!event.target.checked;
+    persistGameSettings();
+    applySettingsUI();
+    renderStartScreenPanels();
+  });
+}
 achievementSummaryEl.addEventListener('click', event => {
   const trigger = event.target.closest('[data-progress-tab]');
   if (!trigger) return;
@@ -2094,6 +2998,16 @@ startAchievementsEl.addEventListener('click', event => {
   startObjectivesTab = nextTab;
   renderStartScreenPanels();
 });
+if (bestiaryBrowserEl) {
+  bestiaryBrowserEl.addEventListener('click', event => {
+    const trigger = event.target.closest('[data-bestiary-tab]');
+    if (!trigger) return;
+    const nextTab = BESTIARY_CATEGORIES.includes(trigger.dataset.bestiaryTab) ? trigger.dataset.bestiaryTab : 'invaders';
+    if (bestiaryTab === nextTab) return;
+    bestiaryTab = nextTab;
+    renderBestiaryPanel();
+  });
+}
 document.addEventListener('fullscreenchange', updateFullscreenUI);
 
 const playerBullets = [];
@@ -2155,7 +3069,9 @@ function getFreezeFactor() {
 function getEnemyShootInterval() {
   const preset = getDifficultyConfig();
   const threatLevel = getThreatLevel();
-  return Math.max(42, Math.round((110 - (threatLevel - 1) * 8) * preset.enemyShootFactor * (activeEffects.freeze > 0 ? 2.25 : 1)));
+  const eventFactor = currentWaveEvent?.shootFactor || 1;
+  const disruptFactor = waveDisruptTimer > 0 ? 0.78 : 1;
+  return Math.max(42, Math.round((110 - (threatLevel - 1) * 8) * preset.enemyShootFactor * eventFactor * disruptFactor * (activeEffects.freeze > 0 ? 2.25 : 1)));
 }
 
 const explosions = [];
@@ -2232,7 +3148,7 @@ const powerUps = [];
 
 function rollPowerUpType() {
   const pool = lives < MAX_LIVES
-    ? ['rapid', 'shield', 'heart', 'freeze', 'piercing', 'drone']
+    ? ['rapid', 'shield', 'heart', 'heart', 'freeze', 'piercing', 'drone']
     : ['rapid', 'shield', 'freeze', 'piercing', 'drone', 'shield'];
   return pool[Math.floor(Math.random() * pool.length)];
 }
@@ -2250,12 +3166,13 @@ function spawnPowerUp(x, y, type = rollPowerUpType()) {
 }
 
 function maybeDropPowerUp(x, y) {
-  if (Math.random() > POWERUP_DROP_CHANCE) return;
+  if (Math.random() > POWERUP_DROP_CHANCE * (currentWaveEvent?.powerUpFactor || 1)) return;
   spawnPowerUp(x, y);
 }
 
 function collectPowerUp(powerUp) {
   currentRunStats.powerUpsCollected++;
+  queueTutorialPrompt('intro:powerup', 'POWER-UP', 'Recógelo para activar una ventaja temporal. Corazón, escudo o disparo alteran tu margen y tu ritmo.');
   soundPowerUp();
   addScreenShake(2.5);
   triggerCinematicFlash(0.08);
@@ -2280,7 +3197,7 @@ function collectPowerUp(powerUp) {
       spawnFloatingText(player.x + player.w / 2, player.y - 10, '+75', '#ffdd66');
     }
   } else if (powerUp.type === 'shield') {
-    shieldCharges = Math.min(2, shieldCharges + 1);
+    shieldCharges = Math.min(3, shieldCharges + 1);
     spawnFloatingText(player.x + player.w / 2, player.y - 10, 'ESCUDO', '#66e0ff');
   } else if (powerUp.type === 'freeze') {
     activeEffects.freeze = 7000;
@@ -2303,7 +3220,7 @@ const ufo = { active: false, x: 0, y: 28, w: 50, h: 20, speed: 2, dir: 1, varian
 let ufoSpawnTimer = 0;
 
 function getUfoSpawnInterval() {
-  return getDifficultyConfig().ufoSpawnInterval;
+  return Math.round(getDifficultyConfig().ufoSpawnInterval * (currentWaveEvent?.ufoFactor || 1));
 }
 
 const shields = [];
@@ -2343,6 +3260,7 @@ const E_H = 22;
 const TOTAL_ENEMIES = COLS * ROWS;
 let currentWaveEnemyCount = TOTAL_ENEMIES;
 let currentWavePattern = WAVE_PATTERNS.classic_grid;
+let currentWaveEvent = WAVE_EVENT_DEFS.standard;
 
 const boss = {
   active: false,
@@ -2358,7 +3276,20 @@ const boss = {
   shootTimer: 0,
   profileId: 'striker',
   label: 'STRIKER',
-  baseY: 68
+  baseY: 68,
+  phaseIndex: 1
+};
+
+const miniBossSquad = {
+  active: false,
+  x: 0,
+  y: 0,
+  dir: 1,
+  speed: MINI_BOSS_DEF.speedBase,
+  phase: 0,
+  shootTimer: 0,
+  entryTimer: 0,
+  ships: []
 };
 
 function resetBoss() {
@@ -2371,6 +3302,19 @@ function resetBoss() {
   boss.profileId = 'striker';
   boss.label = 'STRIKER';
   boss.baseY = 68;
+  boss.phaseIndex = 1;
+}
+
+function resetMiniBossSquad() {
+  miniBossSquad.active = false;
+  miniBossSquad.x = 0;
+  miniBossSquad.y = 0;
+  miniBossSquad.dir = 1;
+  miniBossSquad.speed = MINI_BOSS_DEF.speedBase;
+  miniBossSquad.phase = 0;
+  miniBossSquad.shootTimer = 0;
+  miniBossSquad.entryTimer = 0;
+  miniBossSquad.ships = [];
 }
 
 function shouldSpawnBossForLevel(currentLevel) {
@@ -2392,7 +3336,7 @@ function getEnemyTickInterval() {
   const alive = enemies.filter(enemy => enemy.alive).length;
   const threatLevel = getThreatLevel();
   const base = Math.max(5, 26 - (threatLevel - 1) * 1.7);
-  return Math.max(3, Math.round(base * preset.enemyTickFactor * (alive / Math.max(1, currentWaveEnemyCount)) * (activeEffects.freeze > 0 ? 2.4 : 1)));
+  return Math.max(3, Math.round(base * preset.enemyTickFactor * (currentWaveEvent?.tickFactor || 1) * (alive / Math.max(1, currentWaveEnemyCount)) * (activeEffects.freeze > 0 ? 2.4 : 1)));
 }
 
 function getAliveEnemyBounds(enemyList = enemies) {
@@ -2404,9 +3348,26 @@ function getAliveEnemyBounds(enemyList = enemies) {
   };
 }
 
+function shouldOmitEarlyEnemy(currentLevel, row, col, maskedOut) {
+  if (maskedOut) return true;
+
+  if (currentLevel === 1) {
+    if (row === 0) return col !== 3 && col !== 4;
+    if (row >= 1 && (col === 0 || col === COLS - 1)) return true;
+    return false;
+  }
+
+  if (currentLevel >= 2 && currentLevel <= 8) {
+    if (row === ROWS - 1 && (col === 0 || col === COLS - 1)) return true;
+  }
+
+  return false;
+}
+
 function spawnEnemies() {
   enemies.length = 0;
   currentWavePattern = getWavePatternForLevel(level, currentRunStats.mode || gameSettings.mode);
+  currentWaveEvent = getWaveEventForLevel(level, currentRunStats.mode || gameSettings.mode);
   const { marginX, gapX, gapY, startY } = getEnemyLayout(currentWavePattern);
   let aliveCount = 0;
 
@@ -2414,8 +3375,7 @@ function spawnEnemies() {
     for (let col = 0; col < COLS; col++) {
       const rowMask = currentWavePattern.masks?.[row] || '11111111';
       const maskedOut = rowMask[col] === '0';
-      const introEaseOut = level === 1 && row === 0 && col % 2 === 1;
-      const alive = !maskedOut && !introEaseOut;
+      const alive = !shouldOmitEarlyEnemy(level, row, col, maskedOut);
       const role = alive ? getEnemyRoleForSlot(row, col, currentWavePattern, level, currentRunStats.mode || gameSettings.mode) : 'classic';
       const roleDef = ENEMY_ROLE_DEFS[role] || ENEMY_ROLE_DEFS.classic;
       if (alive) aliveCount++;
@@ -2437,6 +3397,9 @@ function spawnEnemies() {
         scoreValue: Math.round(getEnemyBasePoints(row) * roleDef.scoreMultiplier),
         flashTimer: 0
       });
+      if (alive) {
+        markBestiarySeen(`enemy_${role}`, { showTip: role !== 'classic' });
+      }
     }
   }
 
@@ -2460,10 +3423,60 @@ function awardTimeBonus(ms) {
   timeLeftMs = Math.min(TIME_ATTACK_MAX_MS, timeLeftMs + ms);
 }
 
+function spawnMiniBossSquad() {
+  miniBossEncounteredThisLevel = true;
+  markBestiarySeen('elite_leader');
+  markBestiarySeen('elite_escort', { showTip: false });
+  miniBossSquad.active = true;
+  miniBossSquad.speed = MINI_BOSS_DEF.speedBase + Math.min(0.9, (getThreatLevel() - 1) * 0.05);
+  miniBossSquad.dir = Math.random() < 0.5 ? -1 : 1;
+  miniBossSquad.phase = Math.random() * Math.PI * 2;
+  miniBossSquad.shootTimer = 0;
+  miniBossSquad.entryTimer = 56;
+  miniBossSquad.x = canvas.width / 2;
+  miniBossSquad.y = -84;
+  miniBossSquad.ships = [
+    { role: 'escort', side: -1, x: canvas.width / 2 - 62, y: -58, w: 34, h: 22, hp: MINI_BOSS_DEF.escortHp, maxHp: MINI_BOSS_DEF.escortHp, flashTimer: 0, color: '#7be6ff' },
+    { role: 'leader', side: 0, x: canvas.width / 2 - 24, y: -76, w: 48, h: 34, hp: MINI_BOSS_DEF.leaderHp, maxHp: MINI_BOSS_DEF.leaderHp, flashTimer: 0, color: '#ffb35a' },
+    { role: 'escort', side: 1, x: canvas.width / 2 + 28, y: -58, w: 34, h: 22, hp: MINI_BOSS_DEF.escortHp, maxHp: MINI_BOSS_DEF.escortHp, flashTimer: 0, color: '#7be6ff' }
+  ];
+  playerBullets.length = 0;
+  enemyBullets.length = 0;
+  spawnFloatingText(canvas.width / 2, 92, 'MINI SQUAD', '#ffd966');
+  spawnShockwave(canvas.width / 2, canvas.height * 0.28, 'rgba(255,214,102,0.38)', 18, 3.4);
+  addScreenShake(7);
+  triggerCinematicFlash(0.12);
+  updateHudStatus();
+}
+
+function getMiniBossAliveShips() {
+  return miniBossSquad.ships.filter(ship => ship.hp > 0);
+}
+
+function defeatMiniBossSquad() {
+  score += MINI_BOSS_DEF.reward + level * 20;
+  scoreEl.textContent = score;
+  syncHighscore();
+  spawnShockwave(miniBossSquad.x, miniBossSquad.y, 'rgba(255,214,102,0.5)', 24, 4.1);
+  spawnParticleBurst(miniBossSquad.x, miniBossSquad.y, {
+    count: 24,
+    color: '#ffd966',
+    speedMin: 1.8,
+    speedMax: 5.4,
+    lifeMin: 24,
+    lifeMax: 40
+  });
+  spawnFloatingText(miniBossSquad.x, miniBossSquad.y - 12, `+${MINI_BOSS_DEF.reward + level * 20}`, '#ffd966');
+  resetMiniBossSquad();
+  completeLevel();
+}
+
 function startBossFight() {
   const profile = getBossProfileForLevel(level, currentRunStats.mode || gameSettings.mode);
   const threatLevel = getThreatLevel();
   bossEncounteredThisLevel = true;
+  markBestiarySeen(`boss_${profile.id}`);
+  waveDisruptTimer = 0;
   boss.active = true;
   boss.profileId = profile.id;
   boss.label = profile.label;
@@ -2476,6 +3489,7 @@ function startBossFight() {
   boss.entryTimer = 84;
   boss.flashTimer = 0;
   boss.baseY = profile.baseY;
+  boss.phaseIndex = 1;
   boss.x = canvas.width / 2 - boss.w / 2;
   boss.y = -boss.h - 24;
   playerBullets.length = 0;
@@ -2501,16 +3515,20 @@ function completeLevel() {
   level++;
   levelEl.textContent = level;
   bossEncounteredThisLevel = false;
+  miniBossEncounteredThisLevel = false;
+  waveDisruptTimer = 0;
   soundWin();
   showingLevelScreen = true;
   levelScreenTimer = 0;
   resetBoss();
+  resetMiniBossSquad();
   updateHudStatus();
 }
 
 function defeatBoss() {
   const reward = getBossBaseReward(BOSS_PROFILES[boss.profileId] || BOSS_PROFILES.striker);
   currentRunStats.bossesDefeated++;
+  incrementBestiaryDefeat(`boss_${boss.profileId}`);
   score += reward;
   scoreEl.textContent = score;
   syncHighscore();
@@ -2554,6 +3572,7 @@ function updatePlayerBullets() {
         const enemyColor = getEnemyRoleColor(enemy);
         if (enemy.hp <= 0) {
           enemy.alive = false;
+          incrementBestiaryDefeat(`enemy_${enemy.type}`);
           combo++;
           comboTimer = 90;
           currentRunStats.enemiesDestroyed++;
@@ -2597,6 +3616,46 @@ function updatePlayerBullets() {
       }
     }
 
+    if (!hit && miniBossSquad.active) {
+      for (const ship of miniBossSquad.ships) {
+        if (ship.hp <= 0) continue;
+        if (rectsOverlap(bullet, ship)) {
+          hit = true;
+          currentRunStats.hits++;
+          ship.hp = Math.max(0, ship.hp - 1);
+          ship.flashTimer = 5;
+          spawnParticleBurst(ship.x + ship.w / 2, ship.y + ship.h / 2, {
+            count: ship.role === 'leader' ? 10 : 6,
+            color: ship.color,
+            speedMin: 1.2,
+            speedMax: 3.8,
+            lifeMin: 14,
+            lifeMax: 28
+          });
+          if (ship.hp <= 0) {
+            incrementBestiaryDefeat(ship.role === 'leader' ? 'elite_leader' : 'elite_escort');
+            score += ship.role === 'leader' ? 220 : 90;
+            scoreEl.textContent = score;
+            syncHighscore();
+            spawnExplosion(ship.x + ship.w / 2, ship.y + ship.h / 2, ship.role === 'leader' ? 24 : 14);
+            spawnFloatingText(ship.x + ship.w / 2, ship.y - 4, ship.role === 'leader' ? '+220' : '+90', ship.color);
+          } else {
+            spawnFloatingText(ship.x + ship.w / 2, ship.y - 4, `${ship.hp}/${ship.maxHp}`, ship.color);
+          }
+          soundHit();
+          bullet.pierces -= 1;
+          bullet.y -= 8;
+          if (bullet.pierces <= 0) playerBullets.splice(index, 1);
+          if (!getMiniBossAliveShips().length) {
+            defeatMiniBossSquad();
+            return;
+          }
+          updateHudStatus();
+          break;
+        }
+      }
+    }
+
     if (!hit && boss.active && rectsOverlap(bullet, boss)) {
       hit = true;
       currentRunStats.hits++;
@@ -2631,8 +3690,10 @@ function updatePlayerBullets() {
 
     if (!hit && ufo.active && rectsOverlap(bullet, ufo)) {
       const variant = getUfoVariantDef();
+      markBestiarySeen(`ufo_${variant.id}`, { showTip: variant.id !== 'bonus' });
       currentRunStats.hits++;
       currentRunStats.ufoDestroyed++;
+      incrementBestiaryDefeat(`ufo_${variant.id}`);
       score += variant.points;
       scoreEl.textContent = score;
       syncHighscore();
@@ -2646,7 +3707,11 @@ function updatePlayerBullets() {
         lifeMax: 34
       });
       spawnFloatingText(ufo.x + ufo.w / 2, ufo.y, `+${variant.points}`, variant.color);
-      if (variant.id === 'cargo') spawnPowerUp(ufo.x + ufo.w / 2, ufo.y + ufo.h / 2);
+      if (variant.guaranteePowerUp) spawnPowerUp(ufo.x + ufo.w / 2, ufo.y + ufo.h / 2);
+      if (variant.id === 'jackpot') {
+        awardTimeBonus(4000);
+        spawnFloatingText(ufo.x + ufo.w / 2, ufo.y + 12, 'JACKPOT', '#fff1a8');
+      }
       ufo.active = false;
       hit = true;
       addScreenShake(4);
@@ -2700,6 +3765,15 @@ function updateBoss() {
   }
 
   boss.phase += 0.035 * freezeFactor;
+  if (boss.phaseIndex === 1 && boss.hp <= Math.ceil(boss.maxHp * 0.5)) {
+    boss.phaseIndex = 2;
+    boss.speed += 0.28;
+    spawnFloatingText(boss.x + boss.w / 2, boss.y - 10, 'PHASE 2', getBossAccentColor(profile.id));
+    spawnShockwave(boss.x + boss.w / 2, boss.y + boss.h / 2, 'rgba(255,255,255,0.26)', 16, 3.2);
+    addScreenShake(5);
+    triggerCinematicFlash(0.09);
+    updateHudStatus();
+  }
   if (profile.movePattern === 'pulse') {
     boss.x += boss.dir * boss.speed * 0.82 * freezeFactor;
     boss.y = boss.baseY + Math.sin(boss.phase * 1.4) * 14;
@@ -2730,6 +3804,7 @@ function updateBoss() {
     } else if (boss.hp <= Math.ceil(boss.maxHp / 2)) {
       spread = [-36, 0, 36];
     }
+    if (boss.phaseIndex === 2 && profile.volley !== 'wall') spread = [...new Set([...spread, 0])];
     for (const offset of spread) {
       enemyBullets.push({
         x: boss.x + boss.w / 2 + offset - 3,
@@ -2744,6 +3819,61 @@ function updateBoss() {
   }
 
   if (boss.y + boss.h >= player.y - 12 && invincibleTimer === 0) {
+    triggerDeath();
+  }
+}
+
+function updateMiniBossSquad() {
+  if (!miniBossSquad.active) return;
+  const freezeFactor = getFreezeFactor();
+
+  if (miniBossSquad.entryTimer > 0) {
+    miniBossSquad.entryTimer--;
+    miniBossSquad.y += (96 - miniBossSquad.y) * 0.12;
+    for (const ship of miniBossSquad.ships) {
+      const targetY = ship.role === 'leader' ? 88 : 110;
+      ship.y += (targetY - ship.y) * 0.08;
+    }
+    return;
+  }
+
+  miniBossSquad.phase += 0.04 * freezeFactor;
+  miniBossSquad.x += miniBossSquad.dir * miniBossSquad.speed * freezeFactor;
+  const horizontalSpan = 76;
+  if (miniBossSquad.x <= 70 || miniBossSquad.x >= canvas.width - 70) {
+    miniBossSquad.dir *= -1;
+  }
+
+  for (const ship of miniBossSquad.ships) {
+    if (ship.hp <= 0) continue;
+    const offsetX = ship.role === 'leader' ? 0 : horizontalSpan * ship.side;
+    const bob = ship.role === 'leader' ? Math.sin(miniBossSquad.phase) * 6 : Math.cos(miniBossSquad.phase + (ship.side < 0 ? 0.6 : -0.6)) * 5;
+    ship.x = miniBossSquad.x + offsetX - ship.w / 2;
+    ship.y = (ship.role === 'leader' ? 88 : 110) + bob;
+  }
+
+  miniBossSquad.shootTimer++;
+  const threatLevel = getThreatLevel();
+  const shootInterval = Math.max(46, Math.round(92 - threatLevel * 4));
+  if (miniBossSquad.shootTimer >= shootInterval) {
+    miniBossSquad.shootTimer = 0;
+    const aliveShips = getMiniBossAliveShips();
+    for (const ship of aliveShips) {
+      if (ship.role === 'leader' || Math.random() < 0.45) {
+        enemyBullets.push({
+          x: ship.x + ship.w / 2 - 2,
+          y: ship.y + ship.h,
+          w: 4,
+          h: 12,
+          speed: getDifficultyConfig().enemyBulletBase + 0.6 + (ship.role === 'leader' ? 0.35 : 0),
+          fromBoss: false,
+          tint: ship.color
+        });
+      }
+    }
+  }
+
+  if (miniBossSquad.ships.some(ship => ship.hp > 0 && ship.y + ship.h >= player.y - 8) && invincibleTimer === 0) {
     triggerDeath();
   }
 }
@@ -2813,6 +3943,9 @@ function updateVisualEffects() {
   for (const enemy of enemies) {
     enemy.flashTimer = Math.max(0, (enemy.flashTimer || 0) - 1);
   }
+  for (const ship of miniBossSquad.ships) {
+    ship.flashTimer = Math.max(0, (ship.flashTimer || 0) - 1);
+  }
 
   for (const star of stars) {
     star.y += star.speed + (boss.active ? 0.18 : 0.04);
@@ -2844,6 +3977,7 @@ let lastDeltaMs = 16;
 
 function update() {
   frameCount++;
+  updateTutorialPromptQueue();
 
   if (showingLevelScreen) {
     updateVisualEffects();
@@ -2875,6 +4009,9 @@ function update() {
       activeEffects[effectKey] = Math.max(0, activeEffects[effectKey] - Math.min(50, lastDeltaMs));
     }
   }
+  if (waveDisruptTimer > 0) {
+    waveDisruptTimer = Math.max(0, waveDisruptTimer - Math.min(50, lastDeltaMs));
+  }
 
   const moving = keys.ArrowLeft || keys.ArrowRight;
   if (keys.ArrowLeft && player.x > 0) player.x -= player.speed;
@@ -2903,16 +4040,20 @@ function update() {
   if (!running || showingLevelScreen) return;
 
   const aliveEnemies = enemies.filter(enemy => enemy.alive);
-  if (!boss.active && aliveEnemies.length === 0) {
+  if (!boss.active && !miniBossSquad.active && aliveEnemies.length === 0) {
     if (shouldSpawnBossForLevel(level) && !bossEncounteredThisLevel) {
       startBossFight();
+      return;
+    }
+    if (shouldSpawnMiniBossForLevel(level) && !miniBossEncounteredThisLevel) {
+      spawnMiniBossSquad();
       return;
     }
     completeLevel();
     return;
   }
 
-  if (!boss.active) {
+  if (!boss.active && !miniBossSquad.active) {
     tickHeartbeat(aliveEnemies.length);
     enemyTickTimer++;
 
@@ -2993,8 +4134,10 @@ function update() {
         }
       }
     }
-  } else {
+  } else if (boss.active) {
     updateBoss();
+  } else if (miniBossSquad.active) {
+    updateMiniBossSquad();
   }
 
   updateEnemyBullets();
@@ -3002,9 +4145,10 @@ function update() {
   updatePowerUps();
 
   ufoSpawnTimer++;
-  if (!ufo.active && !boss.active && ufoSpawnTimer >= getUfoSpawnInterval()) {
+  if (!ufo.active && !boss.active && !miniBossSquad.active && ufoSpawnTimer >= getUfoSpawnInterval()) {
     ufoSpawnTimer = 0;
     const variant = getUfoVariantDef(rollUfoVariant(level, currentRunStats.mode || gameSettings.mode));
+    markBestiarySeen(`ufo_${variant.id}`, { showTip: variant.id !== 'bonus' });
     ufo.active = true;
     ufo.variant = variant.id;
     ufo.points = variant.points;
@@ -3016,7 +4160,20 @@ function update() {
   if (ufo.active) {
     ufo.x += ufo.dir * ufo.speed * getFreezeFactor();
     soundUfo();
-    if (ufo.x > canvas.width + ufo.w || ufo.x < -ufo.w * 2) ufo.active = false;
+    if (ufo.x > canvas.width + ufo.w || ufo.x < -ufo.w * 2) {
+      const variant = getUfoVariantDef();
+      if (variant.escapeEffect === 'disrupt') {
+        waveDisruptTimer = 7000;
+        spawnFloatingText(canvas.width / 2, 72, 'DISRUPTOR ACTIVO', '#b1a2ff');
+        addScreenShake(3);
+      } else if (variant.escapeEffect === 'jackpot') {
+        score += 80;
+        scoreEl.textContent = score;
+        syncHighscore();
+      }
+      ufo.active = false;
+      updateHudStatus();
+    }
   }
 
   for (let index = floatingTexts.length - 1; index >= 0; index--) {
@@ -3101,44 +4258,11 @@ function rectsOverlap(a, b) {
 
 function drawAlien(enemy) {
   const color = enemy.flashTimer > 0 ? '#ffffff' : getEnemyRoleColor(enemy);
-  ctx.save();
-  ctx.fillStyle = color;
-  ctx.shadowBlur = enemy.type === 'tank' ? 8 : 4;
-  ctx.shadowColor = color;
-
-  if (enemy.type === 'scout') {
-    ctx.fillRect(enemy.x + 6, enemy.y + 6, enemy.w - 12, enemy.h - 10);
-    ctx.fillRect(enemy.x + 10, enemy.y + 2, 4, 6);
-    ctx.fillRect(enemy.x + enemy.w - 14, enemy.y + 2, 4, 6);
-    ctx.fillRect(enemy.x + 2, enemy.y + enemy.h - 6, 8, 4);
-    ctx.fillRect(enemy.x + enemy.w - 10, enemy.y + enemy.h - 6, 8, 4);
-  } else if (enemy.type === 'shooter') {
-    ctx.fillRect(enemy.x + 5, enemy.y + 5, enemy.w - 10, enemy.h - 9);
-    ctx.fillRect(enemy.x + enemy.w / 2 - 4, enemy.y - 1, 8, 8);
-    ctx.fillRect(enemy.x + enemy.w / 2 - 2, enemy.y + enemy.h - 2, 4, 7);
-    ctx.fillRect(enemy.x + 4, enemy.y + enemy.h - 5, 6, 5);
-    ctx.fillRect(enemy.x + enemy.w - 10, enemy.y + enemy.h - 5, 6, 5);
-  } else if (enemy.type === 'tank') {
-    ctx.fillRect(enemy.x + 3, enemy.y + 4, enemy.w - 6, enemy.h - 8);
-    ctx.fillRect(enemy.x + 8, enemy.y, enemy.w - 16, 7);
-    ctx.fillRect(enemy.x + 1, enemy.y + enemy.h - 7, 10, 7);
-    ctx.fillRect(enemy.x + enemy.w - 11, enemy.y + enemy.h - 7, 10, 7);
-    ctx.fillStyle = enemy.flashTimer > 0 ? '#fff6db' : 'rgba(255,244,210,0.7)';
-    ctx.fillRect(enemy.x + 10, enemy.y + 10, enemy.w - 20, 4);
-  } else if (enemy.pose === 0) {
-    ctx.fillRect(enemy.x + 4, enemy.y + 4, enemy.w - 8, enemy.h - 8);
-    ctx.fillRect(enemy.x + 6, enemy.y, 4, 6);
-    ctx.fillRect(enemy.x + enemy.w - 10, enemy.y, 4, 6);
-    ctx.fillRect(enemy.x, enemy.y + enemy.h - 6, 8, 6);
-    ctx.fillRect(enemy.x + enemy.w - 8, enemy.y + enemy.h - 6, 8, 6);
-  } else {
-    ctx.fillRect(enemy.x + 4, enemy.y + 4, enemy.w - 8, enemy.h - 8);
-    ctx.fillRect(enemy.x + 8, enemy.y, 4, 8);
-    ctx.fillRect(enemy.x + enemy.w - 12, enemy.y, 4, 8);
-    ctx.fillRect(enemy.x + 2, enemy.y + enemy.h - 4, 8, 4);
-    ctx.fillRect(enemy.x + enemy.w - 10, enemy.y + enemy.h - 4, 8, 4);
-  }
-  ctx.restore();
+  drawEnemyModel(ctx, enemy.x, enemy.y, enemy.w, enemy.h, enemy.type, color, {
+    glow: enemy.type === 'tank' ? 8 : 4,
+    pose: enemy.pose,
+    flash: enemy.flashTimer > 0
+  });
 }
 
 function drawPixelHeart(x, y, scale, color) {
@@ -3219,33 +4343,11 @@ function drawPowerUp(powerUp) {
 
 function drawBoss() {
   if (!boss.active) return;
-
-  ctx.save();
   const accent = getBossAccentColor();
-  const bossColor = boss.flashTimer > 0 ? '#ffeef6' : accent;
-  ctx.fillStyle = bossColor;
-  ctx.shadowBlur = boss.entryTimer > 0 ? 26 : 16;
-  ctx.shadowColor = boss.flashTimer > 0 ? '#ffffff' : accent;
-  ctx.fillRect(boss.x + 18, boss.y + 12, boss.w - 36, 22);
-  ctx.fillRect(boss.x + 10, boss.y + 24, boss.w - 20, 16);
-  ctx.fillRect(boss.x + boss.w / 2 - 12, boss.y + 2, 24, 14);
-  ctx.fillRect(boss.x + 18, boss.y + 40, 18, 12);
-  ctx.fillRect(boss.x + boss.w - 36, boss.y + 40, 18, 12);
-  if (boss.profileId === 'pulse') {
-    ctx.fillStyle = '#fff0b5';
-    ctx.fillRect(boss.x + 30, boss.y + 18, boss.w - 60, 8);
-    ctx.fillRect(boss.x + boss.w / 2 - 5, boss.y + 34, 10, 16);
-  } else if (boss.profileId === 'warden') {
-    ctx.fillStyle = '#dff7ff';
-    ctx.fillRect(boss.x + 26, boss.y + 18, 18, 12);
-    ctx.fillRect(boss.x + boss.w - 44, boss.y + 18, 18, 12);
-    ctx.fillRect(boss.x + 48, boss.y + 32, boss.w - 96, 6);
-  } else {
-    ctx.fillStyle = '#ffc6da';
-    ctx.fillRect(boss.x + 38, boss.y + 26, 12, 6);
-    ctx.fillRect(boss.x + boss.w - 50, boss.y + 26, 12, 6);
-  }
-  ctx.restore();
+  drawBossModel(ctx, boss.x, boss.y, boss.w, boss.h, boss.profileId, accent, {
+    glow: boss.entryTimer > 0 ? 26 : 16,
+    flash: boss.flashTimer > 0
+  });
 
   const barWidth = 180;
   const ratio = boss.hp / boss.maxHp;
@@ -3264,6 +4366,17 @@ function drawBoss() {
     ctx.fillStyle = 'rgba(255,40,120,0.12)';
     ctx.fillRect(0, boss.y + boss.h * 0.4, canvas.width, 28);
     ctx.restore();
+  }
+}
+
+function drawMiniBossSquad() {
+  if (!miniBossSquad.active) return;
+  for (const ship of miniBossSquad.ships) {
+    if (ship.hp <= 0) continue;
+    drawMiniBossShipModel(ctx, ship.x, ship.y, ship.w, ship.h, ship.role, ship.color, {
+      glow: ship.role === 'leader' ? 12 : 8,
+      flash: ship.flashTimer > 0
+    });
   }
 }
 
@@ -3294,6 +4407,7 @@ function draw() {
   }
 
   if (showingLevelScreen) {
+    const previewEvent = getWaveEventForLevel(level, running ? currentRunStats.mode : gameSettings.mode);
     ctx.fillStyle = theme.accent;
     ctx.shadowBlur = 20;
     ctx.shadowColor = theme.accent;
@@ -3303,6 +4417,10 @@ function draw() {
     ctx.font = `${Math.floor(canvas.width / 40)}px Courier New`;
     ctx.fillStyle = '#aaa';
     ctx.fillText(shouldSpawnBossForLevel(level) ? 'Se viene algo serio...' : 'Prepárate...', canvas.width / 2, canvas.height / 2 + 24);
+    if (previewEvent.id !== 'standard') {
+      ctx.fillStyle = '#ffd966';
+      ctx.fillText(previewEvent.label, canvas.width / 2, canvas.height / 2 + 56);
+    }
     ctx.shadowBlur = 0;
     ctx.textAlign = 'left';
     ctx.restore();
@@ -3318,14 +4436,7 @@ function draw() {
   powerUps.forEach(drawPowerUp);
 
   if (!player.hit || Math.floor(frameCount / 5) % 2 === 0) {
-    ctx.fillStyle = theme.player;
-    ctx.shadowBlur = 8;
-    ctx.shadowColor = theme.player;
-    ctx.fillRect(player.x + 8, player.y + 8, player.w - 16, player.h - 8);
-    ctx.fillRect(player.x + player.w / 2 - 3, player.y, 6, 10);
-    ctx.fillRect(player.x, player.y + 12, 10, 8);
-    ctx.fillRect(player.x + player.w - 10, player.y + 12, 10, 8);
-    ctx.shadowBlur = 0;
+    drawPlayerShipModel(ctx, player.x, player.y, player.w, player.h, gameSettings.shipSkin, theme.player, { glow: 8 });
   }
 
   if (shieldCharges > 0) {
@@ -3358,28 +4469,14 @@ function draw() {
 
   if (ufo.active) {
     const variant = getUfoVariantDef();
-    ctx.fillStyle = variant.color;
-    ctx.shadowBlur = 8;
-    ctx.shadowColor = variant.color;
-    ctx.fillRect(ufo.x + 10, ufo.y + 6, ufo.w - 20, ufo.h - 10);
-    ctx.fillRect(ufo.x, ufo.y + 12, ufo.w, 8);
-    ctx.fillRect(ufo.x + ufo.w / 2 - 6, ufo.y, 12, 8);
-    if (variant.id === 'cargo') {
-      ctx.fillRect(ufo.x + 20, ufo.y + 4, 10, 6);
-      ctx.fillRect(ufo.x + ufo.w - 30, ufo.y + 4, 10, 6);
-    } else if (variant.id === 'phantom') {
-      ctx.globalAlpha = 0.35;
-      ctx.fillRect(ufo.x + 6, ufo.y + 10, ufo.w - 12, 6);
-      ctx.globalAlpha = 1;
-    }
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = variant.color;
-    ctx.font = '10px Courier New';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${variant.points}`, ufo.x + ufo.w / 2, ufo.y - 2);
-    ctx.textAlign = 'left';
+    drawUfoModel(ctx, ufo.x, ufo.y, ufo.w, ufo.h, variant.id, variant.color, {
+      glow: 8,
+      showPoints: true,
+      points: variant.points
+    });
   }
 
+  drawMiniBossSquad();
   drawBoss();
 
   for (const text of floatingTexts) {
@@ -3472,6 +4569,8 @@ function drawOverlayFx() {
     ctx.fillStyle = `rgba(255,255,255,${cinematicFlash})`;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
+
+  drawTutorialPrompt();
 }
 
 function loop(timestamp = performance.now()) {
@@ -3519,7 +4618,11 @@ function gameOver(reason = 'defeat') {
   if (!running) return;
   running = false;
   paused = false;
+  activeTutorialPrompt = null;
+  pendingTutorialPromptQueue.length = 0;
+  pendingIntroTutorial = false;
   resetBoss();
+  resetMiniBossSquad();
   playerBullets.length = 0;
   enemyBullets.length = 0;
   powerUps.length = 0;
@@ -3588,10 +4691,16 @@ function startGame() {
   ufo.speed = UFO_VARIANTS.bonus.speed;
   ufoSpawnTimer = 0;
   bossEncounteredThisLevel = false;
+  miniBossEncounteredThisLevel = false;
+  waveDisruptTimer = 0;
   heartbeatTimer = 0;
   heartbeatIdx = 0;
   currentWavePattern = WAVE_PATTERNS.classic_grid;
+  currentWaveEvent = WAVE_EVENT_DEFS.standard;
   currentWaveEnemyCount = TOTAL_ENEMIES;
+  activeTutorialPrompt = null;
+  pendingTutorialPromptQueue.length = 0;
+  pendingIntroTutorial = aggregateStats.gamesPlayed === 0 && !hasTutorialSeen('intro:controls');
   playerBullets.length = 0;
   enemyBullets.length = 0;
   powerUps.length = 0;
@@ -3600,6 +4709,7 @@ function startGame() {
   particles.length = 0;
   shockwaves.length = 0;
   resetBoss();
+  resetMiniBossSquad();
 
   scoreEl.textContent = '0';
   levelEl.textContent = '1';
@@ -3615,6 +4725,15 @@ function startGame() {
   updateHudStatus();
 
   running = true;
+  if (pendingIntroTutorial) {
+    queueTutorialPrompt(
+      'intro:controls',
+      'PRIMERA SALIDA',
+      'Muevete con flechas o tactil y dispara con espacio. La primera ronda esta pensada para entrar rapido en ritmo.',
+      320
+    );
+    pendingIntroTutorial = false;
+  }
   lastFrameTime = performance.now();
   loop(lastFrameTime);
 }
