@@ -35,20 +35,25 @@ Implementación web del clásico **Space Invaders** con una base muy ligera: `HT
 - Transición entre niveles y dificultad progresiva.
 - Primera oleada suavizada en nivel 1 para facilitar la entrada al juego.
 - Power-ups simples: disparo rápido, escudo y corazón de curación.
-- Curación limitada a un máximo de `3` vidas.
+- Curación limitada a un máximo de `5` vidas, comenzando cada partida con `3`.
 - Boss arcade al final de cada ciclo de `3` niveles.
 - Oleadas variadas con formaciones `grid`, `split wings`, `spearhead`, `staggered` y `fortress`.
 - Enemigos con roles diferenciados: `classic`, `shooter`, `scout` y `tank`.
-- Variantes de UFO con comportamiento y recompensa propia: `bonus`, `cargo` y `phantom`.
-- Bosses con perfiles alternos: `striker`, `pulse` y `warden`.
+- Variantes de UFO con comportamiento, silueta y recompensa propia: `bonus`, `cargo`, `disruptor` y `jackpot`.
+- Oleadas evento con identidad jugable propia: `standard`, `hunter`, `armored` y `bonus`.
+- Mini boss de escuadra con líder central y dos escoltas.
+- Bosses con perfiles alternos: `striker`, `pulse` y `warden`, con transición visible a fase 2.
 - HUD de vidas con corazones pixel art y estado activo de partida.
 - Fondo dinámico, partículas, shockwaves y screen shake con estética arcade renovada.
 - Entrada cinematográfica del boss y feedback visual reforzado en impactos y pickups.
 - Sistema de meta renovado con logros por categorías, progreso parcial visible, recompensas explícitas y registro de desbloqueos.
 - Desafío activo rotatorio con hitos meta por sellos completados.
-- Skins desbloqueables y seleccionables con inventario persistente.
+- Skins de cabina y modelos de nave desbloqueables con inventario persistente.
 - Insignias meta persistentes ligadas a logros y desafíos.
-- Ajustes de accesibilidad visual con `efectos reducidos` y `alto contraste`.
+- Preview de nave en el dashboard inicial y selector de silueta jugable.
+- Tutorial contextual de primera partida con avisos breves en combate.
+- Bestiario persistente en portada con enemigos, UFOs, élites y bosses, más contador de derrotas por tipo.
+- Nuevos logros meta ligados a descubrimiento del bestiario y caza de amenazas concretas.
 - Nuevos power-ups: `freeze`, `piercing` y `drone wing`.
 - Estadísticas de partida y acumuladas.
 - Guardado local de récord (`si_hs`), historial enriquecido (`si_history`), estadísticas acumuladas (`si_stats`) y meta persistente (`si_meta`).
@@ -94,6 +99,8 @@ spaceInvaders/
 - Modos y progreso: clásico, contrarreloj, bosses por ciclo y power-ups temporales.
 - Composición de oleadas: patrones, roles enemigos, UFOs variantes y bosses por perfil.
 - Persistencia: lectura y escritura en `localStorage` para récord, historial, ajustes y estadísticas.
+- Personalización: temas visuales, siluetas de nave desbloqueables y recompensas meta.
+- Onboarding y guía: tutorial contextual de primera partida y bestiario consultable desde portada.
 - Audio: generación procedural de efectos con `AudioContext`.
 - Entrada: teclado, botón de inicio y controles táctiles.
 - Sistemas de juego: jugador, balas múltiples del jugador, balas enemigas, escudos, enemigos, UFO, boss, power-ups, explosiones, textos flotantes y tracking de métricas.
@@ -165,7 +172,7 @@ Esta carpeta no interviene en la versión web actual, pero sí aporta contexto h
 
 1. Selector de modo `clasico` / `contrarreloj`.
 2. Power-ups simples con `disparo rapido`, `escudo` y `corazon`.
-3. Recuperacion de vida limitada a `3` corazones como maximo.
+3. Recuperacion de vida limitada a `5` corazones como maximo, iniciando con `3`.
 4. Boss al final de cada ciclo de `3` niveles.
 5. Primera oleada del nivel 1 suavizada con media fila superior ausente.
 
@@ -173,24 +180,29 @@ Esta carpeta no interviene en la versión web actual, pero sí aporta contexto h
 
 1. Logros persistentes con desbloqueo por hitos jugables.
 2. Desafio activo diario/rotatorio mostrado en el overlay.
-3. Skins cosméticas desbloqueables y seleccionables.
-4. Ajustes de accesibilidad visual: `alto contraste` y `efectos reducidos`.
+3. Skins cosméticas y modelos de nave desbloqueables y seleccionables.
+4. Dashboard inicial con preview de nave y mejor separación entre personalización y meta.
 5. Power-ups avanzados: `freeze`, `piercing` y `drone wing`.
 6. Meta rediseñada con categorías (`inicio`, `progresion`, `habilidad`, `modos`, `coleccion`, `meta`).
-7. Recompensas explícitas por logro: skins e insignias persistentes.
+7. Recompensas explícitas por logro: skins, modelos de nave e insignias persistentes.
 8. Progreso parcial visible, hitos cercanos y catálogo estructurado en pausa/game over.
 
 ### Lote 5 implementado
 
 1. Formaciones de oleada variadas con escalado por nivel y modo.
 2. Roles enemigos con diferencias reales de resistencia, disparo y prioridad táctica.
-3. UFOs `bonus`, `cargo` y `phantom` con velocidad y recompensa propias.
-4. Bosses `striker`, `pulse` y `warden` con patrones alternos.
-5. Escalado de presión más inteligente entre early, mid y late game.
+3. UFOs `bonus`, `cargo`, `disruptor` y `jackpot` con silueta, efecto y recompensa propias.
+4. Oleadas evento que alteran presión, drops y frecuencia de UFO.
+5. Mini boss de escuadra con líder central y dos escoltas.
+6. Bosses `striker`, `pulse` y `warden` con patrones alternos y fase 2 visible.
+7. Escalado de presión más inteligente entre early, mid y late game.
+8. Tutorial contextual de primera partida con tips al descubrir amenazas y power-ups.
+9. Bestiario persistente con fichas de amenazas, estadísticas legibles y derrotas acumuladas.
+10. Nuevos logros meta ligados a descubrimiento y dominio del bestiario.
 
 ### Mejoras de bajo coste pendientes
 
-1. Tutorial interactivo de primera partida.
+1. Volumen separado para `musica` y `fx`.
 
 ### Mejoras de impacto medio pendientes
 

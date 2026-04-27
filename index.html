@@ -68,22 +68,22 @@
               <h2>VISUAL</h2>
               <span class="card-badge">PRESENTACION</span>
             </div>
-            <p class="card-intro">Ajusta cómo se ve y se siente la cabina.</p>
+            <p class="card-intro">Define el tema visual y la silueta de la nave antes de entrar.</p>
+            <div id="ship-preview-frame" aria-hidden="true">
+              <canvas id="ship-preview-canvas" width="160" height="96"></canvas>
+            </div>
             <div class="setting-row">
               <label for="skin-select">SKIN</label>
               <select id="skin-select"></select>
             </div>
-            <label class="setting-toggle" for="toggle-reduced-effects">
-              <input id="toggle-reduced-effects" type="checkbox" />
-              <span>EFECTOS REDUCIDOS</span>
-            </label>
-            <label class="setting-toggle" for="toggle-high-contrast">
-              <input id="toggle-high-contrast" type="checkbox" />
-              <span>ALTO CONTRASTE</span>
-            </label>
+            <div class="setting-row">
+              <label for="ship-skin-select">NAVE</label>
+              <select id="ship-skin-select"></select>
+            </div>
             <div class="card-note-list">
               <p id="skin-note" class="card-note">Cada skin recolorea la cabina sin alterar la jugabilidad.</p>
-              <p id="settings-note" class="card-note">Los cambios visuales se aplican al iniciar la siguiente partida.</p>
+              <p id="ship-note" class="card-note">Los modelos de nave se desbloquean igual que los skins.</p>
+              <p id="settings-note" class="card-note">La previsualización refleja al instante la configuración activa.</p>
             </div>
           </section>
 
@@ -102,8 +102,16 @@
               <span class="card-badge">META</span>
             </div>
             <p class="card-intro">Qué perseguir ahora y qué hitos tienes más cerca.</p>
-            <div id="start-objective"></div>
             <div id="start-achievements"></div>
+          </section>
+
+          <section id="bestiary-panel" class="overlay-card" aria-label="Bestiario y guía de amenazas">
+            <div class="card-head">
+              <h2>BESTIARIO</h2>
+              <span class="card-badge">GUIA</span>
+            </div>
+            <p class="card-intro">Consulta enemigos, UFOs, élites y bosses con sus rasgos clave y tu historial frente a ellos.</p>
+            <div id="bestiary-browser"></div>
           </section>
 
           <section id="run-panel" class="overlay-card" aria-label="Resumen de partida">
