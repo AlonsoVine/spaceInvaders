@@ -50,6 +50,10 @@ body {
   padding: 10px 0 18px;
 }
 
+body:has(#overlay.visible[data-mode="start"]) {
+  --layout-max-width: min(calc(100vw - 32px), 1440px);
+}
+
 body[data-skin='aurora'] #game-wrapper {
   box-shadow:
     0 0 0 1px rgba(102,224,255,0.14),
@@ -355,7 +359,7 @@ body.reduced-effects #game-wrapper::before {
 #overlay.visible { display: flex; }
 
 #overlay-shell {
-  width: min(100%, 1120px);
+  width: min(100%, 1240px);
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -377,6 +381,13 @@ body.reduced-effects #game-wrapper::before {
   letter-spacing: 3px;
 }
 
+#overlay-title-block {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
 #overlay-title {
   font-size: clamp(34px, 5vw, 72px);
   line-height: 0.95;
@@ -385,6 +396,20 @@ body.reduced-effects #game-wrapper::before {
   margin: 0;
   max-width: 100%;
   text-wrap: balance;
+}
+
+#overlay-byline {
+  margin-bottom: 8px;
+  color: #86b89d;
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-decoration: none;
+  transition: color 120ms ease, text-shadow 120ms ease;
+}
+
+#overlay-byline:hover {
+  color: #c9f8dc;
+  text-shadow: 0 0 10px rgba(0,255,136,0.24);
 }
 
 #overlay-msg {
@@ -1769,6 +1794,11 @@ body.reduced-effects #game-wrapper::before {
   max-width: 12ch;
 }
 
+#overlay[data-mode="start"] #overlay-title-block {
+  align-items: flex-end;
+  max-width: 920px;
+}
+
 #overlay[data-mode="start"] #overlay-msg {
   max-width: 44ch;
 }
@@ -1934,6 +1964,11 @@ body:fullscreen #meta-footer {
   #overlay[data-mode="start"] #overlay-title {
     font-size: clamp(24px, 9vw, 42px);
     line-height: 1;
+  }
+
+  #overlay-byline {
+    margin-bottom: 2px;
+    font-size: 11px;
   }
 
   #overlay[data-mode="start"] #overlay-msg {
@@ -2245,6 +2280,10 @@ body:fullscreen #meta-footer {
 
   #overlay-title {
     font-size: clamp(30px, 6vw, 48px);
+  }
+
+  #overlay-title-block {
+    gap: 10px;
   }
 
   #overlay-msg {
