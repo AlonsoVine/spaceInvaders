@@ -1093,12 +1093,17 @@ body.reduced-effects #game-wrapper::before {
 
 .collection-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 12px;
 }
 
+.collection-shell .bestiary-overview-stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .collection-group,
-.collection-list {
+.collection-list,
+.collection-card-grid {
   display: grid;
   gap: 10px;
 }
@@ -1152,9 +1157,30 @@ body.reduced-effects #game-wrapper::before {
   box-shadow: inset 0 0 0 1px rgba(255,239,136,0.08);
 }
 
+.collection-preview-frame {
+  display: grid;
+  place-items: center;
+  padding: 10px;
+  border: 1px solid rgba(0,255,136,0.08);
+  background:
+    linear-gradient(180deg, rgba(0,255,136,0.05), rgba(0,255,136,0.02)),
+    rgba(0,255,136,0.015);
+}
+
+.collection-preview-canvas {
+  display: block;
+  width: min(100%, 180px);
+  height: auto;
+  image-rendering: pixelated;
+}
+
 .collection-item-copy {
   display: grid;
   gap: 4px;
+}
+
+.collection-card-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 #overlay-dialog {
@@ -2032,6 +2058,10 @@ body:fullscreen #meta-footer {
   .bestiary-grid,
   .bestiary-overview-stats,
   .collection-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .collection-card-grid {
     grid-template-columns: 1fr;
   }
 

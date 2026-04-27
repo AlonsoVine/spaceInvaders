@@ -2490,9 +2490,19 @@ function getRewardUnlockSource(type, id) {
   return 'POR DESCUBRIR';
 }
 
-function renderCollectionItem({ title, copy, unlocked, active = false, source, tone = 'neutral' }) {
+function getCollectionUnlockLabel(type, id, unlocked) {
+  const source = getRewardUnlockSource(type, id);
+  if (source === 'BASE') return 'Disponible desde el inicio';
+  if (source === 'POR DESCUBRIR') {
+    return unlocked ? 'Ya forma parte de tu hangar.' : 'Sigue avanzando para revelar su reto.';
+  }
+  return unlocked ? `Desbloqueada por ${source}` : `Desbloquea: ${source}`;
+}
+
+function renderCollectionItem({ title, copy, unlocked, active = false, source, previewMarkup = '' }) {
   return `
-    <article class="collection-item${unlocked ? ' is-unlocked' : ' is-locked'}${active ? ' is-active' : ''}" data-tone="${tone}">
+    <article class="collection-item${unlocked ? ' is-unlocked' : ' is-locked'}${active ? ' is-active' : ''}">
+      ${previewMarkup}
       <div class="collection-item-head">
         <div class="collection-item-copy">
           <strong class="achievement-title">${title}</strong>
@@ -2505,14 +2515,69 @@ function renderCollectionItem({ title, copy, unlocked, active = false, source, t
   `;
 }
 
+function renderCollectionPreviews() {
+  if (!bestiaryBrowserEl) return;
+  const activeTheme = getCurrentTheme();
+  bestiaryBrowserEl.querySelectorAll('.collection-preview-canvas').forEach(canvasEl => {
+    const ctxRef = canvasEl.getContext('2d');
+    if (!ctxRef) return;
+    const { width, height } = canvasEl;
+    const previewKind = canvasEl.dataset.collectionKind;
+    const previewId = canvasEl.dataset.collectionId;
+    const unlocked = canvasEl.dataset.unlocked === 'true';
+    ctxRef.clearRect(0, 0, width, height);
+
+    const gradient = ctxRef.createLinearGradient(0, 0, 0, height);
+    gradient.addColorStop(0, 'rgba(1,18,11,0.98)');
+    gradient.addColorStop(1, 'rgba(1,7,5,0.98)');
+    ctxRef.fillStyle = gradient;
+    ctxRef.fillRect(0, 0, width, height);
+    ctxRef.strokeStyle = 'rgba(0,255,136,0.12)';
+    ctxRef.strokeRect(0.5, 0.5, width - 1, height - 1);
+    ctxRef.fillStyle = 'rgba(0,255,136,0.05)';
+    for (let row = 0; row < 4; row++) {
+      ctxRef.fillRect(14, 18 + row * 13, width - 28, 1);
+    }
+
+    ctxRef.save();
+    if (!unlocked) {
+      ctxRef.globalAlpha = 0.4;
+    }
+    if (previewKind === 'skin') {
+      const theme = SKIN_THEMES[normalizeSkin(previewId)];
+      drawPlayerShipModel(ctxRef, width / 2 - 42, 20, 84, 42, 'classic', theme.player, { glow: unlocked ? 10 : 4 });
+      ctxRef.fillStyle = theme.playerBullet;
+      ctxRef.fillRect(width / 2 - 2, 8, 4, 10);
+    } else {
+      drawPlayerShipModel(ctxRef, width / 2 - 42, 20, 84, 42, normalizeShipSkin(previewId), activeTheme.player, { glow: unlocked ? 10 : 4 });
+      ctxRef.fillStyle = activeTheme.playerBullet;
+      ctxRef.fillRect(width / 2 - 2, 8, 4, 10);
+    }
+    ctxRef.restore();
+  });
+}
+
 function renderCollectionPanel() {
+  const activeCollectionTab = collectionTab === 'ships' ? 'ships' : 'skins';
   const skinItems = Object.entries(SKIN_THEMES).map(([id, def]) => renderCollectionItem({
     title: def.label,
     copy: `Tema de cabina con acento ${def.accent}.`,
     unlocked: metaState.unlockedSkins.includes(id),
     active: gameSettings.skin === id,
-    source: getRewardUnlockSource('skin', id),
-    tone: id
+    source: getCollectionUnlockLabel('skin', id, metaState.unlockedSkins.includes(id)),
+    previewMarkup: `
+      <div class="collection-preview-frame">
+        <canvas
+          class="collection-preview-canvas"
+          data-collection-kind="skin"
+          data-collection-id="${id}"
+          data-unlocked="${metaState.unlockedSkins.includes(id)}"
+          width="180"
+          height="90"
+          aria-hidden="true"
+        ></canvas>
+      </div>
+    `
   })).join('');
 
   const shipItems = Object.entries(SHIP_SKIN_DEFS).map(([id, def]) => renderCollectionItem({
@@ -2520,16 +2585,20 @@ function renderCollectionPanel() {
     copy: def.copy,
     unlocked: metaState.unlockedShipSkins.includes(id),
     active: gameSettings.shipSkin === id,
-    source: getRewardUnlockSource('shipSkin', id),
-    tone: 'ship'
-  })).join('');
-
-  const badgeItems = Object.entries(BADGE_DEFS).map(([id, def]) => renderCollectionItem({
-    title: def.label,
-    copy: def.copy,
-    unlocked: metaState.unlockedBadges.includes(id),
-    source: getRewardUnlockSource('badge', id),
-    tone: 'badge'
+    source: getCollectionUnlockLabel('shipSkin', id, metaState.unlockedShipSkins.includes(id)),
+    previewMarkup: `
+      <div class="collection-preview-frame">
+        <canvas
+          class="collection-preview-canvas"
+          data-collection-kind="ship"
+          data-collection-id="${id}"
+          data-unlocked="${metaState.unlockedShipSkins.includes(id)}"
+          width="180"
+          height="90"
+          aria-hidden="true"
+        ></canvas>
+      </div>
+    `
   })).join('');
 
   return `
@@ -2537,8 +2606,8 @@ function renderCollectionPanel() {
       <div class="bestiary-overview">
         <div class="bestiary-overview-copy">
           <span class="achievement-kicker">COLECCION META</span>
-          <strong class="achievement-title">INVENTARIO DESBLOQUEABLE</strong>
-          <span class="achievement-copy">Revisa qué ya forma parte de tu perfil y qué recompensa sigue esperando a que la ganes.</span>
+          <strong class="achievement-title">EQUIPACION DESBLOQUEADA</strong>
+          <span class="achievement-copy">Previsualiza las cabinas y siluetas que ya forman parte de tu hangar o siguen esperando a que las ganes.</span>
         </div>
         <div class="bestiary-overview-stats">
           <div class="achievement-overview-stat">
@@ -2549,34 +2618,36 @@ function renderCollectionPanel() {
             <span class="achievement-overview-label">Naves</span>
             <strong>${metaState.unlockedShipSkins.length}/${Object.keys(SHIP_SKIN_DEFS).length}</strong>
           </div>
-          <div class="achievement-overview-stat">
-            <span class="achievement-overview-label">Insignias</span>
-            <strong>${metaState.unlockedBadges.length}/${Object.keys(BADGE_DEFS).length}</strong>
-          </div>
         </div>
       </div>
+      <div class="bestiary-tabs" role="tablist" aria-label="Categorias de equipacion">
+        <button type="button" class="bestiary-tab${activeCollectionTab === 'skins' ? ' is-active' : ''}" data-collection-tab="skins" role="tab" aria-selected="${activeCollectionTab === 'skins'}">
+          SKINS
+          <span>${metaState.unlockedSkins.length}/${Object.keys(SKIN_THEMES).length}</span>
+        </button>
+        <button type="button" class="bestiary-tab${activeCollectionTab === 'ships' ? ' is-active' : ''}" data-collection-tab="ships" role="tab" aria-selected="${activeCollectionTab === 'ships'}">
+          NAVES
+          <span>${metaState.unlockedShipSkins.length}/${Object.keys(SHIP_SKIN_DEFS).length}</span>
+        </button>
+      </div>
       <div class="collection-grid">
-        <section class="collection-group">
-          <div class="collection-group-head">
-            <strong>SKINS</strong>
-            <span>${metaState.unlockedSkins.length} activas o desbloqueadas</span>
-          </div>
-          <div class="collection-list">${skinItems}</div>
-        </section>
-        <section class="collection-group">
-          <div class="collection-group-head">
-            <strong>NAVES</strong>
-            <span>${metaState.unlockedShipSkins.length} modelos</span>
-          </div>
-          <div class="collection-list">${shipItems}</div>
-        </section>
-        <section class="collection-group">
-          <div class="collection-group-head">
-            <strong>INSIGNIAS</strong>
-            <span>${metaState.unlockedBadges.length} conseguidas</span>
-          </div>
-          <div class="collection-list">${badgeItems}</div>
-        </section>
+        ${activeCollectionTab === 'skins' ? `
+          <section class="collection-group">
+            <div class="collection-group-head">
+              <strong>SKINS</strong>
+              <span>${metaState.unlockedSkins.length}/${Object.keys(SKIN_THEMES).length} disponibles</span>
+            </div>
+            <div class="collection-card-grid">${skinItems}</div>
+          </section>
+        ` : `
+          <section class="collection-group">
+            <div class="collection-group-head">
+              <strong>NAVES</strong>
+              <span>${metaState.unlockedShipSkins.length}/${Object.keys(SHIP_SKIN_DEFS).length} disponibles</span>
+            </div>
+            <div class="collection-card-grid">${shipItems}</div>
+          </section>
+        `}
       </div>
     </div>
   `;
@@ -2584,6 +2655,7 @@ function renderCollectionPanel() {
 
 function renderBestiaryPanel() {
   if (!bestiaryBrowserEl) return;
+  const panelIntro = bestiaryPanel?.querySelector('.card-intro');
   const guideTabs = `
     <div class="guide-tabs" role="tablist" aria-label="Archivo de juego">
       <button type="button" class="guide-tab${guidePanelTab === 'bestiary' ? ' is-active' : ''}" data-guide-tab="bestiary" role="tab" aria-selected="${guidePanelTab === 'bestiary'}">BESTIARIO</button>
@@ -2592,13 +2664,21 @@ function renderBestiaryPanel() {
   `;
 
   if (guidePanelTab === 'collection') {
+    if (panelIntro) {
+      panelIntro.textContent = 'Previsualiza las skins y naves que ya forman parte de tu hangar y detecta qué piezas siguen bloqueadas.';
+    }
     bestiaryBrowserEl.innerHTML = `
       <div class="guide-shell">
         ${guideTabs}
         ${renderCollectionPanel()}
       </div>
     `;
+    renderCollectionPreviews();
     return;
+  }
+
+  if (panelIntro) {
+    panelIntro.textContent = 'Consulta enemigos, UFOs, élites y bosses con sus rasgos clave y tu historial frente a ellos.';
   }
 
   const activeCategory = BESTIARY_CATEGORIES.includes(bestiaryTab) ? bestiaryTab : 'invaders';
@@ -2734,6 +2814,7 @@ function resetProfileProgress() {
   progressPanelTab = 'pending';
   startObjectivesTab = 'pending';
   guidePanelTab = 'bestiary';
+  collectionTab = 'skins';
   bestiaryTab = 'invaders';
   sanitizeSelectedSkin();
   sanitizeSelectedShipSkin();
@@ -3170,6 +3251,7 @@ let overlayMode = 'start';
 let progressPanelTab = 'pending';
 let startObjectivesTab = 'pending';
 let guidePanelTab = 'bestiary';
+let collectionTab = 'skins';
 let bestiaryTab = 'invaders';
 let activeTutorialPrompt = null;
 let pendingTutorialPromptQueue = [];
@@ -3565,6 +3647,15 @@ if (bestiaryBrowserEl) {
       const nextGuideTab = guideTrigger.dataset.guideTab === 'collection' ? 'collection' : 'bestiary';
       if (guidePanelTab !== nextGuideTab) {
         guidePanelTab = nextGuideTab;
+        renderBestiaryPanel();
+      }
+      return;
+    }
+    const collectionTrigger = event.target.closest('[data-collection-tab]');
+    if (collectionTrigger) {
+      const nextCollectionTab = collectionTrigger.dataset.collectionTab === 'ships' ? 'ships' : 'skins';
+      if (collectionTab !== nextCollectionTab) {
+        collectionTab = nextCollectionTab;
         renderBestiaryPanel();
       }
       return;
