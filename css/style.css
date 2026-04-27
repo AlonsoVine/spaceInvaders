@@ -51,7 +51,7 @@ body {
 }
 
 body:has(#overlay.visible[data-mode="start"]) {
-  --layout-max-width: min(calc(100vw - 32px), 1440px);
+  --layout-max-width: min(calc((100svh - 182px) * 4 / 3), calc(100vw - 40px), 1360px);
 }
 
 body[data-skin='aurora'] #game-wrapper {
@@ -2181,10 +2181,10 @@ body:fullscreen #meta-footer {
     bottom: calc(54px + env(safe-area-inset-bottom));
     z-index: 20;
     display: flex;
-    justify-content: flex-start;
+    justify-content: space-between;
     align-items: center;
     gap: 10px;
-    padding: 0 12px;
+    padding: 0 16px;
     pointer-events: none;
   }
 
@@ -2196,21 +2196,34 @@ body:fullscreen #meta-footer {
 
   #btn-left,
   #btn-right {
-    width: 64px;
-    height: 64px;
-    font-size: 22px;
+    width: 72px;
+    height: 72px;
+    font-size: 24px;
   }
 
-  #btn-left { order: 1; }
-  #btn-right { order: 2; }
+  #btn-left,
+  #btn-right {
+    order: 1;
+  }
 
   #btn-fire {
-    order: 3;
-    margin-left: auto;
+    order: 2;
     width: 86px !important;
     height: 86px !important;
     border-radius: 22px;
     font-size: 28px !important;
+  }
+
+  #audio-controls {
+    justify-content: center;
+    gap: 10px;
+    padding: 8px 12px 0;
+  }
+
+  #audio-controls button {
+    flex: 0 0 auto;
+    min-width: 132px;
+    text-align: center;
   }
 
   .start-level-grid {

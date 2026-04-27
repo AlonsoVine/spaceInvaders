@@ -31,6 +31,7 @@ const vibrationToggle = document.getElementById('toggle-vibration');
 const reducedEffectsToggle = document.getElementById('toggle-reduced-effects');
 const highContrastToggle = document.getElementById('toggle-high-contrast');
 const btnMusic = document.getElementById('btn-music');
+const btnPauseMobile = document.getElementById('btn-pause-mobile');
 const btnFullscreen = document.getElementById('btn-fullscreen');
 const musicVolumeEl = document.getElementById('music-volume');
 const fxVolumeEl = document.getElementById('fx-volume');
@@ -1504,7 +1505,7 @@ function updateMobileStartPanelState() {
   panelIds.forEach(panelId => {
     const panel = overlayPanels.querySelector(`[data-mobile-panel="${panelId}"]`);
     if (!panel) return;
-    panel.classList.toggle('is-mobile-collapsed', mobileActive && mobileStartPanel !== panelId);
+    panel.classList.toggle('is-mobile-collapsed', mobileActive && (!mobileStartPanel || mobileStartPanel !== panelId));
   });
 }
 
@@ -3547,6 +3548,7 @@ btnStart.addEventListener('click', () => {
 });
 btnMenu.addEventListener('click', returnToMenu);
 btnMusic.addEventListener('click', toggleMusic);
+if (btnPauseMobile) btnPauseMobile.addEventListener('click', togglePause);
 btnFullscreen.addEventListener('click', toggleFullscreen);
 musicVolumeEl.addEventListener('input', event => {
   initAudio();
@@ -3664,7 +3666,12 @@ if (overlayPanels) {
     const trigger = event.target.closest('[data-mobile-panel-toggle]');
     if (!trigger || overlayMode !== 'start' || !isMobileViewport()) return;
     const nextPanel = trigger.dataset.mobilePanelToggle;
-    if (!nextPanel || mobileStartPanel === nextPanel) return;
+    if (!nextPanel) return;
+    if (mobileStartPanel === nextPanel) {
+      mobileStartPanel = null;
+      updateMobileStartPanelState();
+      return;
+    }
     mobileStartPanel = nextPanel;
     updateMobileStartPanelState();
     const panel = overlayPanels.querySelector(`[data-mobile-panel="${nextPanel}"]`);
