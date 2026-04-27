@@ -24,6 +24,8 @@ const skinSelect = document.getElementById('skin-select');
 const shipSkinSelect = document.getElementById('ship-skin-select');
 const difficultySelect = document.getElementById('difficulty-select');
 const modeSelect = document.getElementById('mode-select');
+const startLevelSelectorEl = document.getElementById('start-level-selector');
+const startLevelStatusEl = document.getElementById('start-level-status');
 const vibrationToggle = document.getElementById('toggle-vibration');
 const reducedEffectsToggle = document.getElementById('toggle-reduced-effects');
 const highContrastToggle = document.getElementById('toggle-high-contrast');
@@ -76,6 +78,7 @@ const TIME_ATTACK_DURATION_MS = 90000;
 const TIME_ATTACK_WAVE_BONUS_MS = 7000;
 const TIME_ATTACK_BOSS_BONUS_MS = 12000;
 const TIME_ATTACK_MAX_MS = 120000;
+const MAX_START_LEVEL_OPTION = 24;
 const RAPID_FIRE_DURATION_MS = 9000;
 const POWERUP_DROP_CHANCE = 0.14;
 const PLAYER_BASE_COOLDOWN = 16;
@@ -280,6 +283,16 @@ const BESTIARY_DEFS = {
     tipTitle: 'ESCOLTA ELITE',
     tipCopy: 'Las escorts abren ángulos raros. Si el líder dura demasiado, ellas convierten el encuentro en una trampa.'
   },
+  elite_prong: {
+    id: 'elite_prong',
+    category: 'elite',
+    title: 'PRONG',
+    copy: 'Ala exclusiva de TRIDENT. Entra con una silueta más afilada, abre la formación y castiga mejor los laterales.',
+    preview: { kind: 'elite', type: 'prong' },
+    stats: ['VIDA 3', 'ATAQUE MEDIO+', 'VELOCIDAD MEDIA', '90 PTS'],
+    tipTitle: 'PRONG DETECTADA',
+    tipCopy: 'Las PRONG no sostienen: pinchan. Si TRIDENT abre ángulo, córtalas antes de que conviertan la pantalla en una tenaza.'
+  },
   elite_leader: {
     id: 'elite_leader',
     category: 'elite',
@@ -289,6 +302,16 @@ const BESTIARY_DEFS = {
     stats: ['VIDA 7', 'ATAQUE ALTO', 'VELOCIDAD MEDIA', '220 PTS'],
     tipTitle: 'MINIBOSS LOCALIZADO',
     tipCopy: 'La escuadra élite entra para romper la linealidad. Corta escorts si el campo se cierra y vuelve al líder.'
+  },
+  elite_trident: {
+    id: 'elite_trident',
+    category: 'elite',
+    title: 'TRIDENT',
+    copy: 'Variante más agresiva del líder élite. Abre la escuadra, aprieta más con ráfagas y aguanta mejor el castigo.',
+    preview: { kind: 'elite', type: 'trident' },
+    stats: ['VIDA 9', 'ATAQUE EN RAFAGA', 'VELOCIDAD MEDIA+', '220 PTS'],
+    tipTitle: 'TRIDENT EN PANTALLA',
+    tipCopy: 'TRIDENT castiga más los ángulos laterales. Si la formación se abre, limpia escoltas rápido antes de volver al centro.'
   },
   boss_striker: {
     id: 'boss_striker',
@@ -319,6 +342,16 @@ const BESTIARY_DEFS = {
     stats: ['VIDA ESCALADA', 'ATAQUE DE CONTROL', 'MOVIMIENTO BAJO', '500+ PTS'],
     tipTitle: 'BOSS WARDEN',
     tipCopy: 'El Warden no corre, pero te encierra. Prioriza posiciones seguras y no te dejes arrastrar a los bordes.'
+  },
+  boss_overlord: {
+    id: 'boss_overlord',
+    category: 'boss',
+    title: 'OVERLORD',
+    copy: 'Boss de mando total. Mezcla presencia, ráfagas amplias y control central para cerrar encuentros largos.',
+    preview: { kind: 'boss', type: 'overlord' },
+    stats: ['VIDA ESCALADA', 'ATAQUE HIBRIDO', 'MOVIMIENTO ALTO', '500+ PTS'],
+    tipTitle: 'BOSS OVERLORD',
+    tipCopy: 'Overlord mezcla presión lateral y centro cargado. No te fijes solo en el patrón: lee la siguiente salva antes de disparar.'
   }
 };
 
@@ -584,7 +617,7 @@ const ACHIEVEMENT_DEFS = [
     tier: 'ELITE',
     reward: { type: 'badge', id: 'archivist' },
     track: 'meta',
-    status: ctx => buildCountStatus(countBestiaryDefeated(ctx.meta, ['boss_striker', 'boss_pulse', 'boss_warden']), 3, 'PERFILES')
+    status: ctx => buildCountStatus(countBestiaryDefeated(ctx.meta, ['boss_striker', 'boss_pulse', 'boss_warden', 'boss_overlord']), 4, 'PERFILES')
   },
   {
     id: 'tank_breaker',
@@ -800,11 +833,77 @@ const WAVE_EVENT_DEFS = {
   }
 };
 
-const MINI_BOSS_DEF = {
-  leaderHp: 7,
-  escortHp: 2,
-  speedBase: 2.15,
-  reward: 420
+const MINI_BOSS_PROFILES = {
+  squad_basic: {
+    id: 'squad_basic',
+    label: 'MINI SQUAD',
+    leaderHp: 7,
+    escortHp: 2,
+    speedBase: 2.15,
+    reward: 420,
+    horizontalSpan: 76,
+    escortFireChance: 0.45,
+    shootIntervalBase: 92,
+    leaderVolleyOffsets: [0],
+    escortWave: 'steady',
+    enrageThreshold: 0
+  },
+  squad_basic_plus: {
+    id: 'squad_basic_plus',
+    label: 'MINI SQUAD',
+    leaderHp: 8,
+    escortHp: 3,
+    speedBase: 2.22,
+    reward: 470,
+    horizontalSpan: 78,
+    escortFireChance: 0.52,
+    shootIntervalBase: 88,
+    leaderVolleyOffsets: [0],
+    escortWave: 'steady',
+    enrageThreshold: 0.45
+  },
+  squad_trident: {
+    id: 'squad_trident',
+    label: 'TRIDENT',
+    leaderHp: 9,
+    wingHp: 3,
+    speedBase: 2.32,
+    reward: 520,
+    horizontalSpan: 84,
+    escortFireChance: 0.62,
+    shootIntervalBase: 84,
+    leaderVolleyOffsets: [-10, 10],
+    escortWave: 'opening',
+    enrageThreshold: 0.6
+  },
+  squad_trident_plus: {
+    id: 'squad_trident_plus',
+    label: 'TRIDENT',
+    leaderHp: 10,
+    wingHp: 3,
+    speedBase: 2.42,
+    reward: 580,
+    horizontalSpan: 88,
+    escortFireChance: 0.68,
+    shootIntervalBase: 80,
+    leaderVolleyOffsets: [-12, 0, 12],
+    escortWave: 'opening',
+    enrageThreshold: 0.65
+  },
+  squad_trident_apex: {
+    id: 'squad_trident_apex',
+    label: 'TRIDENT',
+    leaderHp: 11,
+    wingHp: 4,
+    speedBase: 2.52,
+    reward: 640,
+    horizontalSpan: 92,
+    escortFireChance: 0.74,
+    shootIntervalBase: 76,
+    leaderVolleyOffsets: [-14, 0, 14],
+    escortWave: 'opening',
+    enrageThreshold: 0.72
+  }
 };
 
 const BOSS_PROFILES = {
@@ -843,7 +942,35 @@ const BOSS_PROFILES = {
     movePattern: 'warden',
     volley: 'wall',
     rewardMultiplier: 1.25
+  },
+  overlord: {
+    id: 'overlord',
+    label: 'OVERLORD',
+    hpBase: 34,
+    hpStep: 7,
+    speedBase: 1.92,
+    speedStep: 0.06,
+    baseY: 72,
+    movePattern: 'overlord',
+    volley: 'hybrid',
+    rewardMultiplier: 1.38
   }
+};
+
+const MINI_BOSS_CAMPAIGN_LEVELS = {
+  4: 'squad_basic',
+  9: 'squad_basic_plus',
+  11: 'squad_trident',
+  15: 'squad_trident_plus',
+  17: 'squad_trident_plus',
+  21: 'squad_trident_apex'
+};
+
+const BOSS_CAMPAIGN_LEVELS = {
+  6: 'striker',
+  12: 'pulse',
+  18: 'warden',
+  24: 'overlord'
 };
 
 function normalizeDifficulty(value) {
@@ -867,6 +994,11 @@ function normalizeAudioVolume(value, fallback = 0.22) {
   return Number.isFinite(parsed) ? Math.min(0.6, Math.max(0, parsed)) : fallback;
 }
 
+function normalizeStartLevel(value, maxUnlocked = MAX_START_LEVEL_OPTION) {
+  const parsed = Math.max(1, Math.min(MAX_START_LEVEL_OPTION, Number.parseInt(value, 10) || 1));
+  return Math.min(parsed, Math.max(1, maxUnlocked || 1));
+}
+
 function formatVolumePercent(value) {
   return `${Math.round((normalizeAudioVolume(value, 0) / 0.6) * 100)}%`;
 }
@@ -877,6 +1009,7 @@ function loadSettings() {
     return {
       difficulty: normalizeDifficulty(stored.difficulty),
       mode: normalizeGameMode(stored.mode),
+      startLevel: normalizeStartLevel(stored.startLevel),
       skin: normalizeSkin(stored.skin),
       shipSkin: normalizeShipSkin(stored.shipSkin),
       vibration: stored.vibration !== false,
@@ -885,7 +1018,7 @@ function loadSettings() {
       highContrast: stored.highContrast === true
     };
   } catch {
-    return { difficulty: 'normal', mode: 'classic', skin: 'classic', shipSkin: 'classic', vibration: true, fxVolume: 0.22, reducedEffects: false, highContrast: false };
+    return { difficulty: 'normal', mode: 'classic', startLevel: 1, skin: 'classic', shipSkin: 'classic', vibration: true, fxVolume: 0.22, reducedEffects: false, highContrast: false };
   }
 }
 
@@ -1239,7 +1372,7 @@ function drawUfoModel(ctxRef, x, y, w, h, variantId = 'bonus', color = '#ff4f8f'
   }
 }
 
-function drawMiniBossShipModel(ctxRef, x, y, w, h, role = 'escort', color = '#7be6ff', { glow = 8, flash = false } = {}) {
+function drawMiniBossShipModel(ctxRef, x, y, w, h, role = 'escort', color = '#7be6ff', { glow = 8, flash = false, variant = 'squad_basic' } = {}) {
   if (!ctxRef) return;
   const baseColor = flash ? '#ffffff' : color;
   ctxRef.save();
@@ -1248,12 +1381,30 @@ function drawMiniBossShipModel(ctxRef, x, y, w, h, role = 'escort', color = '#7b
     ctxRef.shadowBlur = glow;
     ctxRef.shadowColor = baseColor;
   }
-  if (role === 'leader') {
+  if (role === 'leader' && variant === 'squad_trident') {
+    fillModelRect(ctxRef, x, y, w, h, 0.14, 0.3, 0.72, 0.28);
+    fillModelRect(ctxRef, x, y, w, h, 0.06, 0.52, 0.88, 0.18);
+    fillModelRect(ctxRef, x, y, w, h, 0.18, 0.08, 0.14, 0.34);
+    fillModelRect(ctxRef, x, y, w, h, 0.43, 0.0, 0.14, 0.48);
+    fillModelRect(ctxRef, x, y, w, h, 0.68, 0.08, 0.14, 0.34);
+    fillModelRect(ctxRef, x, y, w, h, 0.12, 0.72, 0.18, 0.16);
+    fillModelRect(ctxRef, x, y, w, h, 0.7, 0.72, 0.18, 0.16);
+    ctxRef.fillStyle = flash ? '#ffffff' : '#fff2bf';
+    fillModelRect(ctxRef, x, y, w, h, 0.46, 0.18, 0.08, 0.18);
+  } else if (role === 'leader') {
     fillModelRect(ctxRef, x, y, w, h, 0.13, 0.24, 0.74, 0.41);
     fillModelRect(ctxRef, x, y, w, h, 0.04, 0.53, 0.92, 0.24);
     fillModelRect(ctxRef, x, y, w, h, 0.42, 0.06, 0.17, 0.29);
     fillModelRect(ctxRef, x, y, w, h, 0.13, 0.76, 0.17, 0.18);
     fillModelRect(ctxRef, x, y, w, h, 0.7, 0.76, 0.17, 0.18);
+  } else if (role === 'prong') {
+    fillModelRect(ctxRef, x, y, w, h, 0.1, 0.34, 0.8, 0.28);
+    fillModelRect(ctxRef, x, y, w, h, 0.03, 0.52, 0.94, 0.18);
+    fillModelRect(ctxRef, x, y, w, h, 0.12, 0.1, 0.14, 0.28);
+    fillModelRect(ctxRef, x, y, w, h, 0.42, 0.02, 0.16, 0.42);
+    fillModelRect(ctxRef, x, y, w, h, 0.74, 0.1, 0.14, 0.28);
+    ctxRef.fillStyle = flash ? '#ffffff' : '#dffcff';
+    fillModelRect(ctxRef, x, y, w, h, 0.45, 0.2, 0.1, 0.12);
   } else {
     fillModelRect(ctxRef, x, y, w, h, 0.12, 0.25, 0.76, 0.5);
     fillModelRect(ctxRef, x, y, w, h, 0.06, 0.5, 0.88, 0.25);
@@ -1271,11 +1422,25 @@ function drawBossModel(ctxRef, x, y, w, h, profileId = 'striker', color = '#ff5f
     ctxRef.shadowBlur = glow;
     ctxRef.shadowColor = flash ? '#ffffff' : color;
   }
-  fillModelRect(ctxRef, x, y, w, h, 0.15, 0.18, 0.7, 0.32);
-  fillModelRect(ctxRef, x, y, w, h, 0.08, 0.36, 0.84, 0.24);
-  fillModelRect(ctxRef, x, y, w, h, 0.4, 0.03, 0.2, 0.2);
-  fillModelRect(ctxRef, x, y, w, h, 0.15, 0.61, 0.15, 0.17);
-  fillModelRect(ctxRef, x, y, w, h, 0.7, 0.61, 0.15, 0.17);
+  if (profileId === 'overlord') {
+    fillModelRect(ctxRef, x, y, w, h, 0.1, 0.16, 0.8, 0.24);
+    fillModelRect(ctxRef, x, y, w, h, 0.04, 0.34, 0.92, 0.24);
+    fillModelRect(ctxRef, x, y, w, h, 0.42, 0.0, 0.16, 0.28);
+    fillModelRect(ctxRef, x, y, w, h, 0.16, 0.62, 0.14, 0.16);
+    fillModelRect(ctxRef, x, y, w, h, 0.7, 0.62, 0.14, 0.16);
+    fillModelRect(ctxRef, x, y, w, h, 0.18, 0.52, 0.12, 0.12);
+    fillModelRect(ctxRef, x, y, w, h, 0.7, 0.52, 0.12, 0.12);
+    ctxRef.fillStyle = '#efe3ff';
+    fillModelRect(ctxRef, x, y, w, h, 0.24, 0.24, 0.12, 0.12);
+    fillModelRect(ctxRef, x, y, w, h, 0.64, 0.24, 0.12, 0.12);
+    fillModelRect(ctxRef, x, y, w, h, 0.45, 0.42, 0.1, 0.18);
+  } else {
+    fillModelRect(ctxRef, x, y, w, h, 0.15, 0.18, 0.7, 0.32);
+    fillModelRect(ctxRef, x, y, w, h, 0.08, 0.36, 0.84, 0.24);
+    fillModelRect(ctxRef, x, y, w, h, 0.4, 0.03, 0.2, 0.2);
+    fillModelRect(ctxRef, x, y, w, h, 0.15, 0.61, 0.15, 0.17);
+    fillModelRect(ctxRef, x, y, w, h, 0.7, 0.61, 0.15, 0.17);
+  }
   if (profileId === 'pulse') {
     ctxRef.fillStyle = '#fff0b5';
     fillModelRect(ctxRef, x, y, w, h, 0.25, 0.27, 0.5, 0.11);
@@ -1285,6 +1450,10 @@ function drawBossModel(ctxRef, x, y, w, h, profileId = 'striker', color = '#ff5f
     fillModelRect(ctxRef, x, y, w, h, 0.22, 0.27, 0.15, 0.17);
     fillModelRect(ctxRef, x, y, w, h, 0.63, 0.27, 0.15, 0.17);
     fillModelRect(ctxRef, x, y, w, h, 0.4, 0.48, 0.2, 0.09);
+  } else if (profileId === 'overlord') {
+    ctxRef.fillStyle = '#d9b7ff';
+    fillModelRect(ctxRef, x, y, w, h, 0.12, 0.24, 0.12, 0.14);
+    fillModelRect(ctxRef, x, y, w, h, 0.76, 0.24, 0.12, 0.14);
   } else {
     ctxRef.fillStyle = '#ffc6da';
     fillModelRect(ctxRef, x, y, w, h, 0.32, 0.39, 0.1, 0.09);
@@ -1324,6 +1493,7 @@ function renderShipPreview() {
 }
 
 function applySettingsUI() {
+  syncStartLevelSetting();
   difficultySelect.value = gameSettings.difficulty;
   modeSelect.value = gameSettings.mode;
   refreshSkinOptions();
@@ -1334,6 +1504,7 @@ function applySettingsUI() {
   if (fxVolumeEl) fxVolumeEl.value = gameSettings.fxVolume.toFixed(2);
   if (reducedEffectsToggle) reducedEffectsToggle.checked = gameSettings.reducedEffects;
   if (highContrastToggle) highContrastToggle.checked = gameSettings.highContrast;
+  renderStartLevelGrid();
   applyVisualPreferences();
   renderShipPreview();
 }
@@ -1361,13 +1532,55 @@ function formatModeLabel(value) {
   return value === 'timeattack' ? 'CONTRARRELOJ' : 'CLASICO';
 }
 
+function getMaxUnlockedStartLevel() {
+  return Math.max(1, Math.min(MAX_START_LEVEL_OPTION, aggregateStats?.bestLevel || 1));
+}
+
+function syncStartLevelSetting() {
+  const maxUnlocked = getMaxUnlockedStartLevel();
+  gameSettings.startLevel = normalizeStartLevel(gameSettings.startLevel, maxUnlocked);
+}
+
+function renderStartLevelGrid() {
+  if (!startLevelSelectorEl) return;
+  syncStartLevelSetting();
+  const maxUnlocked = getMaxUnlockedStartLevel();
+  const isTimeAttack = gameSettings.mode === 'timeattack';
+  if (startLevelStatusEl) {
+    startLevelStatusEl.textContent = isTimeAttack
+      ? 'Contrarreloj arranca en 1'
+      : `Desbloqueado hasta ${maxUnlocked}`;
+  }
+
+  startLevelSelectorEl.innerHTML = Array.from({ length: MAX_START_LEVEL_OPTION }, (_, index) => {
+    const levelValue = index + 1;
+    const unlocked = levelValue <= maxUnlocked;
+    const disabled = isTimeAttack || !unlocked;
+    const active = !isTimeAttack && levelValue === gameSettings.startLevel;
+    return `
+      <button
+        type="button"
+        class="start-level-btn${active ? ' is-active' : ''}${disabled ? ' is-locked' : ''}"
+        data-start-level="${levelValue}"
+        ${disabled ? 'disabled aria-disabled="true"' : ''}
+        aria-pressed="${active ? 'true' : 'false'}"
+      >${levelValue}</button>
+    `;
+  }).join('');
+}
+
 function getThreatLevel(currentLevel = level) {
   if (currentLevel <= 4) return currentLevel;
   return 4 + (currentLevel - 4) * 0.72;
 }
 
 function shouldSpawnMiniBossForLevel(currentLevel) {
-  return currentLevel >= 5 && currentLevel % 3 === 2;
+  return Boolean(MINI_BOSS_CAMPAIGN_LEVELS[currentLevel]);
+}
+
+function getMiniBossProfileForLevel(currentLevel) {
+  const profileId = MINI_BOSS_CAMPAIGN_LEVELS[currentLevel];
+  return MINI_BOSS_PROFILES[profileId] || MINI_BOSS_PROFILES.squad_basic;
 }
 
 function getWaveEventForLevel(currentLevel, mode = gameSettings.mode) {
@@ -1429,15 +1642,28 @@ function getEnemyScore(enemy) {
 }
 
 function getBossProfileForLevel(currentLevel, mode = gameSettings.mode) {
-  const cycle = Math.max(0, Math.floor(currentLevel / 3) - 1);
-  const sequence = mode === 'timeattack'
-    ? ['pulse', 'striker', 'warden']
-    : ['striker', 'pulse', 'warden'];
-  return BOSS_PROFILES[sequence[cycle % sequence.length]];
+  const scriptedProfileId = BOSS_CAMPAIGN_LEVELS[currentLevel];
+  if (scriptedProfileId) return BOSS_PROFILES[scriptedProfileId];
+
+  const lateCycle = Math.max(0, Math.floor((currentLevel - 24) / 6));
+  const lateSequence = mode === 'timeattack'
+    ? ['overlord', 'pulse', 'striker', 'warden']
+    : ['overlord', 'striker', 'pulse', 'warden'];
+  return BOSS_PROFILES[lateSequence[lateCycle % lateSequence.length]] || BOSS_PROFILES.overlord;
 }
 
 function getBossBaseReward(profile) {
   return Math.round((500 + level * 50) * profile.rewardMultiplier);
+}
+
+function getLevelEncounterPreviewText(currentLevel, mode = running ? currentRunStats.mode : gameSettings.mode) {
+  if (shouldSpawnBossForLevel(currentLevel)) {
+    return `${getBossProfileForLevel(currentLevel, mode).label} ENTRA EN ESCENA`;
+  }
+  if (shouldSpawnMiniBossForLevel(currentLevel)) {
+    return `${getMiniBossProfileForLevel(currentLevel).label} ENTRANTE`;
+  }
+  return 'Prepárate...';
 }
 
 function rollUfoVariant(currentLevel, mode = gameSettings.mode) {
@@ -1459,6 +1685,7 @@ function getEnemyRoleColor(enemy) {
 function getBossAccentColor(profileId = boss.profileId) {
   if (profileId === 'pulse') return '#ffd66f';
   if (profileId === 'warden') return '#8fe0ff';
+  if (profileId === 'overlord') return '#d5a6ff';
   return '#ff5f98';
 }
 
@@ -1739,7 +1966,7 @@ function renderStartObjectiveEntry(def, { progress = null, unlocked = false, unl
         <span class="achievement-state${unlocked ? ' is-unlocked' : ''}">${stateLabel}</span>
       </div>
       <span class="objective-copy">${def.copy}</span>
-      ${renderProgressMeter(unlocked ? 1 : progress.ratio)}
+      ${unlocked ? '' : renderProgressMeter(progress.ratio)}
       <div class="start-objective-item-meta">
         <span class="objective-reward">${rewardLabel}</span>
         <span class="objective-progress${unlocked ? ' is-complete' : ''}">${unlocked ? `Desbloqueado ${formatUnlockTimestamp(unlockedAt)}` : 'Objetivo pendiente'}</span>
@@ -2014,7 +2241,7 @@ function updateHudStatus() {
   if (boss.active) bossStatusEl.textContent = `BOSS ${boss.label} P${boss.phaseIndex} ${boss.hp}/${boss.maxHp}`;
   else if (miniBossSquad.active) {
     const leader = miniBossSquad.ships.find(ship => ship.role === 'leader');
-    bossStatusEl.textContent = `MINI SQUAD ${leader ? `${leader.hp}/${leader.maxHp}` : '0/0'}`;
+    bossStatusEl.textContent = `${miniBossSquad.label} ${leader ? `${leader.hp}/${leader.maxHp}` : '0/0'}`;
   }
   gameWrapper.classList.toggle('is-boss-fight', boss.active || miniBossSquad.active);
   gameWrapper.classList.toggle('is-critical-time', activeMode === 'timeattack' && running && timeLeftMs <= 15000);
@@ -2176,6 +2403,14 @@ function drawBestiaryUfoPreview(ctxRef, type, color) {
 }
 
 function drawBestiaryElitePreview(ctxRef, type, color) {
+  if (type === 'trident') {
+    drawMiniBossShipModel(ctxRef, 16, 10, 64, 36, 'leader', color, { glow: 10, variant: 'squad_trident' });
+    return;
+  }
+  if (type === 'prong') {
+    drawMiniBossShipModel(ctxRef, 16, 10, 64, 36, 'prong', color, { glow: 10, variant: 'squad_trident' });
+    return;
+  }
   drawMiniBossShipModel(ctxRef, 16, 10, 64, 36, type, color, { glow: 10 });
 }
 
@@ -2210,7 +2445,7 @@ function renderBestiaryPreviews() {
       : def.preview.kind === 'ufo'
         ? getUfoVariantDef(def.preview.type).color
         : def.preview.kind === 'elite'
-          ? (def.preview.type === 'leader' ? '#ffb35a' : '#7be6ff')
+          ? (def.preview.type === 'leader' || def.preview.type === 'trident' ? '#ffb35a' : def.preview.type === 'prong' ? '#a7f4ff' : '#7be6ff')
           : getBossAccentColor(def.preview.type);
     ctxRef.shadowBlur = 10;
     ctxRef.shadowColor = accent;
@@ -2416,6 +2651,12 @@ function renderBestiaryPanel() {
 
 function openOverlayDialog(state) {
   if (!overlayDialog || !overlayDialogBody || !overlayDialogTitle || !overlayDialogBadge) return;
+  if (overlay) {
+    overlay.scrollTop = 0;
+    if (typeof overlay.scrollTo === 'function') {
+      overlay.scrollTo({ top: 0, behavior: 'auto' });
+    }
+  }
   overlayDialogState = state;
   renderOverlayDialog();
   overlayDialog.hidden = false;
@@ -2496,6 +2737,7 @@ function resetProfileProgress() {
   bestiaryTab = 'invaders';
   sanitizeSelectedSkin();
   sanitizeSelectedShipSkin();
+  gameSettings.startLevel = 1;
   gameSettings.skin = 'classic';
   gameSettings.shipSkin = 'classic';
   persistGameSettings();
@@ -2629,7 +2871,6 @@ function renderMetaPanel() {
             <span class="achievement-state is-unlocked">COMPLETADO</span>
           </div>
           <span class="achievement-copy">${def.copy}</span>
-          ${renderProgressMeter(1)}
           <span class="achievement-reward">${getRewardLabel(def.reward)}</span>
           <span class="achievement-meta is-unlocked">Desbloqueado ${formatUnlockTimestamp(state.unlockedAt)}</span>
         </div>
@@ -2660,6 +2901,7 @@ function renderMetaPanel() {
 }
 
 function renderStartScreenPanels() {
+  renderStartLevelGrid();
   const globalAccuracy = getAccuracyPercent(aggregateStats.totalShots, aggregateStats.totalHits);
   const latestSession = scoreHistory.length ? scoreHistory[0] : null;
   const unlockedAchievements = countUnlockedAchievements();
@@ -2673,6 +2915,7 @@ function renderStartScreenPanels() {
 
   const modeNoteEl = document.getElementById('mode-note');
   const difficultyNoteEl = document.getElementById('difficulty-note');
+  const startLevelNoteEl = document.getElementById('start-level-note');
   const skinNoteEl = document.getElementById('skin-note');
   const shipNoteEl = document.getElementById('ship-note');
   const settingsNoteEl = document.getElementById('settings-note');
@@ -2692,6 +2935,11 @@ function renderStartScreenPanels() {
       : gameSettings.difficulty === 'hard'
         ? 'Difícil reduce el margen de error y exprime mejor bosses y power-ups.'
         : 'Normal mantiene el equilibrio base entre presión, progreso y control.';
+  }
+  if (startLevelNoteEl) {
+    startLevelNoteEl.textContent = gameSettings.mode === 'timeattack'
+      ? 'Contrarreloj siempre empieza en el nivel 1 para mantener su economía y presión originales.'
+      : `Empieza en cualquier nivel ya conquistado. Ahora puedes practicar del 1 al ${getMaxUnlockedStartLevel()}.`;
   }
   if (skinNoteEl) {
     skinNoteEl.textContent = `Skin activa ${SKIN_THEMES[gameSettings.skin].label}. ${metaState.unlockedSkins.length}/${Object.keys(SKIN_THEMES).length} skins de cabina desbloqueadas.`;
@@ -2903,7 +3151,7 @@ function setOverlayMode(mode, entry = null) {
     setPanelVisibility(runPanel, true);
     setPanelVisibility(aggregatePanel, true);
     setPanelVisibility(historyPanel, true);
-    setPanelVisibility(metaPanel, true);
+    setPanelVisibility(metaPanel, false);
   }
 
   overlay.classList.add('visible');
@@ -3263,6 +3511,16 @@ modeSelect.addEventListener('change', event => {
   updateHudStatus();
   renderStartScreenPanels();
 });
+if (startLevelSelectorEl) {
+  startLevelSelectorEl.addEventListener('click', event => {
+    const trigger = event.target.closest('[data-start-level]');
+    if (!trigger || gameSettings.mode === 'timeattack') return;
+    gameSettings.startLevel = normalizeStartLevel(trigger.dataset.startLevel, getMaxUnlockedStartLevel());
+    persistGameSettings();
+    applySettingsUI();
+    renderStartScreenPanels();
+  });
+}
 vibrationToggle.addEventListener('change', event => {
   gameSettings.vibration = !!event.target.checked;
   persistGameSettings();
@@ -3637,11 +3895,15 @@ const miniBossSquad = {
   x: 0,
   y: 0,
   dir: 1,
-  speed: MINI_BOSS_DEF.speedBase,
+  speed: MINI_BOSS_PROFILES.squad_basic.speedBase,
   phase: 0,
   shootTimer: 0,
   entryTimer: 0,
-  ships: []
+  ships: [],
+  profileId: 'squad_basic',
+  label: MINI_BOSS_PROFILES.squad_basic.label,
+  reward: MINI_BOSS_PROFILES.squad_basic.reward,
+  horizontalSpan: MINI_BOSS_PROFILES.squad_basic.horizontalSpan
 };
 
 function resetBoss() {
@@ -3662,15 +3924,19 @@ function resetMiniBossSquad() {
   miniBossSquad.x = 0;
   miniBossSquad.y = 0;
   miniBossSquad.dir = 1;
-  miniBossSquad.speed = MINI_BOSS_DEF.speedBase;
+  miniBossSquad.speed = MINI_BOSS_PROFILES.squad_basic.speedBase;
   miniBossSquad.phase = 0;
   miniBossSquad.shootTimer = 0;
   miniBossSquad.entryTimer = 0;
   miniBossSquad.ships = [];
+  miniBossSquad.profileId = 'squad_basic';
+  miniBossSquad.label = MINI_BOSS_PROFILES.squad_basic.label;
+  miniBossSquad.reward = MINI_BOSS_PROFILES.squad_basic.reward;
+  miniBossSquad.horizontalSpan = MINI_BOSS_PROFILES.squad_basic.horizontalSpan;
 }
 
 function shouldSpawnBossForLevel(currentLevel) {
-  return currentLevel > 0 && currentLevel % 3 === 0;
+  return Boolean(BOSS_CAMPAIGN_LEVELS[currentLevel]);
 }
 
 function getEnemyLayout(pattern = currentWavePattern) {
@@ -3776,11 +4042,16 @@ function awardTimeBonus(ms) {
 }
 
 function spawnMiniBossSquad() {
+  const profile = getMiniBossProfileForLevel(level);
   miniBossEncounteredThisLevel = true;
-  markBestiarySeen('elite_leader');
-  markBestiarySeen('elite_escort', { showTip: false });
+  markBestiarySeen(profile.id === 'squad_trident' ? 'elite_trident' : 'elite_leader');
+  markBestiarySeen(profile.id === 'squad_trident' ? 'elite_prong' : 'elite_escort', { showTip: false });
   miniBossSquad.active = true;
-  miniBossSquad.speed = MINI_BOSS_DEF.speedBase + Math.min(0.9, (getThreatLevel() - 1) * 0.05);
+  miniBossSquad.profileId = profile.id;
+  miniBossSquad.label = profile.label;
+  miniBossSquad.reward = profile.reward;
+  miniBossSquad.horizontalSpan = profile.horizontalSpan;
+  miniBossSquad.speed = profile.speedBase + Math.min(0.9, (getThreatLevel() - 1) * 0.05);
   miniBossSquad.dir = Math.random() < 0.5 ? -1 : 1;
   miniBossSquad.phase = Math.random() * Math.PI * 2;
   miniBossSquad.shootTimer = 0;
@@ -3788,13 +4059,35 @@ function spawnMiniBossSquad() {
   miniBossSquad.x = canvas.width / 2;
   miniBossSquad.y = -84;
   miniBossSquad.ships = [
-    { role: 'escort', side: -1, x: canvas.width / 2 - 62, y: -58, w: 34, h: 22, hp: MINI_BOSS_DEF.escortHp, maxHp: MINI_BOSS_DEF.escortHp, flashTimer: 0, color: '#7be6ff' },
-    { role: 'leader', side: 0, x: canvas.width / 2 - 24, y: -76, w: 48, h: 34, hp: MINI_BOSS_DEF.leaderHp, maxHp: MINI_BOSS_DEF.leaderHp, flashTimer: 0, color: '#ffb35a' },
-    { role: 'escort', side: 1, x: canvas.width / 2 + 28, y: -58, w: 34, h: 22, hp: MINI_BOSS_DEF.escortHp, maxHp: MINI_BOSS_DEF.escortHp, flashTimer: 0, color: '#7be6ff' }
+    {
+      role: profile.id === 'squad_trident' ? 'prong' : 'escort',
+      side: -1,
+      x: canvas.width / 2 - 62,
+      y: -58,
+      w: 34,
+      h: 22,
+      hp: profile.id === 'squad_trident' ? profile.wingHp : profile.escortHp,
+      maxHp: profile.id === 'squad_trident' ? profile.wingHp : profile.escortHp,
+      flashTimer: 0,
+      color: profile.id === 'squad_trident' ? '#a7f4ff' : '#7be6ff'
+    },
+    { role: 'leader', side: 0, x: canvas.width / 2 - 24, y: -76, w: 48, h: 34, hp: profile.leaderHp, maxHp: profile.leaderHp, flashTimer: 0, color: '#ffb35a' },
+    {
+      role: profile.id === 'squad_trident' ? 'prong' : 'escort',
+      side: 1,
+      x: canvas.width / 2 + 28,
+      y: -58,
+      w: 34,
+      h: 22,
+      hp: profile.id === 'squad_trident' ? profile.wingHp : profile.escortHp,
+      maxHp: profile.id === 'squad_trident' ? profile.wingHp : profile.escortHp,
+      flashTimer: 0,
+      color: profile.id === 'squad_trident' ? '#a7f4ff' : '#7be6ff'
+    }
   ];
   playerBullets.length = 0;
   enemyBullets.length = 0;
-  spawnFloatingText(canvas.width / 2, 92, 'MINI SQUAD', '#ffd966');
+  spawnFloatingText(canvas.width / 2, 92, profile.label, '#ffd966');
   spawnShockwave(canvas.width / 2, canvas.height * 0.28, 'rgba(255,214,102,0.38)', 18, 3.4);
   addScreenShake(7);
   triggerCinematicFlash(0.12);
@@ -3806,7 +4099,7 @@ function getMiniBossAliveShips() {
 }
 
 function defeatMiniBossSquad() {
-  score += MINI_BOSS_DEF.reward + level * 20;
+  score += miniBossSquad.reward + level * 20;
   scoreEl.textContent = score;
   syncHighscore();
   spawnShockwave(miniBossSquad.x, miniBossSquad.y, 'rgba(255,214,102,0.5)', 24, 4.1);
@@ -3818,7 +4111,7 @@ function defeatMiniBossSquad() {
     lifeMin: 24,
     lifeMax: 40
   });
-  spawnFloatingText(miniBossSquad.x, miniBossSquad.y - 12, `+${MINI_BOSS_DEF.reward + level * 20}`, '#ffd966');
+  spawnFloatingText(miniBossSquad.x, miniBossSquad.y - 12, `+${miniBossSquad.reward + level * 20}`, '#ffd966');
   resetMiniBossSquad();
   completeLevel();
 }
@@ -3985,7 +4278,9 @@ function updatePlayerBullets() {
             lifeMax: 28
           });
           if (ship.hp <= 0) {
-            incrementBestiaryDefeat(ship.role === 'leader' ? 'elite_leader' : 'elite_escort');
+            incrementBestiaryDefeat(ship.role === 'leader'
+              ? (miniBossSquad.profileId === 'squad_trident' ? 'elite_trident' : 'elite_leader')
+              : (ship.role === 'prong' ? 'elite_prong' : 'elite_escort'));
             score += ship.role === 'leader' ? 220 : 90;
             scoreEl.textContent = score;
             syncHighscore();
@@ -4132,6 +4427,9 @@ function updateBoss() {
   } else if (profile.movePattern === 'warden') {
     boss.x += boss.dir * boss.speed * 0.68 * freezeFactor;
     boss.y = boss.baseY + Math.sin(boss.phase * 0.8) * 7;
+  } else if (profile.movePattern === 'overlord') {
+    boss.x += boss.dir * boss.speed * 0.88 * freezeFactor;
+    boss.y = boss.baseY + Math.sin(boss.phase * 1.05) * 12;
   } else {
     boss.x += boss.dir * boss.speed * freezeFactor;
     boss.y = boss.baseY + Math.sin(boss.phase) * 10;
@@ -4144,7 +4442,7 @@ function updateBoss() {
 
   boss.shootTimer++;
   const preset = getDifficultyConfig();
-  const shootIntervalBase = profile.volley === 'wall' ? 88 : profile.volley === 'burst' ? 64 : 72;
+  const shootIntervalBase = profile.volley === 'wall' ? 88 : profile.volley === 'burst' ? 64 : profile.volley === 'hybrid' ? 70 : 72;
   const shootInterval = Math.max(34, Math.round((shootIntervalBase * preset.enemyShootFactor - (boss.maxHp - boss.hp) * 1.05) * (activeEffects.freeze > 0 ? 2.35 : 1)));
   if (boss.shootTimer >= shootInterval) {
     boss.shootTimer = 0;
@@ -4153,6 +4451,8 @@ function updateBoss() {
       spread = boss.hp <= Math.ceil(boss.maxHp / 2) ? [-34, 0, 34] : [-18, 18];
     } else if (profile.volley === 'wall') {
       spread = [-48, -20, 0, 20, 48];
+    } else if (profile.volley === 'hybrid') {
+      spread = boss.hp <= Math.ceil(boss.maxHp / 2) ? [-44, -18, 0, 18, 44] : [-34, 0, 34];
     } else if (boss.hp <= Math.ceil(boss.maxHp / 2)) {
       spread = [-36, 0, 36];
     }
@@ -4178,6 +4478,11 @@ function updateBoss() {
 function updateMiniBossSquad() {
   if (!miniBossSquad.active) return;
   const freezeFactor = getFreezeFactor();
+  const profile = MINI_BOSS_PROFILES[miniBossSquad.profileId] || MINI_BOSS_PROFILES.squad_basic;
+  const leader = miniBossSquad.ships.find(ship => ship.role === 'leader' && ship.hp > 0);
+  const aliveWings = miniBossSquad.ships.filter(ship => ship.role !== 'leader' && ship.hp > 0).length;
+  const leaderRatio = leader ? leader.hp / leader.maxHp : 0;
+  const isEnraged = profile.enrageThreshold > 0 && (aliveWings <= 1 || leaderRatio <= profile.enrageThreshold);
 
   if (miniBossSquad.entryTimer > 0) {
     miniBossSquad.entryTimer--;
@@ -4189,9 +4494,12 @@ function updateMiniBossSquad() {
     return;
   }
 
-  miniBossSquad.phase += 0.04 * freezeFactor;
-  miniBossSquad.x += miniBossSquad.dir * miniBossSquad.speed * freezeFactor;
-  const horizontalSpan = 76;
+  miniBossSquad.phase += (profile.id === 'squad_trident' ? 0.052 : 0.04) * freezeFactor;
+  const movementSpeed = miniBossSquad.speed + (isEnraged ? 0.3 : 0);
+  miniBossSquad.x += miniBossSquad.dir * movementSpeed * freezeFactor;
+  const horizontalSpan = profile.id === 'squad_trident'
+    ? miniBossSquad.horizontalSpan + Math.sin(miniBossSquad.phase * 1.25) * 18 + (isEnraged ? 10 : 0)
+    : miniBossSquad.horizontalSpan;
   if (miniBossSquad.x <= 70 || miniBossSquad.x >= canvas.width - 70) {
     miniBossSquad.dir *= -1;
   }
@@ -4199,25 +4507,32 @@ function updateMiniBossSquad() {
   for (const ship of miniBossSquad.ships) {
     if (ship.hp <= 0) continue;
     const offsetX = ship.role === 'leader' ? 0 : horizontalSpan * ship.side;
-    const bob = ship.role === 'leader' ? Math.sin(miniBossSquad.phase) * 6 : Math.cos(miniBossSquad.phase + (ship.side < 0 ? 0.6 : -0.6)) * 5;
+    const bob = ship.role === 'leader'
+      ? Math.sin(miniBossSquad.phase) * (profile.id === 'squad_trident' ? 7 : 6)
+      : Math.cos(miniBossSquad.phase + (ship.side < 0 ? 0.6 : -0.6)) * (profile.id === 'squad_trident' ? 7 : 5);
     ship.x = miniBossSquad.x + offsetX - ship.w / 2;
     ship.y = (ship.role === 'leader' ? 88 : 110) + bob;
   }
 
   miniBossSquad.shootTimer++;
   const threatLevel = getThreatLevel();
-  const shootInterval = Math.max(46, Math.round(92 - threatLevel * 4));
+  const shootInterval = Math.max(40, Math.round(profile.shootIntervalBase - threatLevel * (profile.id === 'squad_trident' ? 4.6 : 4) - (isEnraged ? 6 : 0)));
   if (miniBossSquad.shootTimer >= shootInterval) {
     miniBossSquad.shootTimer = 0;
     const aliveShips = getMiniBossAliveShips();
     for (const ship of aliveShips) {
-      if (ship.role === 'leader' || Math.random() < 0.45) {
+      const canFire = ship.role === 'leader' || Math.random() < profile.escortFireChance;
+      if (!canFire) continue;
+      const volleyOffsets = ship.role === 'leader'
+        ? profile.leaderVolleyOffsets
+        : (profile.id === 'squad_trident' ? [ship.side * -6] : [0]);
+      for (const offset of volleyOffsets) {
         enemyBullets.push({
-          x: ship.x + ship.w / 2 - 2,
+          x: ship.x + ship.w / 2 + offset - 2,
           y: ship.y + ship.h,
           w: 4,
           h: 12,
-          speed: getDifficultyConfig().enemyBulletBase + 0.6 + (ship.role === 'leader' ? 0.35 : 0),
+          speed: getDifficultyConfig().enemyBulletBase + 0.6 + (ship.role === 'leader' ? 0.35 : 0) + (profile.id === 'squad_trident' ? 0.12 : 0),
           fromBoss: false,
           tint: ship.color
         });
@@ -4727,7 +5042,8 @@ function drawMiniBossSquad() {
     if (ship.hp <= 0) continue;
     drawMiniBossShipModel(ctx, ship.x, ship.y, ship.w, ship.h, ship.role, ship.color, {
       glow: ship.role === 'leader' ? 12 : 8,
-      flash: ship.flashTimer > 0
+      flash: ship.flashTimer > 0,
+      variant: miniBossSquad.profileId
     });
   }
 }
@@ -4768,7 +5084,7 @@ function draw() {
     ctx.fillText(`— NIVEL ${level} —`, canvas.width / 2, canvas.height / 2 - 20);
     ctx.font = `${Math.floor(canvas.width / 40)}px Courier New`;
     ctx.fillStyle = '#aaa';
-    ctx.fillText(shouldSpawnBossForLevel(level) ? 'Se viene algo serio...' : 'Prepárate...', canvas.width / 2, canvas.height / 2 + 24);
+    ctx.fillText(getLevelEncounterPreviewText(level), canvas.width / 2, canvas.height / 2 + 24);
     if (previewEvent.id !== 'standard') {
       ctx.fillStyle = '#ffd966';
       ctx.fillText(previewEvent.label, canvas.width / 2, canvas.height / 2 + 56);
@@ -5011,6 +5327,9 @@ function gameOver(reason = 'defeat') {
 
 function startGame() {
   const preset = getDifficultyConfig();
+  const startingLevel = gameSettings.mode === 'classic'
+    ? normalizeStartLevel(gameSettings.startLevel, getMaxUnlockedStartLevel())
+    : 1;
   closeOverlayDialog();
   currentChallenge = getCurrentChallengeDefinition();
   currentRunStats = createRunStats();
@@ -5021,7 +5340,7 @@ function startGame() {
 
   score = 0;
   lives = Math.min(MAX_LIVES, preset.startLives);
-  level = 1;
+  level = startingLevel;
   timeLeftMs = gameSettings.mode === 'timeattack' ? TIME_ATTACK_DURATION_MS : 0;
   shieldCharges = 0;
   Object.keys(activeEffects).forEach(key => { activeEffects[key] = 0; });
@@ -5065,7 +5384,7 @@ function startGame() {
   resetMiniBossSquad();
 
   scoreEl.textContent = '0';
-  levelEl.textContent = '1';
+  levelEl.textContent = String(level);
   player.x = canvas.width / 2 - player.w / 2;
   player.hit = false;
   player.speed = preset.playerSpeed;
