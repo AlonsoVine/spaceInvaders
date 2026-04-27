@@ -18,6 +18,7 @@ const overlay = document.getElementById('overlay');
 const overlayTitle = document.getElementById('overlay-title');
 const overlayKicker = document.getElementById('overlay-kicker');
 const overlayMsg = document.getElementById('overlay-msg');
+const overlayPanels = document.getElementById('overlay-panels');
 const btnStart = document.getElementById('btn-start');
 const btnMenu = document.getElementById('btn-menu');
 const skinSelect = document.getElementById('skin-select');
@@ -999,6 +1000,10 @@ function normalizeStartLevel(value, maxUnlocked = MAX_START_LEVEL_OPTION) {
   return Math.min(parsed, Math.max(1, maxUnlocked || 1));
 }
 
+function isMobileViewport() {
+  return window.matchMedia('(max-width: 720px)').matches;
+}
+
 function formatVolumePercent(value) {
   return `${Math.round((normalizeAudioVolume(value, 0) / 0.6) * 100)}%`;
 }
@@ -1490,6 +1495,17 @@ function renderShipPreview() {
   shipPreviewCtx.textAlign = 'center';
   shipPreviewCtx.fillText(getShipSkinLabel(gameSettings.shipSkin), width / 2, height - 10);
   shipPreviewCtx.textAlign = 'left';
+}
+
+function updateMobileStartPanelState() {
+  if (!overlayPanels) return;
+  const panelIds = ['game-settings', 'visual-settings', 'start-objectives', 'bestiary'];
+  const mobileActive = overlayMode === 'start' && isMobileViewport();
+  panelIds.forEach(panelId => {
+    const panel = overlayPanels.querySelector(`[data-mobile-panel="${panelId}"]`);
+    if (!panel) return;
+    panel.classList.toggle('is-mobile-collapsed', mobileActive && mobileStartPanel !== panelId);
+  });
 }
 
 function applySettingsUI() {
@@ -3115,6 +3131,7 @@ function renderStartScreenPanels() {
   refreshShipSkinOptions();
   renderShipPreview();
   renderBestiaryPanel();
+  updateMobileStartPanelState();
 }
 
 function completeCurrentChallengeIfNeeded() {
@@ -3236,6 +3253,7 @@ function setOverlayMode(mode, entry = null) {
   }
 
   overlay.classList.add('visible');
+  updateMobileStartPanelState();
 }
 
 let gameSettings = loadSettings();
@@ -3253,6 +3271,7 @@ let startObjectivesTab = 'pending';
 let guidePanelTab = 'bestiary';
 let collectionTab = 'skins';
 let bestiaryTab = 'invaders';
+let mobileStartPanel = 'game-settings';
 let activeTutorialPrompt = null;
 let pendingTutorialPromptQueue = [];
 let pendingIntroTutorial = false;
@@ -3640,6 +3659,18 @@ startAchievementsEl.addEventListener('click', event => {
   startObjectivesTab = nextTab;
   renderStartScreenPanels();
 });
+if (overlayPanels) {
+  overlayPanels.addEventListener('click', event => {
+    const trigger = event.target.closest('[data-mobile-panel-toggle]');
+    if (!trigger || overlayMode !== 'start' || !isMobileViewport()) return;
+    const nextPanel = trigger.dataset.mobilePanelToggle;
+    if (!nextPanel || mobileStartPanel === nextPanel) return;
+    mobileStartPanel = nextPanel;
+    updateMobileStartPanelState();
+    const panel = overlayPanels.querySelector(`[data-mobile-panel="${nextPanel}"]`);
+    panel?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  });
+}
 if (bestiaryBrowserEl) {
   bestiaryBrowserEl.addEventListener('click', event => {
     const guideTrigger = event.target.closest('[data-guide-tab]');
@@ -3668,6 +3699,7 @@ if (bestiaryBrowserEl) {
     renderBestiaryPanel();
   });
 }
+window.addEventListener('resize', updateMobileStartPanelState);
 if (btnDialogSecondary) {
   btnDialogSecondary.addEventListener('click', () => {
     if (!overlayDialogState) {
