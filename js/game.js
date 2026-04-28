@@ -2248,8 +2248,8 @@ function getLiveRunSnapshot() {
   };
 }
 
-function buildAchievementContext({ live = false } = {}) {
-  const run = live ? getLiveRunSnapshot() : null;
+function buildAchievementContext({ live = false, run: providedRun = null } = {}) {
+  const run = providedRun || (live ? getLiveRunSnapshot() : null);
   return {
     run,
     meta: metaState,
@@ -2555,8 +2555,8 @@ function awardAchievement(id, { silent = false } = {}) {
   return true;
 }
 
-function evaluateAchievements(track, { live = false, silent = false } = {}) {
-  const context = buildAchievementContext({ live });
+function evaluateAchievements(track, { live = false, silent = false, run = null } = {}) {
+  const context = buildAchievementContext({ live, run });
   let changed = false;
   for (const def of ACHIEVEMENT_DEFS) {
     if (def.track !== track || isAchievementUnlocked(def.id)) continue;
@@ -2668,25 +2668,27 @@ function getPlayerRunAccuracy(playerStats) {
   return getAccuracyPercent(playerStats.shots, playerStats.hits);
 }
 
+function getCoopPlayerPalette(playerId) {
+  const theme = getCurrentTheme();
+  const accent = playerId === 0 ? theme.player : theme.drone;
+  const border = playerId === 0 ? 'rgba(0,255,136,0.18)' : 'rgba(255,240,194,0.18)';
+  const surface = playerId === 0 ? 'rgba(0,255,136,0.04)' : 'rgba(255,240,194,0.035)';
+  return { accent, border, surface };
+}
+
 function renderCoopRunStats(entry, mode = overlayMode) {
   const playerEntries = getRunEntryPlayerStats(entry);
-  const standingCount = playerEntries.filter(playerEntry => playerEntry.activeAtEnd).length;
   const coopRespawns = Math.max(0, Number(entry.coopRespawns) || 0);
-  const duoLabel = standingCount === 2
-    ? '2/2 EN PIE'
-    : standingCount === 1
-      ? '1/2 SOSTIENE'
-      : '0/2 AL CIERRE';
   const summaryStats = mode === 'pause'
     ? [
         ['Puntuacion', `${entry.score} pts`, `Nivel ${entry.level} · ${formatModeLabel(entry.mode)}`],
-        ['Escuadra', duoLabel, `${coopRespawns} reentrada${coopRespawns === 1 ? '' : 's'} · ${formatDifficultyLabel(entry.difficulty)}`],
+        ['Cooperativo', `${coopRespawns} reentrada${coopRespawns === 1 ? '' : 's'}`, `${formatDifficultyLabel(entry.difficulty)} · 2 pilotos`],
         ['Objetivos', `${entry.enemiesDestroyed} enemigos · ${entry.ufoDestroyed} UFO`, `${entry.bossesDefeated} boss · ${entry.powerUpsCollected} power-ups`],
         ['Sesion', formatDuration(entry.durationMs), `Combo x${entry.maxCombo} · ${entry.accuracy}% global`]
       ]
     : [
         ['Cierre coop', `${entry.score} pts`, `Nivel ${entry.level} · ${formatModeLabel(entry.mode)}`],
-        ['Escuadra', duoLabel, `${coopRespawns} reentrada${coopRespawns === 1 ? '' : 's'} · ${formatDifficultyLabel(entry.difficulty)}`],
+        ['Cooperativo', `${coopRespawns} reentrada${coopRespawns === 1 ? '' : 's'}`, `${formatDifficultyLabel(entry.difficulty)} · 2 pilotos`],
         ['Objetivos', `${entry.enemiesDestroyed} enemigos · ${entry.ufoDestroyed} UFO`, `${entry.bossesDefeated} boss · ${entry.powerUpsCollected} power-ups`],
         ['Duracion', formatDuration(entry.durationMs), `Combo x${entry.maxCombo} · ${entry.accuracy}% global`]
       ];
@@ -2702,11 +2704,13 @@ function renderCoopRunStats(entry, mode = overlayMode) {
         `).join('')}
       </div>
       <div class="coop-run-grid">
-        ${playerEntries.map(playerEntry => `
-          <div class="coop-player-card${playerEntry.activeAtEnd ? ' is-standing' : ' is-fallen'}">
+        ${playerEntries.map(playerEntry => {
+          const palette = getCoopPlayerPalette(playerEntry.id);
+          return `
+          <div class="coop-player-card coop-player-${playerEntry.id}" style="--coop-accent:${palette.accent};--coop-border:${palette.border};--coop-surface:${palette.surface};">
             <div class="coop-player-head">
               <strong>${playerEntry.label}</strong>
-              <span class="coop-player-chip">${playerEntry.activeAtEnd ? 'EN PIE' : 'FUERA AL CIERRE'}</span>
+              <span class="coop-player-chip">${playerEntry.activeAtEnd ? 'ACTIVO' : 'CAIDO'}</span>
             </div>
             <div class="coop-player-stats">
               <div class="coop-player-stat">
@@ -2714,7 +2718,7 @@ function renderCoopRunStats(entry, mode = overlayMode) {
                 <strong>${getPlayerRunAccuracy(playerEntry)}%</strong>
               </div>
               <div class="coop-player-stat">
-                <span>Disparos</span>
+                <span>Impactos / disp.</span>
                 <strong>${playerEntry.hits}/${playerEntry.shots}</strong>
               </div>
               <div class="coop-player-stat">
@@ -2735,7 +2739,8 @@ function renderCoopRunStats(entry, mode = overlayMode) {
               </div>
             </div>
           </div>
-        `).join('')}
+        `;
+        }).join('')}
       </div>
     </div>
   `;
@@ -3746,7 +3751,9 @@ function setOverlayMode(mode, entry = null) {
   } else if (mode === 'pause') {
     overlayKicker.textContent = 'PARTIDA EN CURSO';
     overlayTitle.textContent = 'PAUSA';
-    overlayMsg.innerHTML = 'Has detenido la partida. Revisa tu progreso y continua cuando quieras.';
+    overlayMsg.innerHTML = isCoopMode(currentRunStats.mode)
+      ? 'La escuadra está en espera. Revisa el estado de ambos pilotos, ajusta el audio y vuelve cuando quieras.'
+      : 'Has detenido la partida. Revisa tu progreso y continua cuando quieras.';
     btnStart.textContent = 'CONTINUAR';
     btnMenu.hidden = false;
     btnMenu.textContent = 'ABANDONAR';
@@ -3765,17 +3772,20 @@ function setOverlayMode(mode, entry = null) {
     setPanelVisibility(metaPanel, false);
   } else {
     const timeout = entry && entry.reason === 'timeout';
-    overlayKicker.textContent = timeout ? 'CUENTA ATRAS AGOTADA' : 'SESION FINALIZADA';
-    overlayTitle.textContent = timeout ? 'TIEMPO' : 'GAME OVER';
+    const coopEntry = isCoopMode(entry?.mode);
+    overlayKicker.textContent = timeout ? 'CUENTA ATRAS AGOTADA' : coopEntry ? 'SESION COOPERATIVA FINALIZADA' : 'SESION FINALIZADA';
+    overlayTitle.textContent = timeout ? 'TIEMPO' : coopEntry ? 'FIN CO-OP' : 'GAME OVER';
     overlayMsg.innerHTML = timeout
       ? 'El contrarreloj ha llegado a cero. Tienes un cierre claro de la sesión, el progreso ganado y dos salidas rápidas para volver a entrar o reajustar la partida.'
+      : coopEntry
+        ? 'Aquí tienes el cierre de escuadra con el resumen compartido y el detalle de cada piloto. Revisa quién sostuvo la sesión, quién volvió al frente y decide si relanzas otra run.'
       : entry && entry.score >= highscore
         ? 'Has firmado una gran marca. Revisa el cierre de la partida, los desbloqueos logrados y decide si relanzas otra run o vuelves al menú.'
         : 'La partida ha terminado. Aquí tienes el cierre completo, tu progreso y el siguiente paso claro sin ruido extra.';
     btnStart.textContent = 'REINTENTAR';
     btnMenu.hidden = false;
     btnMenu.textContent = 'VOLVER AL MENU';
-    runPanelTitle.textContent = 'ULTIMA PARTIDA';
+    runPanelTitle.textContent = coopEntry ? 'CIERRE DE ESCUADRA' : 'ULTIMA PARTIDA';
     runPanelBadge.textContent = formatModeLabel(entry?.mode || currentRunStats.mode);
     renderRunStats(entry, mode);
     configureGameSettingsPanel('gameover');
@@ -6145,6 +6155,13 @@ function gameOver(reason = 'defeat') {
     maxCombo: currentRunStats.maxCombo,
     difficulty: currentRunStats.difficulty,
     mode: currentRunStats.mode,
+    playerStats: PLAYER_CONTROL_CONFIG.map((_, index) => {
+      const stats = normalizePlayerRunStats(getRunPlayerStats(index), index);
+      stats.activeAtEnd = getPlayerState(index).active && getPlayerState(index).lives > 0;
+      return stats;
+    }),
+    coopRespawns: Math.max(0, Number(currentRunStats.coopRespawns) || 0),
+    coopBothStanding: isCoopMode(currentRunStats.mode) ? players.every(playerState => playerState.active && playerState.lives > 0) : false,
     playedAt: new Date().toISOString(),
     durationMs,
     reason
@@ -6152,7 +6169,7 @@ function gameOver(reason = 'defeat') {
 
   saveScore(entry);
   updateAggregateStats(entry);
-  evaluateAchievements('end');
+  evaluateAchievements('end', { run: entry });
   evaluateAchievements('profile');
   setOverlayMode('gameover', entry);
   updateHudStatus();

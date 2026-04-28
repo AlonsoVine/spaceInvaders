@@ -1858,6 +1858,116 @@ body.reduced-effects #game-wrapper::before {
   font-size: 12px;
 }
 
+.run-stat-board {
+  display: grid;
+  gap: 18px;
+}
+
+.run-stat-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.run-stat-summary-card {
+  display: grid;
+  gap: 5px;
+  padding: 14px 16px;
+  border: 1px solid rgba(0,255,136,0.1);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(0,255,136,0.04), rgba(0,255,136,0.02)),
+    rgba(1,10,7,0.68);
+}
+
+.run-stat-summary-card .run-stat-value {
+  font-size: clamp(18px, 2.3vw, 30px);
+  line-height: 1.05;
+}
+
+.coop-run-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.coop-player-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--coop-border, rgba(0,255,136,0.1));
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, var(--coop-surface, rgba(0,255,136,0.05)), rgba(0,255,136,0.022)),
+    rgba(2,11,8,0.82);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.02),
+    0 16px 30px rgba(0,0,0,0.12);
+}
+
+.coop-player-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.coop-player-head strong {
+  color: var(--coop-accent, #fff);
+  font-size: 18px;
+  letter-spacing: 1px;
+}
+
+.coop-player-chip {
+  padding: 6px 10px;
+  border: 1px solid var(--coop-border, rgba(0,255,136,0.14));
+  border-radius: 999px;
+  color: var(--coop-accent, #9ad9b8);
+  font-size: 11px;
+  letter-spacing: 1px;
+  background: var(--coop-surface, rgba(0,255,136,0.04));
+}
+
+.coop-player-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.coop-player-stat {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--coop-border, rgba(0,255,136,0.08));
+  border-radius: 12px;
+  background: rgba(0,0,0,0.14);
+}
+
+.coop-player-stat span {
+  color: #86b89d;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+.coop-player-stat strong {
+  color: #fff;
+  font-size: 18px;
+  line-height: 1.1;
+}
+
+@media (max-width: 720px) {
+  .run-stat-summary-grid,
+  .coop-run-grid,
+  .coop-player-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .coop-player-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
 #btn-start {
   min-width: 280px;
   padding: 16px 34px;
