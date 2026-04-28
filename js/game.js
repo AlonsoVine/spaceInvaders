@@ -41,6 +41,9 @@ const btnOpenTutorial = document.getElementById('btn-open-tutorial');
 const btnResetProfile = document.getElementById('btn-reset-profile');
 const fullscreenTarget = document.body;
 const gameSettingsPanel = document.getElementById('game-settings-panel');
+const gameSettingsPanelTitle = gameSettingsPanel?.querySelector('.card-head h2');
+const gameSettingsPanelBadge = gameSettingsPanel?.querySelector('.card-head .card-badge');
+const gameSettingsPanelIntro = gameSettingsPanel?.querySelector('.card-intro');
 const visualSettingsPanel = document.getElementById('visual-settings-panel');
 const startSummaryPanel = document.getElementById('start-summary-panel');
 const startObjectivesPanel = document.getElementById('start-objectives-panel');
@@ -76,15 +79,34 @@ const AGGREGATE_STATS_KEY = 'si_stats';
 const META_KEY = 'si_meta';
 const MAX_LIVES = 5;
 const LEVEL_SCREEN_DURATION = 120;
-const TIME_ATTACK_DURATION_MS = 90000;
-const TIME_ATTACK_WAVE_BONUS_MS = 7000;
-const TIME_ATTACK_BOSS_BONUS_MS = 12000;
-const TIME_ATTACK_MAX_MS = 120000;
+const TIME_ATTACK_DURATION_MS = 80000;
+const TIME_ATTACK_WAVE_BONUS_MS = 6000;
+const TIME_ATTACK_FAST_WAVE_BONUS_MS = 3000;
+const TIME_ATTACK_BOSS_BONUS_MS = 18000;
+const TIME_ATTACK_MINI_BOSS_BONUS_MS = 10000;
+const TIME_ATTACK_MAX_MS = 150000;
 const MAX_START_LEVEL_OPTION = 24;
 const RAPID_FIRE_DURATION_MS = 9000;
 const POWERUP_DROP_CHANCE = 0.14;
 const PLAYER_BASE_COOLDOWN = 16;
 const RAPID_FIRE_COOLDOWN = 7;
+const TIME_ATTACK_ENEMY_BONUS_MS = {
+  classic: 1000,
+  shooter: 2000,
+  scout: 2000,
+  tank: 3000
+};
+const TIME_ATTACK_UFO_BONUS_MS = {
+  bonus: 5000,
+  cargo: 7000,
+  disruptor: 7000,
+  jackpot: 8000
+};
+const TIME_ATTACK_COMBO_BONUS_MS = {
+  4: 2000,
+  8: 3000,
+  12: 4000
+};
 
 const DIFFICULTY_PRESETS = {
   easy: { startLives: 3, playerSpeed: 5.8, enemyTickFactor: 1.18, enemyShootFactor: 1.18, enemyBulletBase: 3.4, enemyBulletStep: 0.45, ufoSpawnInterval: 820 },
@@ -178,6 +200,9 @@ const BADGE_DEFS = {
   chrono: { label: 'CHRONO', copy: 'Has entrado en el ritmo del contrarreloj.' },
   operative: { label: 'OPERATIVE', copy: 'Cumples objetivos activos con constancia.' },
   commander: { label: 'COMMANDER', copy: 'Tu disciplina meta ya es visible.' },
+  wingmate: { label: 'WINGMATE', copy: 'Ya has compartido cabina y presión real con otro piloto.' },
+  relay: { label: 'RELAY', copy: 'Sabes sostener la sesión mientras tu compañero vuelve al frente.' },
+  tandem: { label: 'TANDEM', copy: 'Cuando los dos seguís en pie, la run coop cambia de nivel.' },
   spotter: { label: 'SPOTTER', copy: 'Reconoces todas las siluetas base del frente.' },
   radar: { label: 'RADAR', copy: 'Ya lees el tráfico UFO como un patrón conocido.' },
   breacher: { label: 'BREACHER', copy: 'Las élites dejan de parecer encuentros aislados.' },
@@ -361,6 +386,10 @@ const TUTORIAL_SLIDES = [
   {
     title: 'CONTROLES BASE',
     copy: 'Muévete con flechas o táctil, dispara con espacio y pausa con P o ESC cuando necesites leer la situación.'
+  },
+  {
+    title: 'CO-OP LOCAL',
+    copy: 'En cooperativo, P1 usa A y D con espacio. P2 usa flechas y enter. Los power-ups son individuales y las reentradas llegan al cerrar la siguiente ronda.'
   },
   {
     title: 'POWER-UPS',
@@ -560,6 +589,36 @@ const ACHIEVEMENT_DEFS = [
     reward: { type: 'shipSkin', id: 'nova' },
     track: 'end',
     status: ctx => buildScoreStatus(ctx.aggregate.bestTimeAttackScore, 2400)
+  },
+  {
+    id: 'coop_sortie',
+    title: 'ALA COMPARTIDA',
+    copy: 'Cierra tu primera sesión en 2 jugadores cooperativo y activa la ruta de escuadrón.',
+    category: 'MODOS',
+    tier: 'BASE',
+    reward: { type: 'badge', id: 'wingmate' },
+    track: 'end',
+    status: ctx => buildCountStatus(ctx.aggregate.totalCoopGames, 1, 'RUN')
+  },
+  {
+    id: 'coop_respawns',
+    title: 'RELEVO TACTICO',
+    copy: 'Consigue 3 reentradas cooperativas en total. Mantener la sesión viva también es jugar bien.',
+    category: 'MODOS',
+    tier: 'CORE',
+    reward: { type: 'badge', id: 'relay' },
+    track: 'profile',
+    status: ctx => buildCountStatus(ctx.totalCoopRespawns, 3, 'REENTRADAS')
+  },
+  {
+    id: 'coop_double_alive',
+    title: 'DOBLE FIRMA',
+    copy: 'Termina una sesión cooperativa con los dos pilotos en pie al cierre de la partida.',
+    category: 'MODOS',
+    tier: 'ELITE',
+    reward: { type: 'badge', id: 'tandem' },
+    track: 'end',
+    status: ctx => buildBinaryStatus(Boolean(ctx.run && ctx.run.mode === 'coop' && ctx.run.coopBothStanding), '2/2 ACTIVOS')
   },
   {
     id: 'challenge_streak',
@@ -980,7 +1039,7 @@ function normalizeDifficulty(value) {
 }
 
 function normalizeGameMode(value) {
-  return value === 'timeattack' ? 'timeattack' : 'classic';
+  return value === 'timeattack' || value === 'coop' ? value : 'classic';
 }
 
 function normalizeSkin(value) {
@@ -1003,6 +1062,14 @@ function normalizeStartLevel(value, maxUnlocked = MAX_START_LEVEL_OPTION) {
 
 function isMobileViewport() {
   return window.matchMedia('(max-width: 720px)').matches;
+}
+
+function isCoopMode(value = gameSettings.mode) {
+  return value === 'coop';
+}
+
+function isCoopAvailable() {
+  return !isMobileViewport();
 }
 
 function formatVolumePercent(value) {
@@ -1154,6 +1221,9 @@ function normalizeHistoryEntry(entry) {
     mode: normalizeGameMode(entry.mode),
     powerUpsCollected: Math.max(0, Number(entry.powerUpsCollected) || 0),
     bossesDefeated: Math.max(0, Number(entry.bossesDefeated) || 0),
+    playerStats: Array.isArray(entry.playerStats) ? entry.playerStats.map(normalizePlayerRunStats).filter(Boolean).slice(0, PLAYER_CONTROL_CONFIG.length) : [],
+    coopRespawns: Math.max(0, Number(entry.coopRespawns) || 0),
+    coopBothStanding: entry.coopBothStanding === true,
     playedAt: typeof entry.playedAt === 'string' ? entry.playedAt : null,
     durationMs: Math.max(0, Number(entry.durationMs) || 0),
     reason: entry.reason === 'timeout' ? 'timeout' : 'defeat'
@@ -1164,7 +1234,7 @@ function loadScoreHistory() {
   try {
     const stored = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
     if (!Array.isArray(stored)) return [];
-    return stored.map(normalizeHistoryEntry).filter(Boolean).slice(0, 8);
+    return stored.map(normalizeHistoryEntry).filter(Boolean).slice(0, 10);
   } catch {
     return [];
   }
@@ -1173,6 +1243,9 @@ function loadScoreHistory() {
 function loadAggregateStats() {
   try {
     const stored = JSON.parse(localStorage.getItem(AGGREGATE_STATS_KEY) || '{}');
+    const legacyBestLevel = Math.max(0, Number(stored.bestLevel) || 0);
+    const bestClassicLevel = Math.max(0, Number(stored.bestClassicLevel) || legacyBestLevel);
+    const bestCoopLevel = Math.max(0, Number(stored.bestCoopLevel) || 0);
     return {
       gamesPlayed: Math.max(0, Number(stored.gamesPlayed) || 0),
       totalScore: Math.max(0, Number(stored.totalScore) || 0),
@@ -1183,8 +1256,17 @@ function loadAggregateStats() {
       totalPowerUpsCollected: Math.max(0, Number(stored.totalPowerUpsCollected) || 0),
       totalBossesDefeated: Math.max(0, Number(stored.totalBossesDefeated) || 0),
       totalClassicGames: Math.max(0, Number(stored.totalClassicGames) || 0),
+      totalCoopGames: Math.max(0, Number(stored.totalCoopGames) || 0),
       totalTimeAttackGames: Math.max(0, Number(stored.totalTimeAttackGames) || 0),
-      bestLevel: Math.max(0, Number(stored.bestLevel) || 0),
+      totalEasyGames: Math.max(0, Number(stored.totalEasyGames) || 0),
+      totalNormalGames: Math.max(0, Number(stored.totalNormalGames) || 0),
+      totalHardGames: Math.max(0, Number(stored.totalHardGames) || 0),
+      totalCoopRespawns: Math.max(0, Number(stored.totalCoopRespawns) || 0),
+      bestLevel: Math.max(legacyBestLevel, bestClassicLevel, bestCoopLevel),
+      bestClassicLevel,
+      bestCoopLevel,
+      bestClassicScore: Math.max(0, Number(stored.bestClassicScore) || 0),
+      bestCoopScore: Math.max(0, Number(stored.bestCoopScore) || 0),
       bestCombo: Math.max(1, Number(stored.bestCombo) || 1),
       bestTimeAttackScore: Math.max(0, Number(stored.bestTimeAttackScore) || 0),
       bestAccuracy25: Math.max(0, Number(stored.bestAccuracy25) || 0),
@@ -1192,25 +1274,45 @@ function loadAggregateStats() {
       totalTimeMs: Math.max(0, Number(stored.totalTimeMs) || 0)
     };
   } catch {
-    return {
-      gamesPlayed: 0,
-      totalScore: 0,
-      totalShots: 0,
-      totalHits: 0,
-      totalEnemiesDestroyed: 0,
-      totalUfoDestroyed: 0,
-      totalPowerUpsCollected: 0,
-      totalBossesDefeated: 0,
-      totalClassicGames: 0,
-      totalTimeAttackGames: 0,
-      bestLevel: 0,
-      bestCombo: 1,
-      bestTimeAttackScore: 0,
-      bestAccuracy25: 0,
-      bestAccuracy35: 0,
-      totalTimeMs: 0
-    };
+    return createDefaultAggregateStats();
   }
+}
+
+function createPlayerRunStats(index = 0) {
+  return {
+    id: index,
+    label: PLAYER_CONTROL_CONFIG[index]?.label || `P${index + 1}`,
+    shots: 0,
+    hits: 0,
+    enemiesDestroyed: 0,
+    ufoDestroyed: 0,
+    powerUpsCollected: 0,
+    deaths: 0,
+    respawns: 0,
+    activeAtEnd: true
+  };
+}
+
+function normalizePlayerRunStats(entry, index = 0) {
+  if (!entry || typeof entry !== 'object') return createPlayerRunStats(index);
+  return {
+    id: Number.isInteger(entry.id) ? entry.id : index,
+    label: typeof entry.label === 'string' && entry.label ? entry.label : (PLAYER_CONTROL_CONFIG[index]?.label || `P${index + 1}`),
+    shots: Math.max(0, Number(entry.shots) || 0),
+    hits: Math.max(0, Number(entry.hits) || 0),
+    enemiesDestroyed: Math.max(0, Number(entry.enemiesDestroyed) || 0),
+    ufoDestroyed: Math.max(0, Number(entry.ufoDestroyed) || 0),
+    powerUpsCollected: Math.max(0, Number(entry.powerUpsCollected) || 0),
+    deaths: Math.max(0, Number(entry.deaths) || 0),
+    respawns: Math.max(0, Number(entry.respawns) || 0),
+    activeAtEnd: entry.activeAtEnd !== false
+  };
+}
+
+function getRunPlayerStats(index = 0, runStats = currentRunStats) {
+  if (!runStats.playerStats) runStats.playerStats = PLAYER_CONTROL_CONFIG.map((_, playerIndex) => createPlayerRunStats(playerIndex));
+  if (!runStats.playerStats[index]) runStats.playerStats[index] = createPlayerRunStats(index);
+  return runStats.playerStats[index];
 }
 
 function createRunStats() {
@@ -1225,7 +1327,9 @@ function createRunStats() {
     maxCombo: 1,
     difficulty: gameSettings.difficulty,
     mode: gameSettings.mode,
-    challengeId: currentChallenge?.id || 'ufo_hunter'
+    challengeId: currentChallenge?.id || 'ufo_hunter',
+    coopRespawns: 0,
+    playerStats: PLAYER_CONTROL_CONFIG.map((_, index) => createPlayerRunStats(index))
   };
 }
 
@@ -1498,6 +1602,150 @@ function renderShipPreview() {
   shipPreviewCtx.textAlign = 'left';
 }
 
+const PLAYER_CONTROL_CONFIG = [
+  { id: 0, label: 'P1', left: 'KeyA', right: 'KeyD', shoot: 'Space' },
+  { id: 1, label: 'P2', left: 'ArrowLeft', right: 'ArrowRight', shoot: 'Enter' }
+];
+
+function createPlayerState(index) {
+  return {
+    id: index,
+    label: PLAYER_CONTROL_CONFIG[index].label,
+    x: 0,
+    y: canvas.height - 60,
+    w: 40,
+    h: 20,
+    speed: 5,
+    hit: false,
+    active: index === 0,
+    lives: 0,
+    invincibleTimer: 0,
+    shieldCharges: 0,
+    shotCooldown: 0,
+    respawnPending: false,
+    shipSkin: gameSettings.shipSkin,
+    activeEffects: { rapid: 0, piercing: 0, drone: 0 }
+  };
+}
+
+function getPlayerState(index = 0) {
+  return players[index] || players[0];
+}
+
+function getActivePlayers() {
+  return players.filter(playerState => playerState.active && playerState.lives > 0);
+}
+
+function getRespawnablePlayers() {
+  return players.filter(playerState => playerState.respawnPending);
+}
+
+function getLowestActivePlayerY() {
+  const activePlayers = getActivePlayers();
+  if (!activePlayers.length) return canvas.height;
+  return Math.min(...activePlayers.map(playerState => playerState.y));
+}
+
+function syncLivesTotal() {
+  lives = players.reduce((sum, playerState) => sum + Math.max(0, playerState.lives), 0);
+}
+
+function getPlayerThemeColor(playerState, theme = getCurrentTheme()) {
+  return playerState.id === 0 ? theme.player : theme.drone;
+}
+
+function getPlayerBulletColor(playerState, theme = getCurrentTheme()) {
+  return playerState.id === 0 ? theme.playerBullet : theme.drone;
+}
+
+function resetPlayerEffects(playerState) {
+  Object.keys(playerState.activeEffects).forEach(effectKey => {
+    playerState.activeEffects[effectKey] = 0;
+  });
+}
+
+function setPlayerSpawnPositions() {
+  const activePlayers = getActivePlayers();
+  if (!activePlayers.length) return;
+  if (activePlayers.length === 1) {
+    activePlayers[0].x = canvas.width / 2 - activePlayers[0].w / 2;
+    return;
+  }
+  const positions = [canvas.width * 0.3, canvas.width * 0.7];
+  activePlayers.forEach((playerState, index) => {
+    const anchor = positions[index] ?? canvas.width / 2;
+    playerState.x = Math.max(0, Math.min(canvas.width - playerState.w, anchor - playerState.w / 2));
+  });
+}
+
+function resetPlayersForRun(preset) {
+  const coopActive = isCoopMode(gameSettings.mode);
+  players.forEach((playerState, index) => {
+    playerState.y = canvas.height - 60;
+    playerState.speed = preset.playerSpeed;
+    playerState.hit = false;
+    playerState.invincibleTimer = 0;
+    playerState.shotCooldown = 0;
+    playerState.respawnPending = false;
+    playerState.shieldCharges = 0;
+    playerState.shipSkin = gameSettings.shipSkin;
+    resetPlayerEffects(playerState);
+    playerState.lives = coopActive || index === 0 ? Math.min(MAX_LIVES, preset.startLives) : 0;
+    playerState.active = coopActive ? true : index === 0;
+  });
+  setPlayerSpawnPositions();
+  syncLivesTotal();
+}
+
+function revivePlayersForNextRound() {
+  for (const playerState of getRespawnablePlayers()) {
+    playerState.lives = Math.min(MAX_LIVES, getDifficultyConfig().startLives);
+    playerState.active = true;
+    playerState.hit = false;
+    playerState.invincibleTimer = 120;
+    playerState.shotCooldown = 0;
+    playerState.shieldCharges = 0;
+    resetPlayerEffects(playerState);
+    currentRunStats.coopRespawns += 1;
+    getRunPlayerStats(playerState.id).respawns += 1;
+    spawnFloatingText(canvas.width / 2 + (playerState.id === 0 ? -80 : 80), canvas.height * 0.32, `${playerState.label} REGRESA`, '#9ed8ff');
+    spawnShockwave(playerState.x + playerState.w / 2, playerState.y + playerState.h / 2, 'rgba(158,216,255,0.3)', 18, 3.1);
+    spawnParticleBurst(playerState.x + playerState.w / 2, playerState.y + playerState.h / 2, {
+      count: 12,
+      color: '#9ed8ff',
+      speedMin: 1.3,
+      speedMax: 4.0,
+      lifeMin: 18,
+      lifeMax: 30
+    });
+  }
+  if (getRespawnablePlayers().length) {
+    queueTutorialPrompt('coop:return', 'REENTRADA COOP', 'Si tu compañero aguanta la ronda, vuelves al siguiente cierre de oleada con vidas frescas y sin power-ups activos.');
+  }
+  players.forEach(playerState => {
+    if (playerState.active) {
+      playerState.hit = false;
+    }
+    playerState.respawnPending = false;
+  });
+  setPlayerSpawnPositions();
+  syncLivesTotal();
+}
+
+function refreshModeAvailability() {
+  if (!modeSelect) return;
+  const coopOption = modeSelect.querySelector('option[value="coop"]');
+  if (coopOption) {
+    const disabled = !isCoopAvailable();
+    coopOption.disabled = disabled;
+    coopOption.hidden = disabled;
+    if (disabled && gameSettings.mode === 'coop') {
+      gameSettings.mode = 'classic';
+      persistGameSettings();
+    }
+  }
+}
+
 function updateMobileStartPanelState() {
   if (!overlayPanels) return;
   const panelIds = ['game-settings', 'visual-settings', 'start-objectives', 'bestiary'];
@@ -1510,6 +1758,7 @@ function updateMobileStartPanelState() {
 }
 
 function applySettingsUI() {
+  refreshModeAvailability();
   syncStartLevelSetting();
   difficultySelect.value = gameSettings.difficulty;
   modeSelect.value = gameSettings.mode;
@@ -1546,27 +1795,116 @@ function formatDifficultyLabel(value) {
 }
 
 function formatModeLabel(value) {
-  return value === 'timeattack' ? 'CONTRARRELOJ' : 'CLASICO';
+  if (value === 'timeattack') return 'CONTRARRELOJ';
+  if (value === 'coop') return '2P COOP';
+  return 'CLASICO';
 }
 
-function getMaxUnlockedStartLevel() {
-  return Math.max(1, Math.min(MAX_START_LEVEL_OPTION, aggregateStats?.bestLevel || 1));
+function getModeGameCounts() {
+  return {
+    classic: aggregateStats.totalClassicGames || 0,
+    coop: aggregateStats.totalCoopGames || 0,
+    timeattack: aggregateStats.totalTimeAttackGames || 0
+  };
+}
+
+function getDifficultyGameCounts() {
+  return {
+    easy: aggregateStats.totalEasyGames || 0,
+    normal: aggregateStats.totalNormalGames || 0,
+    hard: aggregateStats.totalHardGames || 0
+  };
+}
+
+function getFavoriteCountKey(counts, fallbackKey) {
+  const ordered = Object.entries(counts).sort((left, right) => right[1] - left[1]);
+  if (!ordered.length || ordered[0][1] <= 0) return fallbackKey;
+  return ordered[0][0];
+}
+
+function getFavoriteMode() {
+  return getFavoriteCountKey(getModeGameCounts(), 'classic');
+}
+
+function getFavoriteDifficulty() {
+  return getFavoriteCountKey(getDifficultyGameCounts(), 'normal');
+}
+
+function getPlayerRankProfile() {
+  const unlockedAchievements = countUnlockedAchievements();
+  const profileScore =
+    (aggregateStats.gamesPlayed || 0) * 0.7 +
+    (aggregateStats.bestLevel || 0) * 6 +
+    (aggregateStats.totalBossesDefeated || 0) * 4 +
+    unlockedAchievements * 3 +
+    metaState.unlockedBadges.length * 2;
+  const ranks = [
+    { min: 145, chip: 'ELITE', title: 'LEYENDA DEL ARCADE' },
+    { min: 105, chip: 'ACE', title: 'COMANDANTE ESTELAR' },
+    { min: 72, chip: 'VETERANO', title: 'VANGUARDIA TACTICA' },
+    { min: 42, chip: 'AVANZADO', title: 'PILOTO DE COMBATE' },
+    { min: 18, chip: 'ROOKIE', title: 'RECLUTA DEL FRENTE' },
+    { min: 0, chip: 'BASE', title: 'CADETE ARCADE' }
+  ];
+  return ranks.find(rank => profileScore >= rank.min) || ranks[ranks.length - 1];
+}
+
+function getPlayerArchetype(globalAccuracy) {
+  if (!aggregateStats.gamesPlayed) return 'PERFIL AUN EMERGENTE';
+  const ufoRate = aggregateStats.totalUfoDestroyed / aggregateStats.gamesPlayed;
+  const powerRate = aggregateStats.totalPowerUpsCollected / aggregateStats.gamesPlayed;
+  const bossRate = aggregateStats.totalBossesDefeated / aggregateStats.gamesPlayed;
+  if (aggregateStats.bestAccuracy35 >= 70 || globalAccuracy >= 72) return 'TIRADOR FINO';
+  if (aggregateStats.bestCombo >= 12) return 'BERSERKER ARCADE';
+  if (aggregateStats.totalBossesDefeated >= 5 && bossRate >= 0.18) return 'CAZABOSSES';
+  if (aggregateStats.totalUfoDestroyed >= 8 && ufoRate >= 0.8) return 'RAIDER UFO';
+  if (aggregateStats.totalPowerUpsCollected >= 18 && powerRate >= 2.5) return 'INGENIERO TACTICO';
+  return 'PILOTO EQUILIBRADO';
+}
+
+function getFeaturedBadge() {
+  const badgeId = metaState.unlockedBadges[metaState.unlockedBadges.length - 1];
+  return badgeId && BADGE_DEFS[badgeId] ? { id: badgeId, ...BADGE_DEFS[badgeId] } : null;
+}
+
+function getProfileProgressSummary(unlockedAchievements) {
+  const seenThreats = countBestiarySeen(metaState, Object.keys(BESTIARY_DEFS));
+  const totalEquipment = Object.keys(SKIN_THEMES).length + Object.keys(SHIP_SKIN_DEFS).length;
+  const unlockedEquipment = metaState.unlockedSkins.length + metaState.unlockedShipSkins.length;
+  return [
+    { label: 'Logros', value: `${unlockedAchievements}/${ACHIEVEMENT_DEFS.length}` },
+    { label: 'Amenazas', value: `${seenThreats}/${Object.keys(BESTIARY_DEFS).length}` },
+    { label: 'Equipación', value: `${unlockedEquipment}/${totalEquipment}` },
+    { label: 'Campaña', value: `${Math.min(aggregateStats.bestLevel || 1, MAX_START_LEVEL_OPTION)}/${MAX_START_LEVEL_OPTION}` }
+  ];
+}
+
+function getBestUnlockedLevelForMode(mode = gameSettings.mode) {
+  if (mode === 'coop') return aggregateStats?.bestCoopLevel || 0;
+  if (mode === 'timeattack') return 1;
+  return aggregateStats?.bestClassicLevel || aggregateStats?.bestLevel || 0;
+}
+
+function getMaxUnlockedStartLevel(mode = gameSettings.mode) {
+  return Math.max(1, Math.min(MAX_START_LEVEL_OPTION, getBestUnlockedLevelForMode(mode) || 1));
 }
 
 function syncStartLevelSetting() {
-  const maxUnlocked = getMaxUnlockedStartLevel();
+  const maxUnlocked = getMaxUnlockedStartLevel(gameSettings.mode);
   gameSettings.startLevel = normalizeStartLevel(gameSettings.startLevel, maxUnlocked);
 }
 
 function renderStartLevelGrid() {
   if (!startLevelSelectorEl) return;
   syncStartLevelSetting();
-  const maxUnlocked = getMaxUnlockedStartLevel();
+  const maxUnlocked = getMaxUnlockedStartLevel(gameSettings.mode);
   const isTimeAttack = gameSettings.mode === 'timeattack';
   if (startLevelStatusEl) {
     startLevelStatusEl.textContent = isTimeAttack
       ? 'Contrarreloj arranca en 1'
-      : `Desbloqueado hasta ${maxUnlocked}`;
+      : gameSettings.mode === 'coop'
+        ? `Cooperativo desbloqueado hasta ${maxUnlocked}`
+        : `Clásico desbloqueado hasta ${maxUnlocked}`;
   }
 
   startLevelSelectorEl.innerHTML = Array.from({ length: MAX_START_LEVEL_OPTION }, (_, index) => {
@@ -1602,7 +1940,7 @@ function getMiniBossProfileForLevel(currentLevel) {
 
 function getWaveEventForLevel(currentLevel, mode = gameSettings.mode) {
   if (currentLevel <= 2) return WAVE_EVENT_DEFS.standard;
-  const cycle = (currentLevel + (mode === 'timeattack' ? 1 : 0)) % 5;
+  const cycle = currentLevel % 5;
   if (currentLevel >= 4 && cycle === 0) return WAVE_EVENT_DEFS.bonus;
   if (currentLevel >= 5 && cycle === 2) return WAVE_EVENT_DEFS.hunter;
   if (currentLevel >= 6 && cycle === 4) return WAVE_EVENT_DEFS.armored;
@@ -1611,9 +1949,7 @@ function getWaveEventForLevel(currentLevel, mode = gameSettings.mode) {
 
 function getWavePatternForLevel(currentLevel, mode = gameSettings.mode) {
   if (currentLevel <= 1) return WAVE_PATTERNS.classic_grid;
-  const sequence = mode === 'timeattack'
-    ? ['spearhead', 'split_wings', 'staggered', 'classic_grid', 'fortress']
-    : ['split_wings', 'spearhead', 'staggered', 'classic_grid', 'fortress'];
+  const sequence = ['split_wings', 'spearhead', 'staggered', 'classic_grid', 'fortress'];
   const unlockIndex = currentLevel >= 6 ? sequence.length : Math.max(1, Math.min(sequence.length - 1, currentLevel - 1));
   const pool = sequence.slice(0, unlockIndex);
   return WAVE_PATTERNS[pool[(currentLevel - 2) % pool.length]];
@@ -1636,13 +1972,12 @@ function getEnemyRoleForSlot(row, col, pattern, currentLevel, mode = gameSetting
   const weightedRoles = [['classic', 6]];
   const eventId = currentWaveEvent.id;
 
-  if (currentLevel >= 3 && row === 0) weightedRoles.push(['shooter', mode === 'timeattack' ? 4 : 3]);
+  if (currentLevel >= 3 && row === 0) weightedRoles.push(['shooter', 3]);
   if (currentLevel >= 4 && (pattern.id === 'staggered' || isOuter)) weightedRoles.push(['scout', pattern.id === 'staggered' ? 4 : 2]);
   if (currentLevel >= 6 && pattern.id === 'split_wings' && isOuter) weightedRoles.push(['shooter', 2]);
   if (currentLevel >= 7 && ((pattern.id === 'fortress' && row > 0 && isCenter) || (pattern.id === 'spearhead' && row === 2 && isCenter))) {
     weightedRoles.push(['tank', 4]);
   }
-  if (currentLevel >= 8 && mode === 'timeattack') weightedRoles.push(['scout', 2]);
   if (eventId === 'hunter' && currentLevel >= 4) weightedRoles.push(['shooter', row === 0 ? 5 : 3]);
   if (eventId === 'armored' && currentLevel >= 5 && row >= 1) weightedRoles.push(['tank', row === 2 ? 5 : 3]);
 
@@ -1663,9 +1998,7 @@ function getBossProfileForLevel(currentLevel, mode = gameSettings.mode) {
   if (scriptedProfileId) return BOSS_PROFILES[scriptedProfileId];
 
   const lateCycle = Math.max(0, Math.floor((currentLevel - 24) / 6));
-  const lateSequence = mode === 'timeattack'
-    ? ['overlord', 'pulse', 'striker', 'warden']
-    : ['overlord', 'striker', 'pulse', 'warden'];
+  const lateSequence = ['overlord', 'striker', 'pulse', 'warden'];
   return BOSS_PROFILES[lateSequence[lateCycle % lateSequence.length]] || BOSS_PROFILES.overlord;
 }
 
@@ -1685,9 +2018,9 @@ function getLevelEncounterPreviewText(currentLevel, mode = running ? currentRunS
 
 function rollUfoVariant(currentLevel, mode = gameSettings.mode) {
   const weighted = [['bonus', 5]];
-  if (currentLevel >= 3) weighted.push(['cargo', mode === 'timeattack' ? 2 : 3]);
-  if (currentLevel >= 5) weighted.push(['disruptor', mode === 'timeattack' ? 3 : 2]);
-  if (currentLevel >= 6) weighted.push(['jackpot', mode === 'timeattack' ? 2 : 1.5]);
+  if (currentLevel >= 3) weighted.push(['cargo', 3]);
+  if (currentLevel >= 5) weighted.push(['disruptor', 2]);
+  if (currentLevel >= 6) weighted.push(['jackpot', 1.5]);
   return pickWeightedValue(weighted);
 }
 
@@ -1748,6 +2081,16 @@ function buildCountStatus(value, target, unit) {
     ratio: Math.min(1, safeValue / target),
     complete: safeValue >= target,
     label: `${Math.min(safeValue, target)}/${target} ${unit}`
+  };
+}
+
+function buildBinaryStatus(complete, label = 'COMPLETO') {
+  return {
+    value: complete ? 1 : 0,
+    target: 1,
+    ratio: complete ? 1 : 0,
+    complete,
+    label
   };
 }
 
@@ -1879,6 +2222,11 @@ function setAchievementUnlocked(id, unlockedAt = new Date().toISOString()) {
 
 function getLiveRunSnapshot() {
   const activeMode = running ? currentRunStats.mode : gameSettings.mode;
+  const playerStats = PLAYER_CONTROL_CONFIG.map((_, index) => {
+    const stats = normalizePlayerRunStats(getRunPlayerStats(index), index);
+    stats.activeAtEnd = getPlayerState(index).active && getPlayerState(index).lives > 0;
+    return stats;
+  });
   return {
     score: score || 0,
     level: level || 1,
@@ -1893,7 +2241,10 @@ function getLiveRunSnapshot() {
     accuracy: getAccuracyPercent(currentRunStats.shots, currentRunStats.hits),
     difficulty: currentRunStats.difficulty || gameSettings.difficulty,
     mode: activeMode,
-    durationMs: currentRunStats.startedAt ? Math.max(0, Date.now() - currentRunStats.startedAt) : 0
+    durationMs: currentRunStats.startedAt ? Math.max(0, Date.now() - currentRunStats.startedAt) : 0,
+    coopRespawns: Math.max(0, Number(currentRunStats.coopRespawns) || 0),
+    coopBothStanding: isCoopMode(activeMode) ? players.every(playerState => playerState.active && playerState.lives > 0) : false,
+    playerStats
   };
 }
 
@@ -1906,6 +2257,7 @@ function buildAchievementContext({ live = false } = {}) {
     totalUfoDestroyed: aggregateStats.totalUfoDestroyed + (run ? run.ufoDestroyed : 0),
     totalPowerUpsCollected: aggregateStats.totalPowerUpsCollected + (run ? run.powerUpsCollected : 0),
     totalBossesDefeated: aggregateStats.totalBossesDefeated + (run ? run.bossesDefeated : 0),
+    totalCoopRespawns: aggregateStats.totalCoopRespawns + (run ? run.coopRespawns || 0 : 0),
     bestLevel: Math.max(aggregateStats.bestLevel, run ? run.level : 0),
     bestCombo: Math.max(aggregateStats.bestCombo, run ? run.maxCombo : 1),
     bestAccuracy25: Math.max(aggregateStats.bestAccuracy25, run && run.shots >= 25 ? run.accuracy : 0),
@@ -2223,7 +2575,35 @@ function setPanelVisibility(panel, visible) {
   panel.hidden = !visible;
 }
 
+function configureGameSettingsPanel(mode = overlayMode) {
+  if (!gameSettingsPanel) return;
+  gameSettingsPanel.classList.toggle('is-pause-audio', mode === 'pause');
+  if (gameSettingsPanelTitle) {
+    gameSettingsPanelTitle.textContent = mode === 'pause' ? 'AUDIO' : 'PARTIDA';
+  }
+  if (gameSettingsPanelBadge) {
+    gameSettingsPanelBadge.textContent = mode === 'pause' ? 'SISTEMA' : 'GAMEPLAY';
+  }
+  if (gameSettingsPanelIntro) {
+    gameSettingsPanelIntro.textContent = mode === 'pause'
+      ? 'Ajusta música y efectos sin perder de vista la sesión activa.'
+      : 'Define el ritmo de la sesión antes de despegar.';
+  }
+}
+
 function updateLivesUI() {
+  if (isCoopMode(running ? currentRunStats.mode : gameSettings.mode)) {
+    const groups = players.map(playerState => {
+      const hearts = Array.from({ length: MAX_LIVES }, (_, index) => {
+        const filled = index < playerState.lives;
+        return `<span class="life-heart${filled ? '' : ' is-empty'}" aria-hidden="true"></span>`;
+      }).join('');
+      return `<span class="life-group${playerState.active ? '' : ' is-downed'}"><span class="life-group-label">${playerState.label}</span><span class="life-group-hearts">${hearts}</span></span>`;
+    }).join('');
+    livesEl.innerHTML = groups;
+    livesEl.setAttribute('aria-label', `P1 ${players[0].lives} vidas, P2 ${players[1].lives} vidas`);
+    return;
+  }
   const hearts = Array.from({ length: MAX_LIVES }, (_, index) => {
     const filled = index < lives;
     return `<span class="life-heart${filled ? '' : ' is-empty'}" aria-hidden="true"></span>`;
@@ -2245,11 +2625,16 @@ function updateHudStatus() {
     timerEl.classList.remove('is-warning');
   }
 
-  if (shieldCharges > 0) labels.push(`ESCUDO x${shieldCharges}`);
-  if (activeEffects.rapid > 0) labels.push(`RAPIDO ${Math.ceil(activeEffects.rapid / 1000)}s`);
-  if (activeEffects.freeze > 0) labels.push(`FREEZE ${Math.ceil(activeEffects.freeze / 1000)}s`);
-  if (activeEffects.piercing > 0) labels.push(`PIERCE ${Math.ceil(activeEffects.piercing / 1000)}s`);
-  if (activeEffects.drone > 0) labels.push(`DRONES ${Math.ceil(activeEffects.drone / 1000)}s`);
+  const hudPlayers = isCoopMode(activeMode) ? players.filter(entry => entry.active || entry.lives > 0) : [player];
+  for (const playerState of hudPlayers) {
+    const playerLabels = [];
+    if (playerState.shieldCharges > 0) playerLabels.push(`ESCUDO x${playerState.shieldCharges}`);
+    if (playerState.activeEffects.rapid > 0) playerLabels.push(`RAPIDO ${Math.ceil(playerState.activeEffects.rapid / 1000)}s`);
+    if (playerState.activeEffects.piercing > 0) playerLabels.push(`PIERCE ${Math.ceil(playerState.activeEffects.piercing / 1000)}s`);
+    if (playerState.activeEffects.drone > 0) playerLabels.push(`DRONES ${Math.ceil(playerState.activeEffects.drone / 1000)}s`);
+    if (playerLabels.length) labels.push(`${playerState.label} ${playerLabels.join(' · ')}`);
+  }
+  if (globalEffects.freeze > 0) labels.push(`FREEZE ${Math.ceil(globalEffects.freeze / 1000)}s`);
   if (currentWaveEvent?.id && currentWaveEvent.id !== 'standard' && running) labels.push(`EVENTO ${currentWaveEvent.label}`);
   if (waveDisruptTimer > 0) labels.push(`DISRUPTOR ${Math.ceil(waveDisruptTimer / 1000)}s`);
   powerupStatusEl.textContent = labels.length ? labels.join(' · ') : 'SIN POWER-UPS';
@@ -2262,6 +2647,98 @@ function updateHudStatus() {
   }
   gameWrapper.classList.toggle('is-boss-fight', boss.active || miniBossSquad.active);
   gameWrapper.classList.toggle('is-critical-time', activeMode === 'timeattack' && running && timeLeftMs <= 15000);
+}
+
+function getRunEntryPlayerStats(entry) {
+  const activeMode = entry?.mode || currentRunStats.mode || gameSettings.mode;
+  return PLAYER_CONTROL_CONFIG.map((_, index) => {
+    const fallback = createPlayerRunStats(index);
+    const source = Array.isArray(entry?.playerStats) ? entry.playerStats[index] : null;
+    const normalized = normalizePlayerRunStats(source || fallback, index);
+    if (!source) {
+      normalized.activeAtEnd = isCoopMode(activeMode)
+        ? getPlayerState(index).active && getPlayerState(index).lives > 0
+        : index === 0 ? (entry?.lives || lives || 0) > 0 : false;
+    }
+    return normalized;
+  });
+}
+
+function getPlayerRunAccuracy(playerStats) {
+  return getAccuracyPercent(playerStats.shots, playerStats.hits);
+}
+
+function renderCoopRunStats(entry, mode = overlayMode) {
+  const playerEntries = getRunEntryPlayerStats(entry);
+  const standingCount = playerEntries.filter(playerEntry => playerEntry.activeAtEnd).length;
+  const coopRespawns = Math.max(0, Number(entry.coopRespawns) || 0);
+  const duoLabel = standingCount === 2
+    ? '2/2 EN PIE'
+    : standingCount === 1
+      ? '1/2 SOSTIENE'
+      : '0/2 AL CIERRE';
+  const summaryStats = mode === 'pause'
+    ? [
+        ['Puntuacion', `${entry.score} pts`, `Nivel ${entry.level} · ${formatModeLabel(entry.mode)}`],
+        ['Escuadra', duoLabel, `${coopRespawns} reentrada${coopRespawns === 1 ? '' : 's'} · ${formatDifficultyLabel(entry.difficulty)}`],
+        ['Objetivos', `${entry.enemiesDestroyed} enemigos · ${entry.ufoDestroyed} UFO`, `${entry.bossesDefeated} boss · ${entry.powerUpsCollected} power-ups`],
+        ['Sesion', formatDuration(entry.durationMs), `Combo x${entry.maxCombo} · ${entry.accuracy}% global`]
+      ]
+    : [
+        ['Cierre coop', `${entry.score} pts`, `Nivel ${entry.level} · ${formatModeLabel(entry.mode)}`],
+        ['Escuadra', duoLabel, `${coopRespawns} reentrada${coopRespawns === 1 ? '' : 's'} · ${formatDifficultyLabel(entry.difficulty)}`],
+        ['Objetivos', `${entry.enemiesDestroyed} enemigos · ${entry.ufoDestroyed} UFO`, `${entry.bossesDefeated} boss · ${entry.powerUpsCollected} power-ups`],
+        ['Duracion', formatDuration(entry.durationMs), `Combo x${entry.maxCombo} · ${entry.accuracy}% global`]
+      ];
+  return `
+    <div class="run-stat-board is-coop">
+      <div class="run-stat-summary-grid">
+        ${summaryStats.map(([label, value, subvalue]) => `
+          <div class="run-stat-summary-card">
+            <span class="run-stat-label">${label}</span>
+            <strong class="run-stat-value">${value}</strong>
+            <span class="run-stat-subvalue">${subvalue}</span>
+          </div>
+        `).join('')}
+      </div>
+      <div class="coop-run-grid">
+        ${playerEntries.map(playerEntry => `
+          <div class="coop-player-card${playerEntry.activeAtEnd ? ' is-standing' : ' is-fallen'}">
+            <div class="coop-player-head">
+              <strong>${playerEntry.label}</strong>
+              <span class="coop-player-chip">${playerEntry.activeAtEnd ? 'EN PIE' : 'FUERA AL CIERRE'}</span>
+            </div>
+            <div class="coop-player-stats">
+              <div class="coop-player-stat">
+                <span>Precision</span>
+                <strong>${getPlayerRunAccuracy(playerEntry)}%</strong>
+              </div>
+              <div class="coop-player-stat">
+                <span>Disparos</span>
+                <strong>${playerEntry.hits}/${playerEntry.shots}</strong>
+              </div>
+              <div class="coop-player-stat">
+                <span>Enemigos</span>
+                <strong>${playerEntry.enemiesDestroyed}</strong>
+              </div>
+              <div class="coop-player-stat">
+                <span>UFO</span>
+                <strong>${playerEntry.ufoDestroyed}</strong>
+              </div>
+              <div class="coop-player-stat">
+                <span>Power-ups</span>
+                <strong>${playerEntry.powerUpsCollected}</strong>
+              </div>
+              <div class="coop-player-stat">
+                <span>Caidas / vueltas</span>
+                <strong>${playerEntry.deaths} / ${playerEntry.respawns}</strong>
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
 }
 
 function renderRunStats(entry, mode = overlayMode) {
@@ -2279,8 +2756,19 @@ function renderRunStats(entry, mode = overlayMode) {
     accuracy: getAccuracyPercent(currentRunStats.shots, currentRunStats.hits),
     difficulty: currentRunStats.difficulty || gameSettings.difficulty,
     mode: currentRunStats.mode || gameSettings.mode,
-    durationMs: currentRunStats.startedAt ? Math.max(0, Date.now() - currentRunStats.startedAt) : 0
+    durationMs: currentRunStats.startedAt ? Math.max(0, Date.now() - currentRunStats.startedAt) : 0,
+    playerStats: PLAYER_CONTROL_CONFIG.map((_, index) => {
+      const stats = normalizePlayerRunStats(getRunPlayerStats(index), index);
+      stats.activeAtEnd = getPlayerState(index).active && getPlayerState(index).lives > 0;
+      return stats;
+    }),
+    coopRespawns: Math.max(0, Number(currentRunStats.coopRespawns) || 0),
+    coopBothStanding: isCoopMode(currentRunStats.mode || gameSettings.mode) ? players.every(playerState => playerState.active && playerState.lives > 0) : false
   };
+  if (isCoopMode(currentEntry.mode)) {
+    runStatsGridEl.innerHTML = renderCoopRunStats(currentEntry, mode);
+    return;
+  }
   const stats = mode === 'pause'
     ? [
         ['Puntuacion', `${currentEntry.score} pts`, `Nivel ${currentEntry.level} · ${formatModeLabel(currentEntry.mode)}`],
@@ -2308,7 +2796,7 @@ function renderStatsPanel() {
       ? '<div class="stats-empty">Todavia no hay partidas registradas.</div>'
     : [
         ['Partidas', aggregateStats.gamesPlayed],
-        ['Modos', `${aggregateStats.totalClassicGames} clasico · ${aggregateStats.totalTimeAttackGames} contrarreloj`],
+        ['Modos', `${aggregateStats.totalClassicGames} clasico · ${aggregateStats.totalCoopGames} coop · ${aggregateStats.totalTimeAttackGames} contrarreloj`],
         ['Puntos totales', aggregateStats.totalScore],
         ['Mejor nivel', aggregateStats.bestLevel],
         ['Mejor combo', `x${aggregateStats.bestCombo}`],
@@ -2321,7 +2809,7 @@ function renderStatsPanel() {
 
   statsHistoryEl.innerHTML = scoreHistory.length === 0
     ? '<div class="stats-empty">Aun no hay historial de partidas.</div>'
-    : scoreHistory.slice(0, 5).map(entry => (
+    : scoreHistory.slice(0, 10).map(entry => (
         `<div class="history-line"><span>${formatPlayedAt(entry.playedAt)} · ${formatDifficultyLabel(entry.difficulty)} · ${formatModeLabel(entry.mode)} · NIV ${entry.level}</span><strong>${entry.score} pts · ${entry.accuracy}%</strong></div>`
       )).join('');
 }
@@ -2807,8 +3295,17 @@ function createDefaultAggregateStats() {
     totalPowerUpsCollected: 0,
     totalBossesDefeated: 0,
     totalClassicGames: 0,
+    totalCoopGames: 0,
     totalTimeAttackGames: 0,
+    totalEasyGames: 0,
+    totalNormalGames: 0,
+    totalHardGames: 0,
+    totalCoopRespawns: 0,
     bestLevel: 1,
+    bestClassicLevel: 1,
+    bestCoopLevel: 0,
+    bestClassicScore: 0,
+    bestCoopScore: 0,
     bestCombo: 1,
     bestTimeAttackScore: 0,
     bestAccuracy25: 0,
@@ -3007,6 +3504,14 @@ function renderStartScreenPanels() {
   const averageScore = aggregateStats.gamesPlayed ? Math.round(aggregateStats.totalScore / aggregateStats.gamesPlayed) : 0;
   const bestLevel = aggregateStats.bestLevel || 1;
   const bestCombo = aggregateStats.bestCombo || 1;
+  const bestClassicLevel = aggregateStats.bestClassicLevel || bestLevel;
+  const bestCoopLevel = aggregateStats.bestCoopLevel || 0;
+  const favoriteMode = getFavoriteMode();
+  const favoriteDifficulty = getFavoriteDifficulty();
+  const rankProfile = getPlayerRankProfile();
+  const archetype = getPlayerArchetype(globalAccuracy);
+  const featuredBadge = getFeaturedBadge();
+  const profileProgress = getProfileProgressSummary(unlockedAchievements);
   const startContext = buildAchievementContext();
   const pendingGroups = getPendingAchievementsByCategory(startContext);
   const completedGroups = getCompletedAchievementsByCategory();
@@ -3025,7 +3530,9 @@ function renderStartScreenPanels() {
   if (modeNoteEl) {
     modeNoteEl.textContent = gameSettings.mode === 'timeattack'
       ? 'Contrarreloj aprieta desde el segundo uno y premia decisiones rápidas.'
-      : 'Clásico deja crecer la partida con power-ups, bosses y oleadas sin límite de tiempo.';
+      : gameSettings.mode === 'coop'
+        ? 'Cooperativo local para dos pilotos en teclado. P1 usa A/D y espacio; P2 usa flechas y enter.'
+        : 'Clásico deja crecer la partida con power-ups, bosses y oleadas sin límite de tiempo.';
   }
   if (difficultyNoteEl) {
     difficultyNoteEl.textContent = gameSettings.difficulty === 'easy'
@@ -3037,7 +3544,9 @@ function renderStartScreenPanels() {
   if (startLevelNoteEl) {
     startLevelNoteEl.textContent = gameSettings.mode === 'timeattack'
       ? 'Contrarreloj siempre empieza en el nivel 1 para mantener su economía y presión originales.'
-      : `Empieza en cualquier nivel ya conquistado. Ahora puedes practicar del 1 al ${getMaxUnlockedStartLevel()}.`;
+      : gameSettings.mode === 'coop'
+        ? `En cooperativo solo puedes arrancar desde niveles ya conquistados en 2P. Ahora tienes del 1 al ${getMaxUnlockedStartLevel(gameSettings.mode)}.`
+        : `En clásico solo puedes arrancar desde niveles ya conquistados en clásico. Ahora puedes practicar del 1 al ${getMaxUnlockedStartLevel(gameSettings.mode)}.`;
   }
   if (skinNoteEl) {
     skinNoteEl.textContent = `Skin activa ${SKIN_THEMES[gameSettings.skin].label}. ${metaState.unlockedSkins.length}/${Object.keys(SKIN_THEMES).length} skins de cabina desbloqueadas.`;
@@ -3054,11 +3563,33 @@ function renderStartScreenPanels() {
 
   startSummaryEl.innerHTML = `
     <div class="summary-grid">
-      <div class="summary-stat is-primary">
-        <span class="summary-label">MEJOR MARCA</span>
+      <div class="summary-stat is-primary is-profile-hero">
+        <div class="summary-hero-head">
+          <span class="summary-label">PERFIL DEL PILOTO</span>
+          <span class="summary-hero-chip">${rankProfile.chip}</span>
+        </div>
+        <strong class="summary-value">${rankProfile.title}</strong>
+        <span class="summary-copy">${aggregateStats.gamesPlayed ? `${archetype} · ${globalAccuracy}% de precisión global · media ${averageScore} pts por sesión.` : 'Juega varias partidas para perfilar tu estilo, tu rango y tus mejores hábitos de combate.'}</span>
+        <div class="summary-meta-row">
+          <span class="summary-meta-pill">Modo favorito ${formatModeLabel(favoriteMode)}</span>
+          <span class="summary-meta-pill">Dificultad ${formatDifficultyLabel(favoriteDifficulty)}</span>
+          <span class="summary-meta-pill">${aggregateStats.totalBossesDefeated} bosses vencidos</span>
+          <span class="summary-meta-pill">${aggregateStats.totalUfoDestroyed} UFO neutralizados</span>
+        </div>
+        <div class="summary-progress-row">
+          ${profileProgress.map(item => `
+            <div class="summary-progress-card">
+              <span class="summary-progress-label">${item.label}</span>
+              <strong class="summary-progress-value">${item.value}</strong>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div class="summary-stat">
+        <span class="summary-label">MEJORES MARCAS</span>
         <strong class="summary-value">${highscore} pts</strong>
-        <span class="summary-copy">Tu techo actual está en nivel ${bestLevel} con combo máximo x${bestCombo}.</span>
-        <span class="summary-meta">${aggregateStats.totalTimeMs ? `Tiempo total ${formatDuration(aggregateStats.totalTimeMs)}` : 'Todavia sin tiempo acumulado relevante'}</span>
+        <span class="summary-copy">Clásico hasta nivel ${bestClassicLevel} · 2P coop hasta nivel ${bestCoopLevel || '1'} · combo máximo x${bestCombo}.</span>
+        <span class="summary-meta">Clásico ${aggregateStats.bestClassicScore || highscore} pts · 2P ${aggregateStats.bestCoopScore || 0} pts · Contrarreloj ${aggregateStats.bestTimeAttackScore} pts</span>
       </div>
       <div class="summary-stat">
         <span class="summary-label">ULTIMA SESION</span>
@@ -3066,17 +3597,17 @@ function renderStartScreenPanels() {
         <span class="summary-copy">${latestSession ? `Nivel ${latestSession.level} · ${latestSession.accuracy}% precisión · ${formatModeLabel(latestSession.mode)}` : 'Juega una partida para ver aquí tu cierre más reciente.'}</span>
         <span class="summary-meta">${latestSession ? `${formatDifficultyLabel(latestSession.difficulty)} · ${formatPlayedAt(latestSession.playedAt)}` : 'Tu última sesión aparecerá aquí automáticamente.'}</span>
       </div>
-      <div class="summary-stat">
-        <span class="summary-label">PERFIL</span>
-        <strong class="summary-value">${aggregateStats.gamesPlayed}</strong>
-        <span class="summary-copy">${aggregateStats.gamesPlayed ? `${globalAccuracy}% global · media ${averageScore} pts · ${aggregateStats.totalBossesDefeated} bosses · ${aggregateStats.totalUfoDestroyed} UFO` : 'Aún no hay suficiente histórico para perfilar tu estilo.'}</span>
-        <span class="summary-meta">${aggregateStats.totalPowerUpsCollected} power-ups · ${metaState.unlockedBadges.length} insignias · ${metaState.unlockedSkins.length}/${Object.keys(SKIN_THEMES).length} skins · ${metaState.unlockedShipSkins.length}/${Object.keys(SHIP_SKIN_DEFS).length} naves</span>
+      <div class="summary-stat is-wide">
+        <span class="summary-label">DOSSIER</span>
+        <strong class="summary-value">${featuredBadge ? featuredBadge.label : 'SIN INSIGNIA DESTACADA'}</strong>
+        <span class="summary-copy">${featuredBadge ? featuredBadge.copy : 'Desbloquea insignias para que tu perfil gane una firma visual y una ruta de progreso más reconocible.'}</span>
+        <span class="summary-meta">${aggregateStats.gamesPlayed} partidas · ${aggregateStats.totalPowerUpsCollected} power-ups · ${metaState.unlockedBadges.length} insignias · ${aggregateStats.totalTimeMs ? `Tiempo total ${formatDuration(aggregateStats.totalTimeMs)}` : 'Todavía sin tiempo acumulado relevante'}</span>
       </div>
     </div>
     <div class="summary-ribbon">
       <span class="summary-ribbon-label">ACTIVA</span>
       <strong class="summary-ribbon-value">${formatModeLabel(gameSettings.mode)} · ${formatDifficultyLabel(gameSettings.difficulty)} · ${SKIN_THEMES[gameSettings.skin].label} · ${getShipSkinLabel(gameSettings.shipSkin)}</strong>
-      <span class="summary-ribbon-copy">${metaState.unlockedSkins.length}/${Object.keys(SKIN_THEMES).length} skins de cabina · ${metaState.unlockedShipSkins.length}/${Object.keys(SHIP_SKIN_DEFS).length} naves · ${aggregateStats.totalTimeAttackGames} runs contrarreloj</span>
+      <span class="summary-ribbon-copy">${featuredBadge ? `Insignia ${featuredBadge.label}` : 'Sin insignia destacada'} · ${metaState.unlockedSkins.length}/${Object.keys(SKIN_THEMES).length} skins · ${metaState.unlockedShipSkins.length}/${Object.keys(SHIP_SKIN_DEFS).length} naves · ${getCurrentChallengeDefinition().title}</span>
     </div>
   `;
 
@@ -3201,33 +3732,37 @@ function setOverlayMode(mode, entry = null) {
     overlayMsg.innerHTML = 'Elige cómo vas a jugar, revisa tu progreso y entra con un objetivo claro desde el primer segundo.';
     btnStart.textContent = 'JUGAR';
     btnMenu.hidden = true;
+    btnMenu.textContent = 'VOLVER AL MENU';
+    configureGameSettingsPanel('start');
     setPanelVisibility(gameSettingsPanel, true);
     setPanelVisibility(visualSettingsPanel, true);
     setPanelVisibility(startSummaryPanel, true);
     setPanelVisibility(startObjectivesPanel, true);
     setPanelVisibility(bestiaryPanel, true);
     setPanelVisibility(runPanel, false);
-    setPanelVisibility(aggregatePanel, false);
-    setPanelVisibility(historyPanel, false);
+    setPanelVisibility(aggregatePanel, true);
+    setPanelVisibility(historyPanel, true);
     setPanelVisibility(metaPanel, false);
   } else if (mode === 'pause') {
     overlayKicker.textContent = 'PARTIDA EN CURSO';
     overlayTitle.textContent = 'PAUSA';
     overlayMsg.innerHTML = 'Has detenido la partida. Revisa tu progreso y continua cuando quieras.';
     btnStart.textContent = 'CONTINUAR';
-    btnMenu.hidden = true;
-    runPanelTitle.textContent = 'PARTIDA ACTUAL';
+    btnMenu.hidden = false;
+    btnMenu.textContent = 'ABANDONAR';
+    runPanelTitle.textContent = 'RESUMEN ACTUAL';
     runPanelBadge.textContent = formatModeLabel(currentRunStats.mode);
     renderRunStats(entry, mode);
-    setPanelVisibility(gameSettingsPanel, false);
+    configureGameSettingsPanel('pause');
+    setPanelVisibility(gameSettingsPanel, true);
     setPanelVisibility(visualSettingsPanel, false);
     setPanelVisibility(startSummaryPanel, false);
     setPanelVisibility(startObjectivesPanel, false);
     setPanelVisibility(bestiaryPanel, false);
     setPanelVisibility(runPanel, true);
-    setPanelVisibility(aggregatePanel, true);
-    setPanelVisibility(historyPanel, true);
-    setPanelVisibility(metaPanel, true);
+    setPanelVisibility(aggregatePanel, false);
+    setPanelVisibility(historyPanel, false);
+    setPanelVisibility(metaPanel, false);
   } else {
     const timeout = entry && entry.reason === 'timeout';
     overlayKicker.textContent = timeout ? 'CUENTA ATRAS AGOTADA' : 'SESION FINALIZADA';
@@ -3239,9 +3774,11 @@ function setOverlayMode(mode, entry = null) {
         : 'La partida ha terminado. Aquí tienes el cierre completo, tu progreso y el siguiente paso claro sin ruido extra.';
     btnStart.textContent = 'REINTENTAR';
     btnMenu.hidden = false;
+    btnMenu.textContent = 'VOLVER AL MENU';
     runPanelTitle.textContent = 'ULTIMA PARTIDA';
     runPanelBadge.textContent = formatModeLabel(entry?.mode || currentRunStats.mode);
     renderRunStats(entry, mode);
+    configureGameSettingsPanel('gameover');
     setPanelVisibility(gameSettingsPanel, false);
     setPanelVisibility(visualSettingsPanel, false);
     setPanelVisibility(startSummaryPanel, false);
@@ -3477,7 +4014,6 @@ let score = 0;
 let lives = MAX_LIVES;
 let level = 1;
 let running = false;
-let invincibleTimer = 0;
 let frameCount = 0;
 let showingLevelScreen = false;
 let levelScreenTimer = 0;
@@ -3486,15 +4022,16 @@ let combo = 0;
 let comboTimer = 0;
 let lastFrameTime = 0;
 let timeLeftMs = 0;
-let shieldCharges = 0;
+let currentWaveStartedAt = 0;
 let bossEncounteredThisLevel = false;
 let miniBossEncounteredThisLevel = false;
 let screenShake = 0;
 let cinematicFlash = 0;
 let waveDisruptTimer = 0;
 
-const activeEffects = { rapid: 0, freeze: 0, piercing: 0, drone: 0 };
-const player = { x: 0, y: canvas.height - 60, w: 40, h: 20, speed: 5, hit: false };
+const globalEffects = { freeze: 0 };
+const players = [createPlayerState(0), createPlayerState(1)];
+const player = players[0];
 const particles = [];
 const shockwaves = [];
 const stars = Array.from({ length: 52 }, () => ({
@@ -3514,14 +4051,22 @@ document.addEventListener('keydown', event => {
   if (event.code === 'Enter' && paused) {
     event.preventDefault();
     togglePause();
+    return;
   }
   if (event.code === 'Enter' && !running && !showingLevelScreen) {
     initAudio();
     startGame();
+    return;
   }
   if (event.code === 'Space') {
     event.preventDefault();
-    shoot();
+    shoot(getPlayerState(0));
+    return;
+  }
+  if (event.code === 'Enter' && running && isCoopMode(currentRunStats.mode)) {
+    event.preventDefault();
+    shoot(getPlayerState(1));
+    return;
   }
   if ((event.code === 'KeyP' || event.code === 'Escape') && running) {
     event.preventDefault();
@@ -3706,7 +4251,10 @@ if (bestiaryBrowserEl) {
     renderBestiaryPanel();
   });
 }
-window.addEventListener('resize', updateMobileStartPanelState);
+window.addEventListener('resize', () => {
+  updateMobileStartPanelState();
+  applySettingsUI();
+});
 if (btnDialogSecondary) {
   btnDialogSecondary.addEventListener('click', () => {
     if (!overlayDialogState) {
@@ -3751,51 +4299,57 @@ if (overlayDialog) {
 document.addEventListener('fullscreenchange', updateFullscreenUI);
 
 const playerBullets = [];
-let playerShotCooldown = 0;
 let autoShootTimer = 0;
 
-function getPlayerBulletLimit() {
-  if (activeEffects.drone > 0) return 4;
-  return activeEffects.rapid > 0 ? 2 : 1;
+function getPlayerBulletLimit(playerState = player) {
+  if (playerState.activeEffects.drone > 0) return 4;
+  return playerState.activeEffects.rapid > 0 ? 2 : 1;
 }
 
-function getPlayerShotCooldown() {
-  return activeEffects.rapid > 0 ? RAPID_FIRE_COOLDOWN : PLAYER_BASE_COOLDOWN;
+function getPlayerShotCooldown(playerState = player) {
+  return playerState.activeEffects.rapid > 0 ? RAPID_FIRE_COOLDOWN : PLAYER_BASE_COOLDOWN;
 }
 
-function shoot() {
-  if (!running || showingLevelScreen || paused) return;
-  if (playerShotCooldown > 0 || playerBullets.length >= getPlayerBulletLimit()) return;
+function getPlayerBulletCount(playerState) {
+  return playerBullets.filter(bullet => bullet.ownerId === playerState.id).length;
+}
 
-  const baseSpeed = activeEffects.rapid > 0 ? 10.5 : 9;
-  const piercingShots = activeEffects.piercing > 0 ? 3 : 1;
+function shoot(playerState = player) {
+  if (!running || showingLevelScreen || paused || !playerState.active || playerState.lives <= 0) return;
+  if (playerState.shotCooldown > 0 || getPlayerBulletCount(playerState) >= getPlayerBulletLimit(playerState)) return;
+
+  const baseSpeed = playerState.activeEffects.rapid > 0 ? 10.5 : 9;
+  const piercingShots = playerState.activeEffects.piercing > 0 ? 3 : 1;
   playerBullets.push({
-    x: player.x + player.w / 2 - 2,
-    y: player.y,
+    x: playerState.x + playerState.w / 2 - 2,
+    y: playerState.y,
     w: 4,
     h: 14,
     speed: baseSpeed,
     pierces: piercingShots,
-    source: 'player'
+    source: 'player',
+    ownerId: playerState.id
   });
 
-  if (activeEffects.drone > 0) {
+  if (playerState.activeEffects.drone > 0) {
     const droneOffsets = [-18, 18];
     for (const offset of droneOffsets) {
       playerBullets.push({
-        x: player.x + player.w / 2 - 2 + offset,
-        y: player.y + 6,
+        x: playerState.x + playerState.w / 2 - 2 + offset,
+        y: playerState.y + 6,
         w: 4,
         h: 12,
         speed: baseSpeed - 0.6,
-        pierces: activeEffects.piercing > 0 ? 2 : 1,
-        source: 'drone'
+        pierces: playerState.activeEffects.piercing > 0 ? 2 : 1,
+        source: 'drone',
+        ownerId: playerState.id
       });
     }
   }
 
-  playerShotCooldown = getPlayerShotCooldown();
+  playerState.shotCooldown = getPlayerShotCooldown(playerState);
   currentRunStats.shots++;
+  getRunPlayerStats(playerState.id).shots++;
   soundShoot();
 }
 
@@ -3803,7 +4357,7 @@ const enemyBullets = [];
 let enemyShootTimer = 0;
 
 function getFreezeFactor() {
-  return activeEffects.freeze > 0 ? 0.38 : 1;
+  return globalEffects.freeze > 0 ? 0.38 : 1;
 }
 
 function getEnemyShootInterval() {
@@ -3811,7 +4365,7 @@ function getEnemyShootInterval() {
   const threatLevel = getThreatLevel();
   const eventFactor = currentWaveEvent?.shootFactor || 1;
   const disruptFactor = waveDisruptTimer > 0 ? 0.78 : 1;
-  return Math.max(42, Math.round((110 - (threatLevel - 1) * 8) * preset.enemyShootFactor * eventFactor * disruptFactor * (activeEffects.freeze > 0 ? 2.25 : 1)));
+  return Math.max(42, Math.round((110 - (threatLevel - 1) * 8) * preset.enemyShootFactor * eventFactor * disruptFactor * (globalEffects.freeze > 0 ? 2.25 : 1)));
 }
 
 const explosions = [];
@@ -3887,7 +4441,10 @@ function triggerCinematicFlash(amount = 0.16) {
 const powerUps = [];
 
 function rollPowerUpType() {
-  const pool = lives < MAX_LIVES
+  const needsHeart = isCoopMode(running ? currentRunStats.mode : gameSettings.mode)
+    ? players.some(playerState => playerState.lives < MAX_LIVES)
+    : lives < MAX_LIVES;
+  const pool = needsHeart
     ? ['rapid', 'shield', 'heart', 'heart', 'freeze', 'piercing', 'drone']
     : ['rapid', 'shield', 'freeze', 'piercing', 'drone', 'shield'];
   return pool[Math.floor(Math.random() * pool.length)];
@@ -3910,8 +4467,9 @@ function maybeDropPowerUp(x, y) {
   spawnPowerUp(x, y);
 }
 
-function collectPowerUp(powerUp) {
+function collectPowerUp(powerUp, collector = player) {
   currentRunStats.powerUpsCollected++;
+  getRunPlayerStats(collector.id).powerUpsCollected++;
   queueTutorialPrompt('intro:powerup', 'POWER-UP', 'Recógelo para activar una ventaja temporal. Corazón, escudo o disparo alteran tu margen y tu ritmo.');
   soundPowerUp();
   addScreenShake(2.5);
@@ -3927,30 +4485,31 @@ function collectPowerUp(powerUp) {
   });
 
   if (powerUp.type === 'heart') {
-    if (lives < MAX_LIVES) {
-      lives = Math.min(MAX_LIVES, lives + 1);
+    if (collector.lives < MAX_LIVES) {
+      collector.lives = Math.min(MAX_LIVES, collector.lives + 1);
+      syncLivesTotal();
       updateLivesUI();
-      spawnFloatingText(player.x + player.w / 2, player.y - 10, '+1 VIDA', '#ff7ca8');
+      spawnFloatingText(collector.x + collector.w / 2, collector.y - 10, '+1 VIDA', '#ff7ca8');
     } else {
       score += 75;
       scoreEl.textContent = score;
-      spawnFloatingText(player.x + player.w / 2, player.y - 10, '+75', '#ffdd66');
+      spawnFloatingText(collector.x + collector.w / 2, collector.y - 10, '+75', '#ffdd66');
     }
   } else if (powerUp.type === 'shield') {
-    shieldCharges = Math.min(3, shieldCharges + 1);
-    spawnFloatingText(player.x + player.w / 2, player.y - 10, 'ESCUDO', '#66e0ff');
+    collector.shieldCharges = Math.min(3, collector.shieldCharges + 1);
+    spawnFloatingText(collector.x + collector.w / 2, collector.y - 10, 'ESCUDO', '#66e0ff');
   } else if (powerUp.type === 'freeze') {
-    activeEffects.freeze = 7000;
-    spawnFloatingText(player.x + player.w / 2, player.y - 10, 'FREEZE', '#9ed8ff');
+    globalEffects.freeze = 7000;
+    spawnFloatingText(collector.x + collector.w / 2, collector.y - 10, 'FREEZE', '#9ed8ff');
   } else if (powerUp.type === 'piercing') {
-    activeEffects.piercing = 9000;
-    spawnFloatingText(player.x + player.w / 2, player.y - 10, 'PIERCE', '#ffd966');
+    collector.activeEffects.piercing = 9000;
+    spawnFloatingText(collector.x + collector.w / 2, collector.y - 10, 'PIERCE', '#ffd966');
   } else if (powerUp.type === 'drone') {
-    activeEffects.drone = 10000;
-    spawnFloatingText(player.x + player.w / 2, player.y - 10, 'DRONES', '#ffd9f9');
+    collector.activeEffects.drone = 10000;
+    spawnFloatingText(collector.x + collector.w / 2, collector.y - 10, 'DRONES', '#ffd9f9');
   } else if (powerUp.type === 'rapid') {
-    activeEffects.rapid = RAPID_FIRE_DURATION_MS;
-    spawnFloatingText(player.x + player.w / 2, player.y - 10, 'RAPIDO', '#00ff88');
+    collector.activeEffects.rapid = RAPID_FIRE_DURATION_MS;
+    spawnFloatingText(collector.x + collector.w / 2, collector.y - 10, 'RAPIDO', '#00ff88');
   }
 
   updateHudStatus();
@@ -3960,7 +4519,8 @@ const ufo = { active: false, x: 0, y: 28, w: 50, h: 20, speed: 2, dir: 1, varian
 let ufoSpawnTimer = 0;
 
 function getUfoSpawnInterval() {
-  return Math.round(getDifficultyConfig().ufoSpawnInterval * (currentWaveEvent?.ufoFactor || 1));
+  const modeFactor = currentRunStats.mode === 'timeattack' ? 0.78 : 1;
+  return Math.round(getDifficultyConfig().ufoSpawnInterval * (currentWaveEvent?.ufoFactor || 1) * modeFactor);
 }
 
 const shields = [];
@@ -4075,7 +4635,7 @@ function getEnemyLayout(pattern = currentWavePattern) {
   const gapX = Math.floor(((canvas.width - totalW - 20) / (COLS - 1)) * patternScale);
   const marginX = 10;
   const startY = Math.min((pattern?.startYBase || 65) + (level - 1) * 15, pattern?.maxStartY || 140);
-  const gapY = pattern?.gapY || 46;
+  const gapY = pattern?.gapY || 38;
   return { marginX, gapX, gapY, startY };
 }
 
@@ -4084,7 +4644,8 @@ function getEnemyTickInterval() {
   const alive = enemies.filter(enemy => enemy.alive).length;
   const threatLevel = getThreatLevel();
   const base = Math.max(5, 26 - (threatLevel - 1) * 1.7);
-  return Math.max(3, Math.round(base * preset.enemyTickFactor * (currentWaveEvent?.tickFactor || 1) * (alive / Math.max(1, currentWaveEnemyCount)) * (activeEffects.freeze > 0 ? 2.4 : 1)));
+  const lateWaveSoftener = level >= 17 ? 1.18 + Math.min(0.18, (level - 17) * 0.014) : 1;
+  return Math.max(3, Math.round(base * preset.enemyTickFactor * (currentWaveEvent?.tickFactor || 1) * (alive / Math.max(1, currentWaveEnemyCount)) * lateWaveSoftener * (globalEffects.freeze > 0 ? 2.4 : 1)));
 }
 
 function getAliveEnemyBounds(enemyList = enemies) {
@@ -4105,6 +4666,10 @@ function shouldOmitEarlyEnemy(currentLevel, row, col, maskedOut) {
     return false;
   }
 
+  if (currentLevel === 15) {
+    if (col === 3) return true;
+  }
+
   if (currentLevel >= 2 && currentLevel <= 9) {
     if (row === ROWS - 1 && (col === 0 || col === COLS - 1)) return true;
   }
@@ -4112,10 +4677,19 @@ function shouldOmitEarlyEnemy(currentLevel, row, col, maskedOut) {
   return false;
 }
 
+function getFormationOffsetX(currentLevel, pattern, col) {
+  if (currentLevel === 17 && pattern?.id === 'split_wings') {
+    if (col <= 2) return 26;
+    if (col >= 5) return -26;
+  }
+  return 0;
+}
+
 function spawnEnemies() {
   enemies.length = 0;
   currentWavePattern = getWavePatternForLevel(level, currentRunStats.mode || gameSettings.mode);
   currentWaveEvent = getWaveEventForLevel(level, currentRunStats.mode || gameSettings.mode);
+  currentWaveStartedAt = Date.now();
   const { marginX, gapX, gapY, startY } = getEnemyLayout(currentWavePattern);
   let aliveCount = 0;
 
@@ -4128,7 +4702,7 @@ function spawnEnemies() {
       const roleDef = ENEMY_ROLE_DEFS[role] || ENEMY_ROLE_DEFS.classic;
       if (alive) aliveCount++;
       enemies.push({
-        x: marginX + col * (E_W + gapX) + (currentWavePattern.rowShifts?.[row] || 0),
+        x: marginX + col * (E_W + gapX) + (currentWavePattern.rowShifts?.[row] || 0) + getFormationOffsetX(level, currentWavePattern, col),
         y: startY + row * (E_H + gapY),
         w: E_W,
         h: E_H,
@@ -4169,6 +4743,34 @@ function syncHighscore() {
 function awardTimeBonus(ms) {
   if (currentRunStats.mode !== 'timeattack') return;
   timeLeftMs = Math.min(TIME_ATTACK_MAX_MS, timeLeftMs + ms);
+}
+
+function formatTimeAttackBonusLabel(ms) {
+  const seconds = ms / 1000;
+  const printable = Number.isInteger(seconds) ? String(seconds) : seconds.toFixed(1);
+  return `+${printable}s`;
+}
+
+function awardTimedBonus(ms, x = canvas.width / 2, y = 96, color = '#9ed8ff', label = formatTimeAttackBonusLabel(ms)) {
+  if (currentRunStats.mode !== 'timeattack') return false;
+  awardTimeBonus(ms);
+  if (label) spawnFloatingText(x, y, label, color);
+  return true;
+}
+
+function getTimeAttackEnemyBonus(type) {
+  return TIME_ATTACK_ENEMY_BONUS_MS[type] || TIME_ATTACK_ENEMY_BONUS_MS.classic;
+}
+
+function getTimeAttackUfoBonus(variantId) {
+  return TIME_ATTACK_UFO_BONUS_MS[variantId] || TIME_ATTACK_UFO_BONUS_MS.bonus;
+}
+
+function getFastWaveBonus() {
+  const elapsed = Date.now() - currentWaveStartedAt;
+  if (elapsed <= 12000) return TIME_ATTACK_FAST_WAVE_BONUS_MS + 2000;
+  if (elapsed <= 18000) return TIME_ATTACK_FAST_WAVE_BONUS_MS;
+  return 0;
 }
 
 function spawnMiniBossSquad() {
@@ -4242,6 +4844,7 @@ function defeatMiniBossSquad() {
     lifeMax: 40
   });
   spawnFloatingText(miniBossSquad.x, miniBossSquad.y - 12, `+${miniBossSquad.reward + level * 20}`, '#ffd966');
+  awardTimedBonus(TIME_ATTACK_MINI_BOSS_BONUS_MS, miniBossSquad.x, miniBossSquad.y - 30, '#9ed8ff', `MINIBOSS ${formatTimeAttackBonusLabel(TIME_ATTACK_MINI_BOSS_BONUS_MS)}`);
   resetMiniBossSquad();
   completeLevel();
 }
@@ -4286,7 +4889,13 @@ function startBossFight() {
 }
 
 function completeLevel() {
-  awardTimeBonus(TIME_ATTACK_WAVE_BONUS_MS);
+  if (currentRunStats.mode === 'timeattack') {
+    awardTimedBonus(TIME_ATTACK_WAVE_BONUS_MS, canvas.width / 2, 88, '#9ed8ff', `OLEADA ${formatTimeAttackBonusLabel(TIME_ATTACK_WAVE_BONUS_MS)}`);
+    const fastWaveBonus = getFastWaveBonus();
+    if (fastWaveBonus > 0) {
+      awardTimedBonus(fastWaveBonus, canvas.width / 2, 108, '#c4f7ff', `RAPIDA ${formatTimeAttackBonusLabel(fastWaveBonus)}`);
+    }
+  }
   level++;
   levelEl.textContent = level;
   bossEncounteredThisLevel = false;
@@ -4318,7 +4927,7 @@ function defeatBoss() {
     lifeMax: 48
   });
   spawnFloatingText(boss.x + boss.w / 2, boss.y - 4, `+${reward}`, getBossAccentColor());
-  awardTimeBonus(TIME_ATTACK_BOSS_BONUS_MS);
+  awardTimedBonus(TIME_ATTACK_BOSS_BONUS_MS, boss.x + boss.w / 2, boss.y - 24, '#9ed8ff', `BOSS ${formatTimeAttackBonusLabel(TIME_ATTACK_BOSS_BONUS_MS)}`);
   addScreenShake(14);
   triggerCinematicFlash(0.22);
   resetBoss();
@@ -4329,6 +4938,7 @@ function defeatBoss() {
 function updatePlayerBullets() {
   for (let index = playerBullets.length - 1; index >= 0; index--) {
     const bullet = playerBullets[index];
+    const ownerStats = getRunPlayerStats(bullet.ownerId || 0);
     bullet.y -= bullet.speed;
 
     if (bullet.y + bullet.h < 0) {
@@ -4342,6 +4952,7 @@ function updatePlayerBullets() {
       if (rectsOverlap(bullet, enemy)) {
         hit = true;
         currentRunStats.hits++;
+        ownerStats.hits++;
         enemy.hp = Math.max(0, enemy.hp - 1);
         enemy.flashTimer = 5;
         const enemyColor = getEnemyRoleColor(enemy);
@@ -4351,7 +4962,10 @@ function updatePlayerBullets() {
           combo++;
           comboTimer = 90;
           currentRunStats.enemiesDestroyed++;
+          ownerStats.enemiesDestroyed++;
           currentRunStats.maxCombo = Math.max(currentRunStats.maxCombo, combo);
+          const timeBonusMs = getTimeAttackEnemyBonus(enemy.type);
+          awardTimeBonus(timeBonusMs);
           const points = getEnemyScore(enemy) * (combo > 1 ? combo : 1);
           score += points;
           scoreEl.textContent = score;
@@ -4366,7 +4980,16 @@ function updatePlayerBullets() {
             lifeMax: 30
           });
           spawnShockwave(enemy.x + enemy.w / 2, enemy.y + enemy.h / 2, 'rgba(255,180,80,0.22)', enemy.type === 'tank' ? 12 : 10, enemy.type === 'tank' ? 3.2 : 2.5);
-          spawnFloatingText(enemy.x + enemy.w / 2, enemy.y, `${combo > 1 ? `x${combo} ` : ''}+${points}`, combo > 1 ? '#ff8800' : '#ffff00');
+          spawnFloatingText(
+            enemy.x + enemy.w / 2,
+            enemy.y,
+            `${combo > 1 ? `x${combo} ` : ''}+${points}${currentRunStats.mode === 'timeattack' ? ` · ${formatTimeAttackBonusLabel(timeBonusMs)}` : ''}`,
+            combo > 1 ? '#ff8800' : '#ffff00'
+          );
+          if (currentRunStats.mode === 'timeattack' && TIME_ATTACK_COMBO_BONUS_MS[combo]) {
+            const comboBonusMs = TIME_ATTACK_COMBO_BONUS_MS[combo];
+            awardTimedBonus(comboBonusMs, enemy.x + enemy.w / 2, enemy.y - 16, '#fff1a8', `COMBO x${combo} ${formatTimeAttackBonusLabel(comboBonusMs)}`);
+          }
           maybeDropPowerUp(enemy.x + enemy.w / 2, enemy.y + enemy.h / 2);
           addScreenShake(combo > 2 ? 4 : enemy.type === 'tank' ? 3 : 2);
         } else {
@@ -4397,6 +5020,7 @@ function updatePlayerBullets() {
         if (rectsOverlap(bullet, ship)) {
           hit = true;
           currentRunStats.hits++;
+          ownerStats.hits++;
           ship.hp = Math.max(0, ship.hp - 1);
           ship.flashTimer = 5;
           spawnParticleBurst(ship.x + ship.w / 2, ship.y + ship.h / 2, {
@@ -4436,6 +5060,7 @@ function updatePlayerBullets() {
     if (!hit && boss.active && rectsOverlap(bullet, boss)) {
       hit = true;
       currentRunStats.hits++;
+      ownerStats.hits++;
       score += 25;
       scoreEl.textContent = score;
       syncHighscore();
@@ -4470,6 +5095,8 @@ function updatePlayerBullets() {
       markBestiarySeen(`ufo_${variant.id}`, { showTip: variant.id !== 'bonus' });
       currentRunStats.hits++;
       currentRunStats.ufoDestroyed++;
+      ownerStats.hits++;
+      ownerStats.ufoDestroyed++;
       incrementBestiaryDefeat(`ufo_${variant.id}`);
       score += variant.points;
       scoreEl.textContent = score;
@@ -4484,9 +5111,9 @@ function updatePlayerBullets() {
         lifeMax: 34
       });
       spawnFloatingText(ufo.x + ufo.w / 2, ufo.y, `+${variant.points}`, variant.color);
+      awardTimedBonus(getTimeAttackUfoBonus(variant.id), ufo.x + ufo.w / 2, ufo.y + 12, '#9ed8ff', `UFO ${formatTimeAttackBonusLabel(getTimeAttackUfoBonus(variant.id))}`);
       if (variant.guaranteePowerUp) spawnPowerUp(ufo.x + ufo.w / 2, ufo.y + ufo.h / 2);
       if (variant.id === 'jackpot') {
-        awardTimeBonus(4000);
         spawnFloatingText(ufo.x + ufo.w / 2, ufo.y + 12, 'JACKPOT', '#fff1a8');
       }
       ufo.active = false;
@@ -4573,7 +5200,7 @@ function updateBoss() {
   boss.shootTimer++;
   const preset = getDifficultyConfig();
   const shootIntervalBase = profile.volley === 'wall' ? 88 : profile.volley === 'burst' ? 64 : profile.volley === 'hybrid' ? 70 : 72;
-  const shootInterval = Math.max(34, Math.round((shootIntervalBase * preset.enemyShootFactor - (boss.maxHp - boss.hp) * 1.05) * (activeEffects.freeze > 0 ? 2.35 : 1)));
+  const shootInterval = Math.max(34, Math.round((shootIntervalBase * preset.enemyShootFactor - (boss.maxHp - boss.hp) * 1.05) * (globalEffects.freeze > 0 ? 2.35 : 1)));
   if (boss.shootTimer >= shootInterval) {
     boss.shootTimer = 0;
     let spread = [-28, 28];
@@ -4600,8 +5227,11 @@ function updateBoss() {
     }
   }
 
-  if (boss.y + boss.h >= player.y - 12 && invincibleTimer === 0) {
-    triggerDeath();
+  if (boss.y + boss.h >= getLowestActivePlayerY() - 12) {
+    const activePlayers = getActivePlayers().filter(playerState => playerState.invincibleTimer === 0);
+    if (activePlayers.length) {
+      triggerDeath(activePlayers[0]);
+    }
   }
 }
 
@@ -4670,8 +5300,11 @@ function updateMiniBossSquad() {
     }
   }
 
-  if (miniBossSquad.ships.some(ship => ship.hp > 0 && ship.y + ship.h >= player.y - 8) && invincibleTimer === 0) {
-    triggerDeath();
+  if (miniBossSquad.ships.some(ship => ship.hp > 0 && ship.y + ship.h >= getLowestActivePlayerY() - 8)) {
+    const activePlayers = getActivePlayers().filter(playerState => playerState.invincibleTimer === 0);
+    if (activePlayers.length) {
+      triggerDeath(activePlayers[0]);
+    }
   }
 }
 
@@ -4687,8 +5320,9 @@ function updatePowerUps() {
       continue;
     }
 
-    if (rectsOverlap(powerUp, player)) {
-      collectPowerUp(powerUp);
+    const collector = getActivePlayers().find(playerState => rectsOverlap(powerUp, playerState));
+    if (collector) {
+      collectPowerUp(powerUp, collector);
       powerUps.splice(index, 1);
     }
   }
@@ -4725,9 +5359,10 @@ function updateEnemyBullets() {
     }
     if (blocked) continue;
 
-    if (invincibleTimer === 0 && rectsOverlap(bullet, player)) {
+    const impactedPlayer = getActivePlayers().find(playerState => playerState.invincibleTimer === 0 && rectsOverlap(bullet, playerState));
+    if (impactedPlayer) {
       enemyBullets.splice(index, 1);
-      triggerDeath();
+      triggerDeath(impactedPlayer);
     }
   }
 }
@@ -4781,6 +5416,7 @@ function update() {
     levelScreenTimer++;
     if (levelScreenTimer >= LEVEL_SCREEN_DURATION) {
       showingLevelScreen = false;
+      revivePlayersForNextRound();
       spawnEnemies();
       buildShields();
       playerBullets.length = 0;
@@ -4801,25 +5437,47 @@ function update() {
     }
   }
 
-  for (const effectKey of Object.keys(activeEffects)) {
-    if (activeEffects[effectKey] > 0) {
-      activeEffects[effectKey] = Math.max(0, activeEffects[effectKey] - Math.min(50, lastDeltaMs));
+  if (globalEffects.freeze > 0) {
+    globalEffects.freeze = Math.max(0, globalEffects.freeze - Math.min(50, lastDeltaMs));
+  }
+  for (const playerState of players) {
+    for (const effectKey of Object.keys(playerState.activeEffects)) {
+      if (playerState.activeEffects[effectKey] > 0) {
+        playerState.activeEffects[effectKey] = Math.max(0, playerState.activeEffects[effectKey] - Math.min(50, lastDeltaMs));
+      }
     }
   }
   if (waveDisruptTimer > 0) {
     waveDisruptTimer = Math.max(0, waveDisruptTimer - Math.min(50, lastDeltaMs));
   }
 
-  const moving = keys.ArrowLeft || keys.ArrowRight;
-  if (keys.ArrowLeft && player.x > 0) player.x -= player.speed;
-  if (keys.ArrowRight && player.x + player.w < canvas.width) player.x += player.speed;
+  const coopActive = isCoopMode(currentRunStats.mode);
+  const moving = coopActive
+    ? (keys.KeyA || keys.KeyD || keys.ArrowLeft || keys.ArrowRight)
+    : (keys.ArrowLeft || keys.ArrowRight);
+
+  if (coopActive) {
+    const leftPlayer = getPlayerState(0);
+    const rightPlayer = getPlayerState(1);
+    if (leftPlayer.active) {
+      if (keys.KeyA && leftPlayer.x > 0) leftPlayer.x -= leftPlayer.speed;
+      if (keys.KeyD && leftPlayer.x + leftPlayer.w < canvas.width) leftPlayer.x += leftPlayer.speed;
+    }
+    if (rightPlayer.active) {
+      if (keys.ArrowLeft && rightPlayer.x > 0) rightPlayer.x -= rightPlayer.speed;
+      if (keys.ArrowRight && rightPlayer.x + rightPlayer.w < canvas.width) rightPlayer.x += rightPlayer.speed;
+    }
+  } else {
+    if (keys.ArrowLeft && player.x > 0) player.x -= player.speed;
+    if (keys.ArrowRight && player.x + player.w < canvas.width) player.x += player.speed;
+  }
 
   if (window._touchActive && moving) {
     autoShootTimer += lastDeltaMs;
-    const autoShootInterval = activeEffects.rapid > 0 ? 120 : 240;
+    const autoShootInterval = player.activeEffects.rapid > 0 ? 120 : 240;
     if (autoShootTimer >= autoShootInterval) {
       autoShootTimer = 0;
-      shoot();
+      shoot(player);
     }
   } else {
     autoShootTimer = 0;
@@ -4830,8 +5488,10 @@ function update() {
     if (comboTimer === 0) combo = 0;
   }
 
-  if (invincibleTimer > 0) invincibleTimer--;
-  if (playerShotCooldown > 0) playerShotCooldown--;
+  for (const playerState of players) {
+    if (playerState.invincibleTimer > 0) playerState.invincibleTimer--;
+    if (playerState.shotCooldown > 0) playerState.shotCooldown--;
+  }
 
   updatePlayerBullets();
   if (!running || showingLevelScreen) return;
@@ -4894,7 +5554,10 @@ function update() {
       }
     }
 
-    if (aliveEnemies.some(enemy => enemy.y + enemy.h >= player.y)) triggerDeath();
+    if (aliveEnemies.some(enemy => enemy.y + enemy.h >= getLowestActivePlayerY())) {
+      const frontline = getActivePlayers().sort((a, b) => a.y - b.y)[0];
+      if (frontline) triggerDeath(frontline);
+    }
     if (!running) return;
 
     enemyShootTimer++;
@@ -4922,7 +5585,7 @@ function update() {
           }
         }
         createEnemyBullet(primaryShooter);
-        if ((level >= 7 || currentRunStats.mode === 'timeattack') && shooters.length > 2 && Math.random() < (currentRunStats.mode === 'timeattack' ? 0.34 : 0.16)) {
+        if (level >= 7 && shooters.length > 2 && Math.random() < 0.16) {
           const secondaryPool = shooters.filter(enemy => enemy !== primaryShooter);
           if (secondaryPool.length) {
             const secondary = secondaryPool[Math.floor(Math.random() * secondaryPool.length)];
@@ -5001,13 +5664,14 @@ function togglePause() {
   }
 }
 
-function triggerDeath() {
-  if (shieldCharges > 0) {
-    shieldCharges--;
+function triggerDeath(playerState = player) {
+  if (!playerState.active || playerState.lives <= 0) return;
+  if (playerState.shieldCharges > 0) {
+    playerState.shieldCharges--;
     soundPowerUp();
-    spawnFloatingText(player.x + player.w / 2, player.y - 8, 'BLOQUEADO', '#66e0ff');
-    spawnShockwave(player.x + player.w / 2, player.y + player.h / 2, 'rgba(102,224,255,0.34)', 14, 2.6);
-    spawnParticleBurst(player.x + player.w / 2, player.y + player.h / 2, {
+    spawnFloatingText(playerState.x + playerState.w / 2, playerState.y - 8, `${playerState.label} BLOQUEA`, '#66e0ff');
+    spawnShockwave(playerState.x + playerState.w / 2, playerState.y + playerState.h / 2, 'rgba(102,224,255,0.34)', 14, 2.6);
+    spawnParticleBurst(playerState.x + playerState.w / 2, playerState.y + playerState.h / 2, {
       count: 10,
       color: '#66e0ff',
       speedMin: 1.2,
@@ -5020,12 +5684,13 @@ function triggerDeath() {
     return;
   }
 
-  lives = Math.max(0, lives - 1);
+  playerState.lives = Math.max(0, playerState.lives - 1);
+  syncLivesTotal();
   updateLivesUI();
   soundDeath();
   if (gameSettings.vibration && navigator.vibrate) navigator.vibrate([100, 50, 100]);
-  spawnShockwave(player.x + player.w / 2, player.y + player.h / 2, 'rgba(255,95,140,0.42)', 18, 3.4);
-  spawnParticleBurst(player.x + player.w / 2, player.y + player.h / 2, {
+  spawnShockwave(playerState.x + playerState.w / 2, playerState.y + playerState.h / 2, 'rgba(255,95,140,0.42)', 18, 3.4);
+  spawnParticleBurst(playerState.x + playerState.w / 2, playerState.y + playerState.h / 2, {
     count: 18,
     color: '#ff5f8c',
     speedMin: 1.5,
@@ -5038,14 +5703,38 @@ function triggerDeath() {
   combo = 0;
   comboTimer = 0;
 
-  if (lives <= 0) {
-    gameOver('defeat');
-    return;
+  if (!isCoopMode(currentRunStats.mode)) {
+    if (playerState.lives <= 0) {
+      playerState.active = false;
+      playerState.respawnPending = false;
+      gameOver('defeat');
+      return;
+    }
+    playerState.active = true;
+    playerState.respawnPending = false;
+    playerState.invincibleTimer = 120;
+    playerState.hit = true;
+    setTimeout(() => { playerState.hit = false; }, 2000);
+  } else {
+    if (playerState.lives <= 0) {
+      playerState.active = false;
+      playerState.respawnPending = true;
+      getRunPlayerStats(playerState.id).deaths += 1;
+      spawnFloatingText(playerState.x + playerState.w / 2, playerState.y - 12, `${playerState.label} FUERA`, '#ff94ba');
+      queueTutorialPrompt('coop:down', 'CAIDA DE ESCUADRA', 'Cuando un piloto cae en cooperativo, queda fuera de esta ronda. Si el otro sobrevive, vuelve al cerrar la siguiente oleada.');
+      if (!getActivePlayers().length) {
+        playerState.respawnPending = false;
+        gameOver('defeat');
+        return;
+      }
+    } else {
+      playerState.active = true;
+      playerState.respawnPending = false;
+      playerState.invincibleTimer = 120;
+      playerState.hit = true;
+      setTimeout(() => { playerState.hit = false; }, 2000);
+    }
   }
-
-  invincibleTimer = 120;
-  player.hit = true;
-  setTimeout(() => { player.hit = false; }, 2000);
   updateHudStatus();
 }
 
@@ -5078,17 +5767,17 @@ function drawPixelHeart(x, y, scale, color) {
   }
 }
 
-function drawDronePods(theme) {
-  if (activeEffects.drone <= 0) return;
+function drawDronePods(playerState, theme) {
+  if (playerState.activeEffects.drone <= 0 || !playerState.active) return;
   const pulse = Math.sin(frameCount * 0.16) * 2;
   const pods = [
-    { x: player.x - 18, y: player.y + 4 + pulse },
-    { x: player.x + player.w + 6, y: player.y + 4 - pulse }
+    { x: playerState.x - 18, y: playerState.y + 4 + pulse },
+    { x: playerState.x + playerState.w + 6, y: playerState.y + 4 - pulse }
   ];
   ctx.save();
-  ctx.fillStyle = theme.drone;
+  ctx.fillStyle = getPlayerBulletColor(playerState, theme);
   ctx.shadowBlur = 10;
-  ctx.shadowColor = theme.drone;
+  ctx.shadowColor = getPlayerBulletColor(playerState, theme);
   for (const pod of pods) {
     ctx.fillRect(pod.x + 3, pod.y + 3, 10, 6);
     ctx.fillRect(pod.x, pod.y + 7, 16, 5);
@@ -5233,25 +5922,29 @@ function draw() {
 
   powerUps.forEach(drawPowerUp);
 
-  if (!player.hit || Math.floor(frameCount / 5) % 2 === 0) {
-    drawPlayerShipModel(ctx, player.x, player.y, player.w, player.h, gameSettings.shipSkin, theme.player, { glow: 8 });
-  }
+  for (const playerState of getActivePlayers()) {
+    if (!playerState.hit || Math.floor(frameCount / 5) % 2 === 0) {
+      drawPlayerShipModel(ctx, playerState.x, playerState.y, playerState.w, playerState.h, playerState.shipSkin, getPlayerThemeColor(playerState, theme), { glow: 8 });
+    }
 
-  if (shieldCharges > 0) {
-    ctx.strokeStyle = 'rgba(102,224,255,0.95)';
-    ctx.lineWidth = 2;
-    ctx.shadowBlur = 12;
-    ctx.shadowColor = '#66e0ff';
-    ctx.strokeRect(player.x - 4, player.y - 4, player.w + 8, player.h + 8);
-    ctx.shadowBlur = 0;
-  }
+    if (playerState.shieldCharges > 0) {
+      ctx.strokeStyle = playerState.id === 0 ? 'rgba(102,224,255,0.95)' : 'rgba(245,224,126,0.95)';
+      ctx.lineWidth = 2;
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = ctx.strokeStyle;
+      ctx.strokeRect(playerState.x - 4, playerState.y - 4, playerState.w + 8, playerState.h + 8);
+      ctx.shadowBlur = 0;
+    }
 
-  drawDronePods(theme);
+    drawDronePods(playerState, theme);
+  }
 
   ctx.shadowBlur = 6;
   playerBullets.forEach(bullet => {
-    ctx.fillStyle = bullet.source === 'drone' ? theme.drone : theme.playerBullet;
-    ctx.shadowColor = bullet.source === 'drone' ? theme.drone : theme.playerBullet;
+    const owner = getPlayerState(bullet.ownerId || 0);
+    const bulletColor = bullet.source === 'drone' ? getPlayerBulletColor(owner, theme) : getPlayerBulletColor(owner, theme);
+    ctx.fillStyle = bulletColor;
+    ctx.shadowColor = bulletColor;
     ctx.fillRect(bullet.x, bullet.y, bullet.w, bullet.h);
   });
   ctx.shadowBlur = 0;
@@ -5383,7 +6076,7 @@ function loop(timestamp = performance.now()) {
 
 function saveScore(entry) {
   scoreHistory.unshift(entry);
-  scoreHistory = scoreHistory.slice(0, 8);
+  scoreHistory = scoreHistory.slice(0, 10);
   localStorage.setItem(HISTORY_KEY, JSON.stringify(scoreHistory));
   if (entry.score > highscore) {
     highscore = entry.score;
@@ -5402,7 +6095,16 @@ function updateAggregateStats(entry) {
   aggregateStats.totalPowerUpsCollected += entry.powerUpsCollected;
   aggregateStats.totalBossesDefeated += entry.bossesDefeated;
   if (entry.mode === 'timeattack') aggregateStats.totalTimeAttackGames += 1;
+  else if (entry.mode === 'coop') aggregateStats.totalCoopGames += 1;
   else aggregateStats.totalClassicGames += 1;
+  if (entry.difficulty === 'easy') aggregateStats.totalEasyGames += 1;
+  else if (entry.difficulty === 'hard') aggregateStats.totalHardGames += 1;
+  else aggregateStats.totalNormalGames += 1;
+  aggregateStats.totalCoopRespawns += Math.max(0, Number(entry.coopRespawns) || 0);
+  if (entry.mode === 'coop') aggregateStats.bestCoopLevel = Math.max(aggregateStats.bestCoopLevel, entry.level);
+  else if (entry.mode === 'classic') aggregateStats.bestClassicLevel = Math.max(aggregateStats.bestClassicLevel, entry.level);
+  if (entry.mode === 'coop') aggregateStats.bestCoopScore = Math.max(aggregateStats.bestCoopScore, entry.score);
+  else if (entry.mode === 'classic') aggregateStats.bestClassicScore = Math.max(aggregateStats.bestClassicScore, entry.score);
   aggregateStats.bestLevel = Math.max(aggregateStats.bestLevel, entry.level);
   aggregateStats.bestCombo = Math.max(aggregateStats.bestCombo, entry.maxCombo);
   if (entry.mode === 'timeattack') aggregateStats.bestTimeAttackScore = Math.max(aggregateStats.bestTimeAttackScore, entry.score);
@@ -5426,6 +6128,7 @@ function gameOver(reason = 'defeat') {
   powerUps.length = 0;
 
   const durationMs = Math.max(0, Date.now() - currentRunStats.startedAt);
+  syncLivesTotal();
   const finalSnapshot = getLiveRunSnapshot();
   const finalAccuracy = finalSnapshot.accuracy;
   completeCurrentChallengeIfNeeded();
@@ -5457,10 +6160,14 @@ function gameOver(reason = 'defeat') {
 
 function startGame() {
   const preset = getDifficultyConfig();
-  const startingLevel = gameSettings.mode === 'classic'
+  const startingLevel = (gameSettings.mode === 'classic' || gameSettings.mode === 'coop')
     ? normalizeStartLevel(gameSettings.startLevel, getMaxUnlockedStartLevel())
     : 1;
   closeOverlayDialog();
+  if (!isCoopAvailable() && gameSettings.mode === 'coop') {
+    gameSettings.mode = 'classic';
+    persistGameSettings();
+  }
   currentChallenge = getCurrentChallengeDefinition();
   currentRunStats = createRunStats();
   currentRunStats.startedAt = Date.now();
@@ -5469,20 +6176,17 @@ function startGame() {
   currentRunStats.challengeId = currentChallenge.id;
 
   score = 0;
-  lives = Math.min(MAX_LIVES, preset.startLives);
   level = startingLevel;
   timeLeftMs = gameSettings.mode === 'timeattack' ? TIME_ATTACK_DURATION_MS : 0;
-  shieldCharges = 0;
-  Object.keys(activeEffects).forEach(key => { activeEffects[key] = 0; });
+  currentWaveStartedAt = Date.now();
+  globalEffects.freeze = 0;
   screenShake = 0;
   cinematicFlash = 0;
   combo = 0;
   comboTimer = 0;
   paused = false;
-  invincibleTimer = 0;
   frameCount = 0;
   enemyShootTimer = 0;
-  playerShotCooldown = 0;
   autoShootTimer = 0;
   showingLevelScreen = false;
   levelScreenTimer = 0;
@@ -5515,9 +6219,7 @@ function startGame() {
 
   scoreEl.textContent = '0';
   levelEl.textContent = String(level);
-  player.x = canvas.width / 2 - player.w / 2;
-  player.hit = false;
-  player.speed = preset.playerSpeed;
+  resetPlayersForRun(preset);
 
   updateLivesUI();
   spawnEnemies();
@@ -5531,10 +6233,20 @@ function startGame() {
     queueTutorialPrompt(
       'intro:controls',
       'PRIMERA SALIDA',
-      'Muevete con flechas o tactil y dispara con espacio. La primera ronda esta pensada para entrar rapido en ritmo.',
+      isCoopMode(currentRunStats.mode)
+        ? 'P1 usa A y D con espacio. P2 usa flechas y enter. Los power-ups son individuales y una caída no rompe la run si el otro mantiene viva la ronda.'
+        : 'Muevete con flechas o tactil y dispara con espacio. La primera ronda esta pensada para entrar rapido en ritmo.',
       320
     );
     pendingIntroTutorial = false;
+  }
+  if (isCoopMode(currentRunStats.mode)) {
+    queueTutorialPrompt(
+      'coop:intro',
+      'CO-OP LOCAL',
+      'Cada piloto recoge sus propios power-ups. Si uno cae, el objetivo inmediato es sostener la ronda para abrir su reentrada.',
+      300
+    );
   }
   lastFrameTime = performance.now();
   loop(lastFrameTime);
