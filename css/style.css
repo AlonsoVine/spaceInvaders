@@ -2943,6 +2943,7 @@ body:fullscreen #meta-footer {
 
   body:has(#overlay.visible) {
     overflow: hidden;
+    padding-bottom: 0;
   }
 
   #overlay {
@@ -2951,6 +2952,15 @@ body:fullscreen #meta-footer {
     z-index: 30;
     padding: 12px 12px calc(122px + env(safe-area-inset-bottom));
     min-height: 100svh;
+  }
+
+  body:has(#overlay.visible) #audio-controls,
+  body:has(#overlay.visible) #meta-footer {
+    display: none;
+  }
+
+  body:has(#overlay.visible) #overlay {
+    padding-bottom: 12px;
   }
 
   #overlay[data-mode="start"] #overlay-shell {
@@ -3378,7 +3388,7 @@ body:fullscreen #meta-footer {
   }
 
   body:has(#overlay.visible) {
-    padding-bottom: calc(92px + env(safe-area-inset-bottom));
+    padding-bottom: 0;
   }
 
   body:has(#overlay.visible) #audio-controls {
