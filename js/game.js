@@ -1061,7 +1061,7 @@ function normalizeDifficulty(value) {
 }
 
 function normalizeGameMode(value) {
-  return value === 'timeattack' || value === 'coop' || value === 'survival' ? value : 'classic';
+  return value === 'timeattack' || value === 'coop' || value === 'survival' || value === 'competitive' ? value : 'classic';
 }
 
 function normalizeSkin(value) {
@@ -1120,7 +1120,15 @@ function isCoopMode(value = gameSettings.mode) {
   return value === 'coop';
 }
 
-function isCoopAvailable() {
+function isCompetitiveMode(value = gameSettings.mode) {
+  return value === 'competitive';
+}
+
+function isTwoPlayerMode(value = gameSettings.mode) {
+  return value === 'coop' || value === 'competitive';
+}
+
+function isTwoPlayerModeAvailable() {
   return !isMobileViewport();
 }
 
@@ -1342,6 +1350,7 @@ function loadAggregateStats() {
     const legacyBestLevel = Math.max(0, Number(stored.bestLevel) || 0);
     const bestClassicLevel = Math.max(0, Number(stored.bestClassicLevel) || legacyBestLevel);
     const bestCoopLevel = Math.max(0, Number(stored.bestCoopLevel) || 0);
+    const bestCompetitiveLevel = Math.max(0, Number(stored.bestCompetitiveLevel) || 0);
     const bestSurvivalLevel = Math.max(0, Number(stored.bestSurvivalLevel) || 0);
     return {
       gamesPlayed: Math.max(0, Number(stored.gamesPlayed) || 0),
@@ -1355,19 +1364,22 @@ function loadAggregateStats() {
       totalClassicGames: Math.max(0, Number(stored.totalClassicGames) || 0),
       totalSurvivalGames: Math.max(0, Number(stored.totalSurvivalGames) || 0),
       totalCoopGames: Math.max(0, Number(stored.totalCoopGames) || 0),
+      totalCompetitiveGames: Math.max(0, Number(stored.totalCompetitiveGames) || 0),
       totalTimeAttackGames: Math.max(0, Number(stored.totalTimeAttackGames) || 0),
       totalEasyGames: Math.max(0, Number(stored.totalEasyGames) || 0),
       totalNormalGames: Math.max(0, Number(stored.totalNormalGames) || 0),
       totalHardGames: Math.max(0, Number(stored.totalHardGames) || 0),
       totalCoopRespawns: Math.max(0, Number(stored.totalCoopRespawns) || 0),
-      bestLevel: Math.max(legacyBestLevel, bestClassicLevel, bestCoopLevel, bestSurvivalLevel),
+      bestLevel: Math.max(legacyBestLevel, bestClassicLevel, bestCoopLevel, bestCompetitiveLevel, bestSurvivalLevel),
       bestClassicLevel,
       bestSurvivalLevel,
       bestCoopLevel,
+      bestCompetitiveLevel,
       bestClassicScore: Math.max(0, Number(stored.bestClassicScore) || 0),
       bestSurvivalScore: Math.max(0, Number(stored.bestSurvivalScore) || 0),
       bestSurvivalTimeMs: Math.max(0, Number(stored.bestSurvivalTimeMs) || 0),
       bestCoopScore: Math.max(0, Number(stored.bestCoopScore) || 0),
+      bestCompetitiveScore: Math.max(0, Number(stored.bestCompetitiveScore) || 0),
       bestCombo: Math.max(1, Number(stored.bestCombo) || 1),
       bestTimeAttackScore: Math.max(0, Number(stored.bestTimeAttackScore) || 0),
       bestAccuracy25: Math.max(0, Number(stored.bestAccuracy25) || 0),
@@ -1383,6 +1395,7 @@ function createPlayerRunStats(index = 0) {
   return {
     id: index,
     label: PLAYER_CONTROL_CONFIG[index]?.label || `P${index + 1}`,
+    score: 0,
     shots: 0,
     hits: 0,
     enemiesDestroyed: 0,
@@ -1399,6 +1412,7 @@ function normalizePlayerRunStats(entry, index = 0) {
   return {
     id: Number.isInteger(entry.id) ? entry.id : index,
     label: typeof entry.label === 'string' && entry.label ? entry.label : (PLAYER_CONTROL_CONFIG[index]?.label || `P${index + 1}`),
+    score: Math.max(0, Number(entry.score) || 0),
     shots: Math.max(0, Number(entry.shots) || 0),
     hits: Math.max(0, Number(entry.hits) || 0),
     enemiesDestroyed: Math.max(0, Number(entry.enemiesDestroyed) || 0),
@@ -1781,7 +1795,7 @@ function setPlayerSpawnPositions() {
 }
 
 function resetPlayersForRun(preset) {
-  const coopActive = isCoopMode(gameSettings.mode);
+  const twoPlayerActive = isTwoPlayerMode(gameSettings.mode);
   players.forEach((playerState, index) => {
     playerState.y = canvas.height - 60;
     playerState.speed = preset.playerSpeed;
@@ -1792,8 +1806,8 @@ function resetPlayersForRun(preset) {
     playerState.shieldCharges = 0;
     playerState.shipSkin = gameSettings.shipSkin;
     resetPlayerEffects(playerState);
-    playerState.lives = coopActive || index === 0 ? Math.min(MAX_LIVES, preset.startLives) : 0;
-    playerState.active = coopActive ? true : index === 0;
+    playerState.lives = twoPlayerActive || index === 0 ? Math.min(MAX_LIVES, preset.startLives) : 0;
+    playerState.active = twoPlayerActive ? true : index === 0;
   });
   setPlayerSpawnPositions();
   syncLivesTotal();
@@ -1822,7 +1836,13 @@ function revivePlayersForNextRound() {
     });
   }
   if (getRespawnablePlayers().length) {
-    queueTutorialPrompt('coop:return', 'REENTRADA COOP', 'Si tu compañero aguanta la ronda, vuelves al siguiente cierre de oleada con vidas frescas y sin power-ups activos.');
+    queueTutorialPrompt(
+      isCompetitiveMode(currentRunStats.mode) ? 'competitive:return' : 'coop:return',
+      isCompetitiveMode(currentRunStats.mode) ? 'REENTRADA COMPETITIVA' : 'REENTRADA COOP',
+      isCompetitiveMode(currentRunStats.mode)
+        ? 'Si tu rival sobrevive a la ronda, vuelves en la siguiente. Ese cierre le da tiempo para ampliar su ventaja en puntos.'
+        : 'Si tu compañero aguanta la ronda, vuelves al siguiente cierre de oleada con vidas frescas y sin power-ups activos.'
+    );
   }
   players.forEach(playerState => {
     if (playerState.active) {
@@ -1836,15 +1856,16 @@ function revivePlayersForNextRound() {
 
 function refreshModeAvailability() {
   if (!modeSelect) return;
-  const coopOption = modeSelect.querySelector('option[value="coop"]');
-  if (coopOption) {
-    const disabled = !isCoopAvailable();
-    coopOption.disabled = disabled;
-    coopOption.hidden = disabled;
-    if (disabled && gameSettings.mode === 'coop') {
-      gameSettings.mode = 'classic';
-      persistGameSettings();
-    }
+  const disabled = !isTwoPlayerModeAvailable();
+  ['coop', 'competitive'].forEach(modeValue => {
+    const option = modeSelect.querySelector(`option[value="${modeValue}"]`);
+    if (!option) return;
+    option.disabled = disabled;
+    option.hidden = disabled;
+  });
+  if (disabled && isTwoPlayerMode(gameSettings.mode)) {
+    gameSettings.mode = 'classic';
+    persistGameSettings();
   }
 }
 
@@ -1931,6 +1952,7 @@ function formatModeLabel(value) {
   if (value === 'survival') return 'SUPERVIVENCIA';
   if (value === 'timeattack') return 'CONTRARRELOJ';
   if (value === 'coop') return '2P COOP';
+  if (value === 'competitive') return '2P COMP';
   return 'CLASICO';
 }
 
@@ -1939,6 +1961,7 @@ function getModeGameCounts() {
     classic: aggregateStats.totalClassicGames || 0,
     survival: aggregateStats.totalSurvivalGames || 0,
     coop: aggregateStats.totalCoopGames || 0,
+    competitive: aggregateStats.totalCompetitiveGames || 0,
     timeattack: aggregateStats.totalTimeAttackGames || 0
   };
 }
@@ -2017,6 +2040,7 @@ function getProfileProgressSummary(unlockedAchievements) {
 
 function getBestUnlockedLevelForMode(mode = gameSettings.mode) {
   if (mode === 'coop') return aggregateStats?.bestCoopLevel || 0;
+  if (mode === 'competitive') return 1;
   if (mode === 'survival') return 1;
   if (mode === 'timeattack') return 1;
   return aggregateStats?.bestClassicLevel || aggregateStats?.bestLevel || 0;
@@ -2109,7 +2133,7 @@ function getCampaignNextTargetLevel(mode = gameSettings.mode) {
 }
 
 function getCampaignCompletedThrough(entry) {
-  if (!entry || entry.mode === 'timeattack') return 0;
+  if (!entry || entry.mode === 'timeattack' || entry.mode === 'survival' || entry.mode === 'competitive') return 0;
   return Math.max(0, Math.min(MAX_START_LEVEL_OPTION, entry.level - 1));
 }
 
@@ -2151,7 +2175,7 @@ function getCampaignSelectedLevelSummary(mode = gameSettings.mode, levelValue = 
   const sector = getSectorByLevel(levelValue);
   const encounter = getLevelEncounterPreviewText(levelValue, mode);
   const event = getWaveEventForLevel(levelValue, mode);
-  const fixedStartMode = mode === 'timeattack' || mode === 'survival';
+  const fixedStartMode = mode === 'timeattack' || mode === 'survival' || mode === 'competitive';
   const unlocked = fixedStartMode ? levelValue === 1 : levelValue <= getMaxUnlockedStartLevel(mode);
   const completed = isCampaignLevelCompleted(mode, levelValue);
   const dominated = isCampaignLevelDominated(mode, levelValue);
@@ -2188,7 +2212,7 @@ function renderStartLevelGrid() {
   if (!startLevelSelectorEl) return;
   syncStartLevelSetting();
   const maxUnlocked = getMaxUnlockedStartLevel(gameSettings.mode);
-  const fixedStartMode = gameSettings.mode === 'timeattack' || gameSettings.mode === 'survival';
+  const fixedStartMode = gameSettings.mode === 'timeattack' || gameSettings.mode === 'survival' || gameSettings.mode === 'competitive';
   const selectedLevel = fixedStartMode ? 1 : gameSettings.startLevel;
   const selectedSummary = getCampaignSelectedLevelSummary(gameSettings.mode, selectedLevel);
   const completedLevels = countCompletedCampaignLevels(gameSettings.mode);
@@ -2198,6 +2222,8 @@ function renderStartLevelGrid() {
       ? 'Supervivencia arranca siempre en 1'
       : gameSettings.mode === 'timeattack'
       ? 'Contrarreloj arranca en 1'
+      : gameSettings.mode === 'competitive'
+        ? 'Competitivo arranca siempre en 1'
       : gameSettings.mode === 'coop'
         ? `${completedLevels}/${MAX_START_LEVEL_OPTION} superados · ${dominatedLevels} dominados · coop hasta ${maxUnlocked}`
         : `${completedLevels}/${MAX_START_LEVEL_OPTION} superados · ${dominatedLevels} dominados · clásico hasta ${maxUnlocked}`;
@@ -2649,7 +2675,7 @@ function getLiveRunSnapshot() {
     mode: activeMode,
     durationMs: currentRunStats.startedAt ? Math.max(0, Date.now() - currentRunStats.startedAt) : 0,
     coopRespawns: Math.max(0, Number(currentRunStats.coopRespawns) || 0),
-    coopBothStanding: isCoopMode(activeMode) ? players.every(playerState => playerState.active && playerState.lives > 0) : false,
+    coopBothStanding: isTwoPlayerMode(activeMode) ? players.every(playerState => playerState.active && playerState.lives > 0) : false,
     playerStats
   };
 }
@@ -3013,7 +3039,7 @@ function configureOptionsPanel(mode = overlayMode) {
 }
 
 function updateLivesUI() {
-  if (isCoopMode(running ? currentRunStats.mode : gameSettings.mode)) {
+  if (isTwoPlayerMode(running ? currentRunStats.mode : gameSettings.mode)) {
     const groups = players.map(playerState => {
       const hearts = Array.from({ length: MAX_LIVES }, (_, index) => {
         const filled = index < playerState.lives;
@@ -3033,10 +3059,31 @@ function updateLivesUI() {
   livesEl.setAttribute('aria-label', `${lives} vidas`);
 }
 
+function getDisplayedScoreText(activeMode = running ? currentRunStats.mode : gameSettings.mode) {
+  if (isCompetitiveMode(activeMode)) {
+    const p1Score = running ? (getRunPlayerStats(0).score || 0) : 0;
+    const p2Score = running ? (getRunPlayerStats(1).score || 0) : 0;
+    return `P1 ${p1Score} · P2 ${p2Score}`;
+  }
+  return String(score || 0);
+}
+
+function updateScoreUI(activeMode = running ? currentRunStats.mode : gameSettings.mode) {
+  scoreEl.textContent = getDisplayedScoreText(activeMode);
+  if (isCompetitiveMode(activeMode)) {
+    const p1Score = running ? (getRunPlayerStats(0).score || 0) : 0;
+    const p2Score = running ? (getRunPlayerStats(1).score || 0) : 0;
+    scoreEl.setAttribute('aria-label', `P1 ${p1Score} puntos, P2 ${p2Score} puntos`);
+  } else {
+    scoreEl.setAttribute('aria-label', `${score || 0} puntos`);
+  }
+}
+
 function updateHudStatus() {
   const activeMode = running ? currentRunStats.mode : gameSettings.mode;
   const labels = [];
 
+  updateScoreUI(activeMode);
   modeLabelEl.textContent = formatModeLabel(activeMode);
   if (activeMode === 'timeattack') {
     timerEl.textContent = formatDuration(timeLeftMs);
@@ -3046,7 +3093,7 @@ function updateHudStatus() {
     timerEl.classList.remove('is-warning');
   }
 
-  const hudPlayers = isCoopMode(activeMode) ? players.filter(entry => entry.active || entry.lives > 0) : [player];
+  const hudPlayers = isTwoPlayerMode(activeMode) ? players.filter(entry => entry.active || entry.lives > 0) : [player];
   for (const playerState of hudPlayers) {
     const playerLabels = [];
     if (playerState.shieldCharges > 0) playerLabels.push(`ESCUDO x${playerState.shieldCharges}`);
@@ -3077,7 +3124,7 @@ function getRunEntryPlayerStats(entry) {
     const source = Array.isArray(entry?.playerStats) ? entry.playerStats[index] : null;
     const normalized = normalizePlayerRunStats(source || fallback, index);
     if (!source) {
-      normalized.activeAtEnd = isCoopMode(activeMode)
+      normalized.activeAtEnd = isTwoPlayerMode(activeMode)
         ? getPlayerState(index).active && getPlayerState(index).lives > 0
         : index === 0 ? (entry?.lives || lives || 0) > 0 : false;
     }
@@ -3087,6 +3134,16 @@ function getRunEntryPlayerStats(entry) {
 
 function getPlayerRunAccuracy(playerStats) {
   return getAccuracyPercent(playerStats.shots, playerStats.hits);
+}
+
+function getCompetitiveOutcome(entry) {
+  const playerEntries = getRunEntryPlayerStats(entry);
+  const [p1, p2] = playerEntries;
+  if ((p1?.score || 0) === (p2?.score || 0)) {
+    return { winnerId: null, label: 'EMPATE', playerEntries };
+  }
+  const winner = (p1?.score || 0) > (p2?.score || 0) ? p1 : p2;
+  return { winnerId: winner.id, label: `${winner.label} GANA`, playerEntries };
 }
 
 function getCoopPlayerPalette(playerId) {
@@ -3167,6 +3224,84 @@ function renderCoopRunStats(entry, mode = overlayMode) {
   `;
 }
 
+function renderCompetitiveRunStats(entry, mode = overlayMode) {
+  const { playerEntries, label } = getCompetitiveOutcome(entry);
+  const totalRespawns = Math.max(0, Number(entry.coopRespawns) || 0);
+  const [p1, p2] = playerEntries;
+  const summaryStats = mode === 'pause'
+    ? [
+        ['Marcador', `P1 ${p1.score} · P2 ${p2.score}`, `Nivel ${entry.level} · ${formatModeLabel(entry.mode)}`],
+        ['Lider', label, `${totalRespawns} reentrada${totalRespawns === 1 ? '' : 's'} · ${formatDifficultyLabel(entry.difficulty)}`],
+        ['Objetivos', `${entry.enemiesDestroyed} enemigos · ${entry.ufoDestroyed} UFO`, `${entry.bossesDefeated} boss · ${entry.powerUpsCollected} power-ups`],
+        ['Sesion', formatDuration(entry.durationMs), `Combo x${entry.maxCombo} · ${entry.accuracy}% global`]
+      ]
+    : [
+        ['Marcador final', `P1 ${p1.score} · P2 ${p2.score}`, `Nivel ${entry.level} · ${formatModeLabel(entry.mode)}`],
+        ['Ganador', label, `${totalRespawns} reentrada${totalRespawns === 1 ? '' : 's'} · ${formatDifficultyLabel(entry.difficulty)}`],
+        ['Objetivos', `${entry.enemiesDestroyed} enemigos · ${entry.ufoDestroyed} UFO`, `${entry.bossesDefeated} boss · ${entry.powerUpsCollected} power-ups`],
+        ['Duracion', formatDuration(entry.durationMs), `Combo x${entry.maxCombo} · ${entry.accuracy}% global`]
+      ];
+  return `
+    <div class="run-stat-board is-coop">
+      <div class="run-stat-summary-grid">
+        ${summaryStats.map(([labelText, value, subvalue]) => `
+          <div class="run-stat-summary-card">
+            <span class="run-stat-label">${labelText}</span>
+            <strong class="run-stat-value">${value}</strong>
+            <span class="run-stat-subvalue">${subvalue}</span>
+          </div>
+        `).join('')}
+      </div>
+      <div class="coop-run-grid">
+        ${playerEntries.map(playerEntry => {
+          const palette = getCoopPlayerPalette(playerEntry.id);
+          const chipLabel = mode === 'pause'
+            ? (playerEntry.activeAtEnd ? 'EN CABINA' : 'FUERA')
+            : label === 'EMPATE'
+              ? (playerEntry.activeAtEnd ? 'FINALISTA' : 'CAIDO')
+              : playerEntry.score === Math.max(...playerEntries.map(entryStats => entryStats.score))
+                ? 'GANADOR'
+                : 'DERROTA';
+          return `
+            <div class="coop-player-card coop-player-${playerEntry.id}" style="--coop-accent:${palette.accent};--coop-border:${palette.border};--coop-surface:${palette.surface};">
+              <div class="coop-player-head">
+                <strong>${playerEntry.label}</strong>
+                <span class="coop-player-chip">${chipLabel}</span>
+              </div>
+              <div class="coop-player-stats">
+                <div class="coop-player-stat">
+                  <span>Puntos</span>
+                  <strong>${playerEntry.score}</strong>
+                </div>
+                <div class="coop-player-stat">
+                  <span>Precision</span>
+                  <strong>${getPlayerRunAccuracy(playerEntry)}%</strong>
+                </div>
+                <div class="coop-player-stat">
+                  <span>Impactos / disp.</span>
+                  <strong>${playerEntry.hits}/${playerEntry.shots}</strong>
+                </div>
+                <div class="coop-player-stat">
+                  <span>Enemigos</span>
+                  <strong>${playerEntry.enemiesDestroyed}</strong>
+                </div>
+                <div class="coop-player-stat">
+                  <span>UFO</span>
+                  <strong>${playerEntry.ufoDestroyed}</strong>
+                </div>
+                <div class="coop-player-stat">
+                  <span>Caidas / vueltas</span>
+                  <strong>${playerEntry.deaths} / ${playerEntry.respawns}</strong>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
 function renderRunStats(entry, mode = overlayMode) {
   const currentEntry = entry || {
     score: score || 0,
@@ -3189,10 +3324,14 @@ function renderRunStats(entry, mode = overlayMode) {
       return stats;
     }),
     coopRespawns: Math.max(0, Number(currentRunStats.coopRespawns) || 0),
-    coopBothStanding: isCoopMode(currentRunStats.mode || gameSettings.mode) ? players.every(playerState => playerState.active && playerState.lives > 0) : false
+    coopBothStanding: isTwoPlayerMode(currentRunStats.mode || gameSettings.mode) ? players.every(playerState => playerState.active && playerState.lives > 0) : false
   };
   if (isCoopMode(currentEntry.mode)) {
     runStatsGridEl.innerHTML = renderCoopRunStats(currentEntry, mode);
+    return;
+  }
+  if (isCompetitiveMode(currentEntry.mode)) {
+    runStatsGridEl.innerHTML = renderCompetitiveRunStats(currentEntry, mode);
     return;
   }
   const stats = mode === 'pause'
@@ -3222,7 +3361,7 @@ function renderStatsPanel() {
       ? '<div class="stats-empty">Todavia no hay partidas registradas.</div>'
     : [
         ['Partidas', aggregateStats.gamesPlayed],
-        ['Modos', `${aggregateStats.totalClassicGames} clasico · ${aggregateStats.totalSurvivalGames} supervivencia · ${aggregateStats.totalCoopGames} coop · ${aggregateStats.totalTimeAttackGames} contrarreloj`],
+        ['Modos', `${aggregateStats.totalClassicGames} clasico · ${aggregateStats.totalSurvivalGames} supervivencia · ${aggregateStats.totalCoopGames} coop · ${aggregateStats.totalCompetitiveGames} competitivo · ${aggregateStats.totalTimeAttackGames} contrarreloj`],
         ['Puntos totales', aggregateStats.totalScore],
         ['Mejor nivel', aggregateStats.bestLevel],
         ['Mejor combo', `x${aggregateStats.bestCombo}`],
@@ -3326,12 +3465,12 @@ function renderAchievementOverviewCard({ unlockedAchievements, pendingAchievemen
 }
 
 function getCampaignSummary(mode = gameSettings.mode) {
-  if (mode === 'survival') {
+  if (mode === 'survival' || mode === 'competitive') {
     return {
-      mode: 'survival',
+      mode,
       completedLevels: 0,
       nextTargetLevel: 1,
-      currentSector: { label: 'SUPERVIVENCIA', start: 1, end: MAX_START_LEVEL_OPTION, reward: null },
+      currentSector: { label: mode === 'competitive' ? 'COMPETITIVO' : 'SUPERVIVENCIA', start: 1, end: MAX_START_LEVEL_OPTION, reward: null },
       completedSectors: 0,
       unlockedLevel: 1,
       sectorProgress: 0,
@@ -3757,6 +3896,7 @@ function createDefaultAggregateStats() {
     totalClassicGames: 0,
     totalSurvivalGames: 0,
     totalCoopGames: 0,
+    totalCompetitiveGames: 0,
     totalTimeAttackGames: 0,
     totalEasyGames: 0,
     totalNormalGames: 0,
@@ -3766,10 +3906,12 @@ function createDefaultAggregateStats() {
     bestClassicLevel: 1,
     bestSurvivalLevel: 0,
     bestCoopLevel: 0,
+    bestCompetitiveLevel: 0,
     bestClassicScore: 0,
     bestSurvivalScore: 0,
     bestSurvivalTimeMs: 0,
     bestCoopScore: 0,
+    bestCompetitiveScore: 0,
     bestCombo: 1,
     bestTimeAttackScore: 0,
     bestAccuracy25: 0,
@@ -3970,6 +4112,7 @@ function renderStartScreenPanels() {
   const bestCombo = aggregateStats.bestCombo || 1;
   const bestClassicLevel = aggregateStats.bestClassicLevel || bestLevel;
   const bestCoopLevel = aggregateStats.bestCoopLevel || 0;
+  const bestCompetitiveLevel = aggregateStats.bestCompetitiveLevel || 0;
   const favoriteMode = getFavoriteMode();
   const favoriteDifficulty = getFavoriteDifficulty();
   const rankProfile = getPlayerRankProfile();
@@ -3998,6 +4141,8 @@ function renderStartScreenPanels() {
       ? 'Contrarreloj aprieta desde el segundo uno y premia decisiones rápidas.'
       : gameSettings.mode === 'survival'
         ? 'Supervivencia arranca siempre en el nivel 1 y suaviza la escalada para aguantar runs largas.'
+      : gameSettings.mode === 'competitive'
+        ? 'Competitivo local para dos pilotos en teclado. Gana quien sume más puntos cuando los dos caigan.'
       : gameSettings.mode === 'coop'
         ? 'Cooperativo local para dos pilotos en teclado. P1 usa A/D y espacio; P2 usa flechas y enter.'
         : 'Clásico deja crecer la partida con power-ups, bosses y oleadas sin límite de tiempo.';
@@ -4014,6 +4159,8 @@ function renderStartScreenPanels() {
       ? 'Contrarreloj siempre empieza en el nivel 1 para mantener su economía y presión originales.'
       : gameSettings.mode === 'survival'
         ? 'Supervivencia siempre empieza en el nivel 1 y no usa progreso de campaña ni selector de arranque.'
+      : gameSettings.mode === 'competitive'
+        ? 'Competitivo siempre empieza en el nivel 1, no usa campaña y resuelve el duelo por puntuación total al caer ambos pilotos.'
       : gameSettings.mode === 'coop'
         ? `La campaña coop se desbloquea por separado. Sector activo ${campaignSummary.currentSector.label} · siguiente hito NIV ${campaignSummary.nextTargetLevel}.`
         : `La campaña clásica ya marca progreso real por sectores. Sector activo ${campaignSummary.currentSector.label} · siguiente hito NIV ${campaignSummary.nextTargetLevel}.`;
@@ -4061,8 +4208,8 @@ function renderStartScreenPanels() {
       <div class="summary-stat">
         <span class="summary-label">MEJORES MARCAS</span>
         <strong class="summary-value">${highscore} pts</strong>
-        <span class="summary-copy">Clásico hasta nivel ${bestClassicLevel} · Supervivencia hasta nivel ${aggregateStats.bestSurvivalLevel || '1'} · 2P coop hasta nivel ${bestCoopLevel || '1'}.</span>
-        <span class="summary-meta">Clásico ${aggregateStats.bestClassicScore || highscore} pts · Supervivencia ${aggregateStats.bestSurvivalScore || 0} pts · 2P ${aggregateStats.bestCoopScore || 0} pts · Contrarreloj ${aggregateStats.bestTimeAttackScore} pts</span>
+        <span class="summary-copy">Clásico hasta nivel ${bestClassicLevel} · Supervivencia hasta nivel ${aggregateStats.bestSurvivalLevel || '1'} · 2P coop hasta nivel ${bestCoopLevel || '1'} · 2P comp hasta nivel ${bestCompetitiveLevel || '1'}.</span>
+        <span class="summary-meta">Clásico ${aggregateStats.bestClassicScore || highscore} pts · Supervivencia ${aggregateStats.bestSurvivalScore || 0} pts · 2P coop ${aggregateStats.bestCoopScore || 0} pts · 2P comp ${aggregateStats.bestCompetitiveScore || 0} pts · Contrarreloj ${aggregateStats.bestTimeAttackScore} pts</span>
       </div>
       <div class="summary-stat">
         <span class="summary-label">ULTIMA SESION</span>
@@ -4073,8 +4220,16 @@ function renderStartScreenPanels() {
       <div class="summary-stat is-wide">
         <span class="summary-label">CAMPAÑA</span>
         <strong class="summary-value">${campaignSummary.currentSector.label}</strong>
-        <span class="summary-copy">${campaignSummary.completedLevels}/${MAX_START_LEVEL_OPTION} niveles superados · ${campaignSummary.completedSectors}/${CAMPAIGN_SECTORS.length} sectores cerrados · ${campaignSummary.completedLevels >= MAX_START_LEVEL_OPTION ? 'campaña base completada.' : `siguiente hito ${getLevelEncounterPreviewText(campaignSummary.nextTargetLevel, campaignSummary.mode)}.`}</span>
-        <span class="summary-meta">${campaignSummary.sectorProgress}/${campaignSummary.sectorTotal} niveles en el sector activo · ${campaignSummary.sectorRewardClaimed ? `Recompensa lograda: ${campaignSummary.sectorRewardLabel}` : `Recompensa pendiente: ${campaignSummary.sectorRewardLabel}`}</span>
+        <span class="summary-copy">${gameSettings.mode === 'survival'
+          ? 'Sin campaña. Este modo suaviza la escalada para runs largas desde el nivel 1.'
+          : gameSettings.mode === 'competitive'
+            ? 'Sin campaña. Aquí importa el marcador: gana quien tenga más puntos cuando los dos pilotos caigan.'
+            : `${campaignSummary.completedLevels}/${MAX_START_LEVEL_OPTION} niveles superados · ${campaignSummary.completedSectors}/${CAMPAIGN_SECTORS.length} sectores cerrados · ${campaignSummary.completedLevels >= MAX_START_LEVEL_OPTION ? 'campaña base completada.' : `siguiente hito ${getLevelEncounterPreviewText(campaignSummary.nextTargetLevel, campaignSummary.mode)}.`}`}</span>
+        <span class="summary-meta">${gameSettings.mode === 'survival'
+          ? `Mejor supervivencia: nivel ${aggregateStats.bestSurvivalLevel || 1} · ${aggregateStats.bestSurvivalScore || 0} pts`
+          : gameSettings.mode === 'competitive'
+            ? `Mejor duelo: nivel ${aggregateStats.bestCompetitiveLevel || 1} · ${aggregateStats.bestCompetitiveScore || 0} pts`
+            : `${campaignSummary.sectorProgress}/${campaignSummary.sectorTotal} niveles en el sector activo · ${campaignSummary.sectorRewardClaimed ? `Recompensa lograda: ${campaignSummary.sectorRewardLabel}` : `Recompensa pendiente: ${campaignSummary.sectorRewardLabel}`}`}</span>
       </div>
     </div>
     <div class="summary-ribbon">
@@ -4226,7 +4381,9 @@ function setOverlayMode(mode, entry = null) {
   } else if (mode === 'pause') {
     overlayKicker.textContent = 'PARTIDA EN CURSO';
     overlayTitle.textContent = 'PAUSA';
-    overlayMsg.innerHTML = isCoopMode(currentRunStats.mode)
+    overlayMsg.innerHTML = isCompetitiveMode(currentRunStats.mode)
+      ? 'El duelo está en pausa. Revisa el marcador, ajusta el audio y vuelve cuando quieras.'
+      : isCoopMode(currentRunStats.mode)
       ? 'La escuadra está en espera. Revisa el estado de ambos pilotos, ajusta el audio y vuelve cuando quieras.'
       : 'Has detenido la partida. Revisa tu progreso y continua cuando quieras.';
     btnStart.textContent = 'CONTINUAR';
@@ -4253,10 +4410,13 @@ function setOverlayMode(mode, entry = null) {
   } else {
     const timeout = entry && entry.reason === 'timeout';
     const coopEntry = isCoopMode(entry?.mode);
-    overlayKicker.textContent = timeout ? 'CUENTA ATRAS AGOTADA' : coopEntry ? 'SESION COOPERATIVA FINALIZADA' : 'SESION FINALIZADA';
-    overlayTitle.textContent = timeout ? 'TIEMPO' : coopEntry ? 'FIN CO-OP' : 'GAME OVER';
+    const competitiveEntry = isCompetitiveMode(entry?.mode);
+    overlayKicker.textContent = timeout ? 'CUENTA ATRAS AGOTADA' : competitiveEntry ? 'DUELO FINALIZADO' : coopEntry ? 'SESION COOPERATIVA FINALIZADA' : 'SESION FINALIZADA';
+    overlayTitle.textContent = timeout ? 'TIEMPO' : competitiveEntry ? 'FIN COMPETITIVO' : coopEntry ? 'FIN CO-OP' : 'GAME OVER';
     overlayMsg.innerHTML = timeout
       ? 'El contrarreloj ha llegado a cero. Tienes un cierre claro de la sesión, el progreso ganado y dos salidas rápidas para volver a entrar o reajustar la partida.'
+      : competitiveEntry
+        ? 'Aquí tienes el resultado del duelo con el marcador completo y el detalle de cada piloto. Si uno cayó antes, el otro pudo rascar más puntos antes del siguiente cierre de ronda.'
       : coopEntry
         ? 'Aquí tienes el cierre de escuadra con el resumen compartido y el detalle de cada piloto. Revisa quién sostuvo la sesión, quién volvió al frente y decide si relanzas otra run.'
       : entry && entry.score >= highscore
@@ -4267,7 +4427,7 @@ function setOverlayMode(mode, entry = null) {
     btnStart.hidden = false;
     btnMenu.hidden = false;
     btnMenu.textContent = 'VOLVER AL MENU';
-    runPanelTitle.textContent = coopEntry ? 'CIERRE DE ESCUADRA' : 'ULTIMA PARTIDA';
+    runPanelTitle.textContent = competitiveEntry ? 'RESULTADO DEL DUELO' : coopEntry ? 'CIERRE DE ESCUADRA' : 'ULTIMA PARTIDA';
     runPanelBadge.textContent = formatModeLabel(entry?.mode || currentRunStats.mode);
     renderRunStats(entry, mode);
     configureGameSettingsPanel('gameover');
@@ -4525,6 +4685,18 @@ let screenShake = 0;
 let cinematicFlash = 0;
 let waveDisruptTimer = 0;
 
+function awardPoints(points, ownerId = null) {
+  const safePoints = Math.max(0, Math.round(Number(points) || 0));
+  if (!safePoints) return 0;
+  score += safePoints;
+  if (Number.isInteger(ownerId)) {
+    getRunPlayerStats(ownerId).score += safePoints;
+  }
+  updateScoreUI();
+  syncHighscore();
+  return safePoints;
+}
+
 const globalEffects = { freeze: 0 };
 const players = [createPlayerState(0), createPlayerState(1)];
 const player = players[0];
@@ -4559,7 +4731,7 @@ document.addEventListener('keydown', event => {
     shoot(getPlayerState(0));
     return;
   }
-  if (event.code === 'Enter' && running && isCoopMode(currentRunStats.mode)) {
+  if (event.code === 'Enter' && running && isTwoPlayerMode(currentRunStats.mode)) {
     event.preventDefault();
     shoot(getPlayerState(1));
     return;
@@ -4655,7 +4827,7 @@ modeSelect.addEventListener('change', event => {
 if (startLevelSelectorEl) {
   startLevelSelectorEl.addEventListener('click', event => {
     const trigger = event.target.closest('[data-start-level]');
-    if (!trigger || gameSettings.mode === 'timeattack' || gameSettings.mode === 'survival') return;
+    if (!trigger || gameSettings.mode === 'timeattack' || gameSettings.mode === 'survival' || gameSettings.mode === 'competitive') return;
     gameSettings.startLevel = normalizeStartLevel(trigger.dataset.startLevel, getMaxUnlockedStartLevel());
     persistGameSettings();
     applySettingsUI();
@@ -4964,7 +5136,7 @@ function triggerCinematicFlash(amount = 0.16) {
 const powerUps = [];
 
 function rollPowerUpType() {
-  const needsHeart = isCoopMode(running ? currentRunStats.mode : gameSettings.mode)
+  const needsHeart = isTwoPlayerMode(running ? currentRunStats.mode : gameSettings.mode)
     ? players.some(playerState => playerState.lives < MAX_LIVES)
     : lives < MAX_LIVES;
   const pool = needsHeart
@@ -5014,8 +5186,7 @@ function collectPowerUp(powerUp, collector = player) {
       updateLivesUI();
       spawnFloatingText(collector.x + collector.w / 2, collector.y - 10, '+1 VIDA', '#ff7ca8');
     } else {
-      score += 75;
-      scoreEl.textContent = score;
+      awardPoints(75, collector.id);
       spawnFloatingText(collector.x + collector.w / 2, collector.y - 10, '+75', '#ffdd66');
     }
   } else if (powerUp.type === 'shield') {
@@ -5100,7 +5271,8 @@ const boss = {
   profileId: 'striker',
   label: 'STRIKER',
   baseY: 68,
-  phaseIndex: 1
+  phaseIndex: 1,
+  lastHitOwnerId: 0
 };
 
 const miniBossSquad = {
@@ -5116,7 +5288,8 @@ const miniBossSquad = {
   profileId: 'squad_basic',
   label: MINI_BOSS_PROFILES.squad_basic.label,
   reward: MINI_BOSS_PROFILES.squad_basic.reward,
-  horizontalSpan: MINI_BOSS_PROFILES.squad_basic.horizontalSpan
+  horizontalSpan: MINI_BOSS_PROFILES.squad_basic.horizontalSpan,
+  lastHitOwnerId: 0
 };
 
 function resetBoss() {
@@ -5130,6 +5303,7 @@ function resetBoss() {
   boss.label = 'STRIKER';
   boss.baseY = 68;
   boss.phaseIndex = 1;
+  boss.lastHitOwnerId = 0;
 }
 
 function resetMiniBossSquad() {
@@ -5146,6 +5320,7 @@ function resetMiniBossSquad() {
   miniBossSquad.label = MINI_BOSS_PROFILES.squad_basic.label;
   miniBossSquad.reward = MINI_BOSS_PROFILES.squad_basic.reward;
   miniBossSquad.horizontalSpan = MINI_BOSS_PROFILES.squad_basic.horizontalSpan;
+  miniBossSquad.lastHitOwnerId = 0;
 }
 
 function shouldSpawnBossForLevel(currentLevel) {
@@ -5313,6 +5488,7 @@ function spawnMiniBossSquad() {
   miniBossSquad.phase = Math.random() * Math.PI * 2;
   miniBossSquad.shootTimer = 0;
   miniBossSquad.entryTimer = 56;
+  miniBossSquad.lastHitOwnerId = 0;
   miniBossSquad.x = canvas.width / 2;
   miniBossSquad.y = -84;
   miniBossSquad.ships = [
@@ -5356,9 +5532,8 @@ function getMiniBossAliveShips() {
 }
 
 function defeatMiniBossSquad() {
-  score += miniBossSquad.reward + level * 20;
-  scoreEl.textContent = score;
-  syncHighscore();
+  const reward = miniBossSquad.reward + level * 20;
+  awardPoints(reward, miniBossSquad.lastHitOwnerId);
   spawnShockwave(miniBossSquad.x, miniBossSquad.y, 'rgba(255,214,102,0.5)', 24, 4.1);
   spawnParticleBurst(miniBossSquad.x, miniBossSquad.y, {
     count: 24,
@@ -5368,7 +5543,7 @@ function defeatMiniBossSquad() {
     lifeMin: 24,
     lifeMax: 40
   });
-  spawnFloatingText(miniBossSquad.x, miniBossSquad.y - 12, `+${miniBossSquad.reward + level * 20}`, '#ffd966');
+  spawnFloatingText(miniBossSquad.x, miniBossSquad.y - 12, `+${reward}`, '#ffd966');
   awardTimedBonus(TIME_ATTACK_MINI_BOSS_BONUS_MS, miniBossSquad.x, miniBossSquad.y - 30, '#9ed8ff', `MINIBOSS ${formatTimeAttackBonusLabel(TIME_ATTACK_MINI_BOSS_BONUS_MS)}`);
   resetMiniBossSquad();
   completeLevel();
@@ -5393,6 +5568,7 @@ function startBossFight() {
   boss.flashTimer = 0;
   boss.baseY = profile.baseY;
   boss.phaseIndex = 1;
+  boss.lastHitOwnerId = 0;
   boss.x = canvas.width / 2 - boss.w / 2;
   boss.y = -boss.h - 24;
   playerBullets.length = 0;
@@ -5439,9 +5615,7 @@ function defeatBoss() {
   const reward = getBossBaseReward(BOSS_PROFILES[boss.profileId] || BOSS_PROFILES.striker);
   currentRunStats.bossesDefeated++;
   incrementBestiaryDefeat(`boss_${boss.profileId}`);
-  score += reward;
-  scoreEl.textContent = score;
-  syncHighscore();
+  awardPoints(reward, boss.lastHitOwnerId);
   spawnExplosion(boss.x + boss.w / 2, boss.y + boss.h / 2, 36);
   spawnShockwave(boss.x + boss.w / 2, boss.y + boss.h / 2, 'rgba(255,95,152,0.55)', 30, 4.6);
   spawnParticleBurst(boss.x + boss.w / 2, boss.y + boss.h / 2, {
@@ -5493,9 +5667,7 @@ function updatePlayerBullets() {
           const timeBonusMs = getTimeAttackEnemyBonus(enemy.type);
           awardTimeBonus(timeBonusMs);
           const points = getEnemyScore(enemy) * (combo > 1 ? combo : 1);
-          score += points;
-          scoreEl.textContent = score;
-          syncHighscore();
+          awardPoints(points, bullet.ownerId || 0);
           spawnExplosion(enemy.x + enemy.w / 2, enemy.y + enemy.h / 2);
           spawnParticleBurst(enemy.x + enemy.w / 2, enemy.y + enemy.h / 2, {
             count: enemy.type === 'tank' ? 13 : enemy.type === 'scout' ? 11 : 9,
@@ -5547,6 +5719,7 @@ function updatePlayerBullets() {
           hit = true;
           currentRunStats.hits++;
           ownerStats.hits++;
+          miniBossSquad.lastHitOwnerId = bullet.ownerId || 0;
           ship.hp = Math.max(0, ship.hp - 1);
           ship.flashTimer = 5;
           spawnParticleBurst(ship.x + ship.w / 2, ship.y + ship.h / 2, {
@@ -5561,9 +5734,7 @@ function updatePlayerBullets() {
             incrementBestiaryDefeat(ship.role === 'leader'
               ? (miniBossSquad.profileId === 'squad_trident' ? 'elite_trident' : 'elite_leader')
               : (ship.role === 'prong' ? 'elite_prong' : 'elite_escort'));
-            score += ship.role === 'leader' ? 220 : 90;
-            scoreEl.textContent = score;
-            syncHighscore();
+            awardPoints(ship.role === 'leader' ? 220 : 90, bullet.ownerId || 0);
             spawnExplosion(ship.x + ship.w / 2, ship.y + ship.h / 2, ship.role === 'leader' ? 24 : 14);
             spawnFloatingText(ship.x + ship.w / 2, ship.y - 4, ship.role === 'leader' ? '+220' : '+90', ship.color);
           } else {
@@ -5587,9 +5758,8 @@ function updatePlayerBullets() {
       hit = true;
       currentRunStats.hits++;
       ownerStats.hits++;
-      score += 25;
-      scoreEl.textContent = score;
-      syncHighscore();
+      boss.lastHitOwnerId = bullet.ownerId || 0;
+      awardPoints(25, bullet.ownerId || 0);
       boss.hp = Math.max(0, boss.hp - 1);
       boss.flashTimer = 5;
       spawnExplosion(bullet.x, bullet.y, 12);
@@ -5624,9 +5794,7 @@ function updatePlayerBullets() {
       ownerStats.hits++;
       ownerStats.ufoDestroyed++;
       incrementBestiaryDefeat(`ufo_${variant.id}`);
-      score += variant.points;
-      scoreEl.textContent = score;
-      syncHighscore();
+      awardPoints(variant.points, bullet.ownerId || 0);
       spawnExplosion(ufo.x + ufo.w / 2, ufo.y + ufo.h / 2);
       spawnParticleBurst(ufo.x + ufo.w / 2, ufo.y + ufo.h / 2, {
         count: 12,
@@ -5977,12 +6145,12 @@ function update() {
     waveDisruptTimer = Math.max(0, waveDisruptTimer - Math.min(50, lastDeltaMs));
   }
 
-  const coopActive = isCoopMode(currentRunStats.mode);
-  const moving = coopActive
+  const twoPlayerActive = isTwoPlayerMode(currentRunStats.mode);
+  const moving = twoPlayerActive
     ? (keys.KeyA || keys.KeyD || keys.ArrowLeft || keys.ArrowRight)
     : (keys.ArrowLeft || keys.ArrowRight);
 
-  if (coopActive) {
+  if (twoPlayerActive) {
     const leftPlayer = getPlayerState(0);
     const rightPlayer = getPlayerState(1);
     if (leftPlayer.active) {
@@ -6153,9 +6321,7 @@ function update() {
         spawnFloatingText(canvas.width / 2, 72, 'DISRUPTOR ACTIVO', '#b1a2ff');
         addScreenShake(3);
       } else if (variant.escapeEffect === 'jackpot') {
-        score += 80;
-        scoreEl.textContent = score;
-        syncHighscore();
+        awardPoints(80);
       }
       ufo.active = false;
       updateHudStatus();
@@ -6229,7 +6395,7 @@ function triggerDeath(playerState = player) {
   combo = 0;
   comboTimer = 0;
 
-  if (!isCoopMode(currentRunStats.mode)) {
+  if (!isTwoPlayerMode(currentRunStats.mode)) {
     if (playerState.lives <= 0) {
       playerState.active = false;
       playerState.respawnPending = false;
@@ -6247,7 +6413,13 @@ function triggerDeath(playerState = player) {
       playerState.respawnPending = true;
       getRunPlayerStats(playerState.id).deaths += 1;
       spawnFloatingText(playerState.x + playerState.w / 2, playerState.y - 12, `${playerState.label} FUERA`, '#ff94ba');
-      queueTutorialPrompt('coop:down', 'CAIDA DE ESCUADRA', 'Cuando un piloto cae en cooperativo, queda fuera de esta ronda. Si el otro sobrevive, vuelve al cerrar la siguiente oleada.');
+      queueTutorialPrompt(
+        isCompetitiveMode(currentRunStats.mode) ? 'competitive:down' : 'coop:down',
+        isCompetitiveMode(currentRunStats.mode) ? 'RIVAL FUERA' : 'CAIDA DE ESCUADRA',
+        isCompetitiveMode(currentRunStats.mode)
+          ? 'Cuando un piloto cae en competitivo, queda fuera de esta ronda. Si el otro sobrevive, gana unos segundos para rascar más puntos antes de su vuelta.'
+          : 'Cuando un piloto cae en cooperativo, queda fuera de esta ronda. Si el otro sobrevive, vuelve al cerrar la siguiente oleada.'
+      );
       if (!getActivePlayers().length) {
         playerState.respawnPending = false;
         gameOver('defeat');
@@ -6623,15 +6795,18 @@ function updateAggregateStats(entry) {
   if (entry.mode === 'timeattack') aggregateStats.totalTimeAttackGames += 1;
   else if (entry.mode === 'survival') aggregateStats.totalSurvivalGames += 1;
   else if (entry.mode === 'coop') aggregateStats.totalCoopGames += 1;
+  else if (entry.mode === 'competitive') aggregateStats.totalCompetitiveGames += 1;
   else aggregateStats.totalClassicGames += 1;
   if (entry.difficulty === 'easy') aggregateStats.totalEasyGames += 1;
   else if (entry.difficulty === 'hard') aggregateStats.totalHardGames += 1;
   else aggregateStats.totalNormalGames += 1;
   aggregateStats.totalCoopRespawns += Math.max(0, Number(entry.coopRespawns) || 0);
   if (entry.mode === 'coop') aggregateStats.bestCoopLevel = Math.max(aggregateStats.bestCoopLevel, entry.level);
+  else if (entry.mode === 'competitive') aggregateStats.bestCompetitiveLevel = Math.max(aggregateStats.bestCompetitiveLevel, entry.level);
   else if (entry.mode === 'survival') aggregateStats.bestSurvivalLevel = Math.max(aggregateStats.bestSurvivalLevel, entry.level);
   else if (entry.mode === 'classic') aggregateStats.bestClassicLevel = Math.max(aggregateStats.bestClassicLevel, entry.level);
   if (entry.mode === 'coop') aggregateStats.bestCoopScore = Math.max(aggregateStats.bestCoopScore, entry.score);
+  else if (entry.mode === 'competitive') aggregateStats.bestCompetitiveScore = Math.max(aggregateStats.bestCompetitiveScore, entry.score);
   else if (entry.mode === 'survival') aggregateStats.bestSurvivalScore = Math.max(aggregateStats.bestSurvivalScore, entry.score);
   else if (entry.mode === 'classic') aggregateStats.bestClassicScore = Math.max(aggregateStats.bestClassicScore, entry.score);
   aggregateStats.bestLevel = Math.max(aggregateStats.bestLevel, entry.level);
@@ -6668,7 +6843,7 @@ function gameOver(reason = 'defeat') {
     startedLevel: currentRunStats.startedLevel || 1,
     accuracy: finalAccuracy,
     lives: finalSnapshot.lives,
-    squadLivesEnd: isCoopMode(currentRunStats.mode) ? players.reduce((sum, playerState) => sum + Math.max(0, playerState.lives || 0), 0) : finalSnapshot.lives,
+    squadLivesEnd: isTwoPlayerMode(currentRunStats.mode) ? players.reduce((sum, playerState) => sum + Math.max(0, playerState.lives || 0), 0) : finalSnapshot.lives,
     shots: currentRunStats.shots,
     hits: currentRunStats.hits,
     enemiesDestroyed: currentRunStats.enemiesDestroyed,
@@ -6684,11 +6859,15 @@ function gameOver(reason = 'defeat') {
       return stats;
     }),
     coopRespawns: Math.max(0, Number(currentRunStats.coopRespawns) || 0),
-    coopBothStanding: isCoopMode(currentRunStats.mode) ? players.every(playerState => playerState.active && playerState.lives > 0) : false,
+    coopBothStanding: isTwoPlayerMode(currentRunStats.mode) ? players.every(playerState => playerState.active && playerState.lives > 0) : false,
     playedAt: new Date().toISOString(),
     durationMs,
     reason
   };
+  if (isCompetitiveMode(currentRunStats.mode)) {
+    const [p1Stats, p2Stats] = entry.playerStats;
+    entry.winnerPlayerId = p1Stats.score === p2Stats.score ? null : (p1Stats.score > p2Stats.score ? 0 : 1);
+  }
 
   saveScore(entry);
   recordCampaignProgress(entry);
@@ -6703,11 +6882,11 @@ function startGame() {
   const preset = getDifficultyConfig();
   const startingLevel = (gameSettings.mode === 'classic' || gameSettings.mode === 'coop')
     ? normalizeStartLevel(gameSettings.startLevel, getMaxUnlockedStartLevel())
-    : gameSettings.mode === 'survival'
+    : gameSettings.mode === 'survival' || gameSettings.mode === 'competitive'
       ? 1
     : 1;
   closeOverlayDialog();
-  if (!isCoopAvailable() && gameSettings.mode === 'coop') {
+  if (!isTwoPlayerModeAvailable() && isTwoPlayerMode(gameSettings.mode)) {
     gameSettings.mode = 'classic';
     persistGameSettings();
   }
@@ -6777,7 +6956,9 @@ function startGame() {
     queueTutorialPrompt(
       'intro:controls',
       'PRIMERA SALIDA',
-      isCoopMode(currentRunStats.mode)
+      isCompetitiveMode(currentRunStats.mode)
+        ? 'P1 usa A y D con espacio. P2 usa flechas y enter. Gana quien tenga más puntos cuando los dos caigáis. Si uno cae antes, el otro puede ampliar ventaja hasta la siguiente ronda.'
+        : isCoopMode(currentRunStats.mode)
         ? 'P1 usa A y D con espacio. P2 usa flechas y enter. Los power-ups son individuales y una caída no rompe la run si el otro mantiene viva la ronda.'
         : 'Muevete con flechas o tactil y dispara con espacio. La primera ronda esta pensada para entrar rapido en ritmo.',
       320
@@ -6789,6 +6970,13 @@ function startGame() {
       'coop:intro',
       'CO-OP LOCAL',
       'Cada piloto recoge sus propios power-ups. Si uno cae, el objetivo inmediato es sostener la ronda para abrir su reentrada.',
+      300
+    );
+  } else if (isCompetitiveMode(currentRunStats.mode)) {
+    queueTutorialPrompt(
+      'competitive:intro',
+      'DUELO LOCAL',
+      'La oleada es compartida, pero los puntos no. Si tu rival cae, aprovecha esa ronda para estirar ventaja antes de su vuelta.',
       300
     );
   }
