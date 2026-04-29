@@ -49,8 +49,20 @@
           <p id="overlay-msg">Pulsa <strong>ENTER</strong> o toca para empezar</p>
         </div>
 
+        <div id="start-dashboard-tabs" aria-label="Secciones del panel inicial">
+          <div id="start-dashboard-tablist" role="tablist" aria-label="Secciones del panel inicial">
+            <button type="button" class="start-dashboard-tab is-active" data-start-dashboard-tab="summary" role="tab" aria-selected="true">RESUMEN</button>
+            <button type="button" class="start-dashboard-tab" data-start-dashboard-tab="game" role="tab" aria-selected="false">PARTIDA</button>
+            <button type="button" class="start-dashboard-tab" data-start-dashboard-tab="visual" role="tab" aria-selected="false">VISUAL</button>
+            <button type="button" class="start-dashboard-tab" data-start-dashboard-tab="objectives" role="tab" aria-selected="false">OBJETIVOS</button>
+            <button type="button" class="start-dashboard-tab" data-start-dashboard-tab="collection" role="tab" aria-selected="false">COLECCION</button>
+            <button type="button" class="start-dashboard-tab" data-start-dashboard-tab="options" role="tab" aria-selected="false">OPCIONES</button>
+          </div>
+          <button id="btn-start-nav" type="button" hidden>JUGAR</button>
+        </div>
+
         <div id="overlay-panels">
-          <section id="game-settings-panel" class="overlay-card" data-mobile-panel="game-settings" aria-label="Ajustes de partida">
+          <section id="game-settings-panel" class="overlay-card start-tab-panel" data-mobile-panel="game-settings" aria-label="Ajustes de partida">
             <div class="card-head" data-mobile-panel-toggle="game-settings">
               <h2>PARTIDA</h2>
               <span class="card-badge">GAMEPLAY</span>
@@ -60,6 +72,7 @@
               <label for="mode-select">MODO</label>
               <select id="mode-select">
                 <option value="classic" selected>CLASICO</option>
+                <option value="survival">SUPERVIVENCIA</option>
                 <option value="timeattack">CONTRARRELOJ</option>
                 <option value="coop">2 JUGADORES COOPERATIVO</option>
               </select>
@@ -78,41 +91,16 @@
                 <span id="start-level-status" class="setting-level-status">Desbloqueado hasta 1</span>
               </div>
               <div id="start-level-selector" class="start-level-grid" aria-label="Selector de nivel inicial"></div>
-            </div>
-            <label class="setting-toggle" for="toggle-vibration">
-              <input id="toggle-vibration" type="checkbox" checked />
-              <span>VIBRACION</span>
-            </label>
-            <div class="settings-subsection">
-              <div class="setting-row setting-row-slider">
-                <label for="music-volume">MUSICA</label>
-                <div class="setting-inline-controls">
-                  <span id="music-volume-value" class="setting-volume-value">58%</span>
-                  <input id="music-volume" type="range" min="0" max="0.6" step="0.05" value="0.35" />
-                </div>
-              </div>
-              <div class="setting-row setting-row-slider">
-                <label for="fx-volume">EFECTOS</label>
-                <div class="setting-inline-controls">
-                  <span id="fx-volume-value" class="setting-volume-value">37%</span>
-                  <input id="fx-volume" type="range" min="0" max="0.6" step="0.05" value="0.22" />
-                </div>
-              </div>
-              <div class="settings-action-row">
-                <button id="btn-fullscreen" type="button">FULLSCREEN</button>
-                <button id="btn-open-tutorial" type="button">VER TUTORIAL</button>
-              </div>
-              <button id="btn-reset-profile" type="button">REINICIAR PERFIL</button>
+            <div id="start-level-details" class="start-level-details" aria-live="polite"></div>
             </div>
             <div class="card-note-list">
               <p id="mode-note" class="card-note">Clasico para progresión libre. Contrarreloj para presión constante.</p>
               <p id="difficulty-note" class="card-note">Fácil para entrar rápido; normal como base; difícil para sesiones largas.</p>
               <p id="start-level-note" class="card-note">Empieza desde cualquier nivel ya conquistado para practicar tramos concretos.</p>
-              <p id="audio-note" class="card-note">Ajusta música y efectos sin salir del dashboard.</p>
             </div>
           </section>
 
-          <section id="visual-settings-panel" class="overlay-card" data-mobile-panel="visual-settings" aria-label="Ajustes visuales">
+          <section id="visual-settings-panel" class="overlay-card start-tab-panel" data-mobile-panel="visual-settings" aria-label="Ajustes visuales">
             <div class="card-head" data-mobile-panel-toggle="visual-settings">
               <h2>VISUAL</h2>
               <span class="card-badge">PRESENTACION</span>
@@ -136,7 +124,7 @@
             </div>
           </section>
 
-          <section id="start-summary-panel" class="overlay-card" aria-label="Resumen rápido">
+          <section id="start-summary-panel" class="overlay-card start-tab-panel" aria-label="Resumen rápido">
             <div class="card-head">
               <h2>RESUMEN</h2>
               <span class="card-badge">SESSION</span>
@@ -145,7 +133,7 @@
             <div id="start-summary"></div>
           </section>
 
-          <section id="start-objectives-panel" class="overlay-card" data-mobile-panel="start-objectives" aria-label="Objetivos y logros">
+          <section id="start-objectives-panel" class="overlay-card start-tab-panel" data-mobile-panel="start-objectives" aria-label="Objetivos y logros">
             <div class="card-head" data-mobile-panel-toggle="start-objectives">
               <h2>OBJETIVOS <span id="start-objectives-count" class="card-count">0/0</span></h2>
               <span class="card-badge">META</span>
@@ -154,13 +142,73 @@
             <div id="start-achievements"></div>
           </section>
 
-          <section id="bestiary-panel" class="overlay-card" data-mobile-panel="bestiary" aria-label="Coleccion de juego">
+          <section id="bestiary-panel" class="overlay-card start-tab-panel" data-mobile-panel="bestiary" aria-label="Coleccion de juego">
             <div class="card-head" data-mobile-panel-toggle="bestiary">
               <h2>COLECCION</h2>
               <span class="card-badge">GUIA</span>
             </div>
             <p class="card-intro">Consulta enemigos, UFOs, élites y bosses con sus rasgos clave y tu historial frente a ellos.</p>
             <div id="bestiary-browser"></div>
+          </section>
+
+          <section id="options-settings-panel" class="overlay-card start-tab-panel" aria-label="Opciones y sistema">
+            <div class="card-head">
+              <h2>OPCIONES</h2>
+              <span class="card-badge">SISTEMA</span>
+            </div>
+            <p class="card-intro">Ajusta comodidad, audio y accesos rápidos antes de volver al combate.</p>
+            <div class="setting-row">
+              <label for="visual-intensity-select">INTENSIDAD VISUAL</label>
+              <select id="visual-intensity-select">
+                <option value="normal" selected>NORMAL</option>
+                <option value="reduced">REDUCIDA</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <label for="font-scale-select">TAMANO DE LETRA</label>
+              <select id="font-scale-select">
+                <option value="small">PEQUENA</option>
+                <option value="medium" selected>MEDIANA</option>
+                <option value="large">GRANDE</option>
+              </select>
+            </div>
+            <label class="setting-toggle" for="toggle-vibration">
+              <input id="toggle-vibration" type="checkbox" checked />
+              <span>VIBRACION</span>
+            </label>
+            <label class="setting-toggle" for="toggle-show-tips">
+              <input id="toggle-show-tips" type="checkbox" checked />
+              <span>MOSTRAR AYUDAS</span>
+            </label>
+            <label class="setting-toggle" for="toggle-compact-hud">
+              <input id="toggle-compact-hud" type="checkbox" />
+              <span>HUD COMPACTO</span>
+            </label>
+            <div class="settings-subsection">
+              <div class="setting-row setting-row-slider">
+                <label for="music-volume">MUSICA</label>
+                <div class="setting-inline-controls">
+                  <span id="music-volume-value" class="setting-volume-value">58%</span>
+                  <input id="music-volume" type="range" min="0" max="0.6" step="0.05" value="0.35" />
+                </div>
+              </div>
+              <div class="setting-row setting-row-slider">
+                <label for="fx-volume">EFECTOS</label>
+                <div class="setting-inline-controls">
+                  <span id="fx-volume-value" class="setting-volume-value">37%</span>
+                  <input id="fx-volume" type="range" min="0" max="0.6" step="0.05" value="0.22" />
+                </div>
+              </div>
+              <div class="settings-action-row">
+                <button id="btn-fullscreen" type="button">FULLSCREEN</button>
+                <button id="btn-open-tutorial" type="button">VER TUTORIAL</button>
+              </div>
+              <button id="btn-reset-profile" type="button">REINICIAR PERFIL</button>
+            </div>
+            <div class="card-note-list">
+              <p id="options-note" class="card-note">Vibración, sonido y accesos rápidos se aplican al instante y persisten entre sesiones.</p>
+              <p id="audio-note" class="card-note">Ajusta música y efectos sin salir del dashboard.</p>
+            </div>
           </section>
 
           <section id="run-panel" class="overlay-card" aria-label="Resumen de partida">
@@ -171,7 +219,7 @@
             <div id="run-stats-grid"></div>
           </section>
 
-          <section id="aggregate-panel" class="overlay-card" aria-label="Estadisticas acumuladas">
+          <section id="aggregate-panel" class="overlay-card start-tab-panel" aria-label="Estadisticas acumuladas">
             <div class="card-head">
               <h2>ESTADISTICAS</h2>
               <span class="card-badge">GLOBAL</span>
@@ -179,7 +227,7 @@
             <div id="stats-summary"></div>
           </section>
 
-          <section id="history-panel" class="overlay-card" aria-label="Ultimas partidas">
+          <section id="history-panel" class="overlay-card start-tab-panel" aria-label="Ultimas partidas">
             <div class="card-head">
               <h2>ULTIMAS PARTIDAS</h2>
               <span class="card-badge">HISTORIAL</span>

@@ -19,6 +19,8 @@ const overlayTitle = document.getElementById('overlay-title');
 const overlayKicker = document.getElementById('overlay-kicker');
 const overlayMsg = document.getElementById('overlay-msg');
 const overlayPanels = document.getElementById('overlay-panels');
+const startDashboardTabsEl = document.getElementById('start-dashboard-tabs');
+const btnStartNav = document.getElementById('btn-start-nav');
 const btnStart = document.getElementById('btn-start');
 const btnMenu = document.getElementById('btn-menu');
 const skinSelect = document.getElementById('skin-select');
@@ -27,9 +29,12 @@ const difficultySelect = document.getElementById('difficulty-select');
 const modeSelect = document.getElementById('mode-select');
 const startLevelSelectorEl = document.getElementById('start-level-selector');
 const startLevelStatusEl = document.getElementById('start-level-status');
+const startLevelDetailsEl = document.getElementById('start-level-details');
 const vibrationToggle = document.getElementById('toggle-vibration');
-const reducedEffectsToggle = document.getElementById('toggle-reduced-effects');
-const highContrastToggle = document.getElementById('toggle-high-contrast');
+const visualIntensitySelect = document.getElementById('visual-intensity-select');
+const fontScaleSelect = document.getElementById('font-scale-select');
+const showTipsToggle = document.getElementById('toggle-show-tips');
+const compactHudToggle = document.getElementById('toggle-compact-hud');
 const btnMusic = document.getElementById('btn-music');
 const btnPauseMobile = document.getElementById('btn-pause-mobile');
 const btnFullscreen = document.getElementById('btn-fullscreen');
@@ -45,6 +50,10 @@ const gameSettingsPanelTitle = gameSettingsPanel?.querySelector('.card-head h2')
 const gameSettingsPanelBadge = gameSettingsPanel?.querySelector('.card-head .card-badge');
 const gameSettingsPanelIntro = gameSettingsPanel?.querySelector('.card-intro');
 const visualSettingsPanel = document.getElementById('visual-settings-panel');
+const optionsSettingsPanel = document.getElementById('options-settings-panel');
+const optionsSettingsPanelTitle = optionsSettingsPanel?.querySelector('.card-head h2');
+const optionsSettingsPanelBadge = optionsSettingsPanel?.querySelector('.card-head .card-badge');
+const optionsSettingsPanelIntro = optionsSettingsPanel?.querySelector('.card-intro');
 const startSummaryPanel = document.getElementById('start-summary-panel');
 const startObjectivesPanel = document.getElementById('start-objectives-panel');
 const bestiaryPanel = document.getElementById('bestiary-panel');
@@ -203,6 +212,10 @@ const BADGE_DEFS = {
   wingmate: { label: 'WINGMATE', copy: 'Ya has compartido cabina y presión real con otro piloto.' },
   relay: { label: 'RELAY', copy: 'Sabes sostener la sesión mientras tu compañero vuelve al frente.' },
   tandem: { label: 'TANDEM', copy: 'Cuando los dos seguís en pie, la run coop cambia de nivel.' },
+  trailblazer: { label: 'TRAILBLAZER', copy: 'Has cerrado el primer bloque de campaña y ya no juegas solo por inercia.' },
+  pathfinder: { label: 'PATHFINDER', copy: 'El segundo sector ya forma parte de tu mapa, no de tus intentos sueltos.' },
+  citadel: { label: 'CITADEL', copy: 'Tu campaña ya resiste presión alta y encuentros de verdad.' },
+  overdrive: { label: 'OVERDRIVE', copy: 'Has llegado al extremo alto de la campaña y el tablero ya te reconoce.' },
   spotter: { label: 'SPOTTER', copy: 'Reconoces todas las siluetas base del frente.' },
   radar: { label: 'RADAR', copy: 'Ya lees el tráfico UFO como un patrón conocido.' },
   breacher: { label: 'BREACHER', copy: 'Las élites dejan de parecer encuentros aislados.' },
@@ -1034,12 +1047,21 @@ const BOSS_CAMPAIGN_LEVELS = {
   24: 'overlord'
 };
 
+const CAMPAIGN_SECTORS = [
+  { id: 'sector_1', label: 'SECTOR 1', start: 1, end: 6, bossLevel: 6, reward: { type: 'badge', id: 'trailblazer' } },
+  { id: 'sector_2', label: 'SECTOR 2', start: 7, end: 12, bossLevel: 12, reward: { type: 'badge', id: 'pathfinder' } },
+  { id: 'sector_3', label: 'SECTOR 3', start: 13, end: 18, bossLevel: 18, reward: { type: 'badge', id: 'citadel' } },
+  { id: 'sector_4', label: 'SECTOR 4', start: 19, end: 24, bossLevel: 24, reward: { type: 'badge', id: 'overdrive' } }
+];
+const CAMPAIGN_DOMINATION_MIN_LIVES = 3;
+const CAMPAIGN_DOMINATION_MIN_ACCURACY = 60;
+
 function normalizeDifficulty(value) {
   return Object.prototype.hasOwnProperty.call(DIFFICULTY_PRESETS, value) ? value : 'normal';
 }
 
 function normalizeGameMode(value) {
-  return value === 'timeattack' || value === 'coop' ? value : 'classic';
+  return value === 'timeattack' || value === 'coop' || value === 'survival' ? value : 'classic';
 }
 
 function normalizeSkin(value) {
@@ -1053,6 +1075,36 @@ function normalizeShipSkin(value) {
 function normalizeAudioVolume(value, fallback = 0.22) {
   const parsed = Number.parseFloat(value);
   return Number.isFinite(parsed) ? Math.min(0.6, Math.max(0, parsed)) : fallback;
+}
+
+function normalizeFontScale(value) {
+  return value === 'small' || value === 'large' ? value : 'medium';
+}
+
+function normalizeCampaignLevelRecord(record) {
+  return {
+    bestScore: Math.max(0, Number(record?.bestScore) || 0),
+    bestAccuracy: Math.max(0, Number(record?.bestAccuracy) || 0),
+    bestReach: Math.max(0, Number(record?.bestReach) || 0),
+    bestLivesEnd: Math.max(0, Number(record?.bestLivesEnd) || 0),
+    completedAt: typeof record?.completedAt === 'string' ? record.completedAt : null,
+    dominatedAt: typeof record?.dominatedAt === 'string' ? record.dominatedAt : null
+  };
+}
+
+function createDefaultCampaignModeState() {
+  return {
+    completedLevels: {},
+    levelRecords: {}
+  };
+}
+
+function createDefaultCampaignState() {
+  return {
+    rewardsClaimed: {},
+    classic: createDefaultCampaignModeState(),
+    coop: createDefaultCampaignModeState()
+  };
 }
 
 function normalizeStartLevel(value, maxUnlocked = MAX_START_LEVEL_OPTION) {
@@ -1087,11 +1139,14 @@ function loadSettings() {
       shipSkin: normalizeShipSkin(stored.shipSkin),
       vibration: stored.vibration !== false,
       fxVolume: normalizeAudioVolume(stored.fxVolume, 0.22),
+      fontScale: normalizeFontScale(stored.fontScale),
       reducedEffects: stored.reducedEffects === true,
-      highContrast: stored.highContrast === true
+      highContrast: stored.highContrast === true,
+      showTips: stored.showTips !== false,
+      compactHud: stored.compactHud === true
     };
   } catch {
-    return { difficulty: 'normal', mode: 'classic', startLevel: 1, skin: 'classic', shipSkin: 'classic', vibration: true, fxVolume: 0.22, reducedEffects: false, highContrast: false };
+    return { difficulty: 'normal', mode: 'classic', startLevel: 1, skin: 'classic', shipSkin: 'classic', vibration: true, fxVolume: 0.22, fontScale: 'medium', reducedEffects: false, highContrast: false, showTips: true, compactHud: false };
   }
 }
 
@@ -1161,6 +1216,43 @@ function loadMetaState() {
     const tutorialFlags = stored.tutorialFlags && typeof stored.tutorialFlags === 'object'
       ? Object.fromEntries(Object.entries(stored.tutorialFlags).map(([key, value]) => [key, value === true]))
       : {};
+    const campaign = stored.campaign && typeof stored.campaign === 'object'
+      ? {
+          rewardsClaimed: stored.campaign.rewardsClaimed && typeof stored.campaign.rewardsClaimed === 'object'
+            ? Object.fromEntries(CAMPAIGN_SECTORS.map(sector => [sector.id, stored.campaign.rewardsClaimed[sector.id] === true]))
+            : {},
+          classic: {
+            completedLevels: stored.campaign.classic?.completedLevels && typeof stored.campaign.classic.completedLevels === 'object'
+              ? Object.fromEntries(Array.from({ length: MAX_START_LEVEL_OPTION }, (_, index) => {
+                  const levelValue = index + 1;
+                  return [levelValue, stored.campaign.classic.completedLevels[levelValue] === true];
+                }))
+              : {},
+            levelRecords: stored.campaign.classic?.levelRecords && typeof stored.campaign.classic.levelRecords === 'object'
+              ? Object.fromEntries(Array.from({ length: MAX_START_LEVEL_OPTION }, (_, index) => {
+                  const levelValue = index + 1;
+                  const record = stored.campaign.classic.levelRecords[levelValue];
+                  return [levelValue, normalizeCampaignLevelRecord(record)];
+                }))
+              : {}
+          },
+          coop: {
+            completedLevels: stored.campaign.coop?.completedLevels && typeof stored.campaign.coop.completedLevels === 'object'
+              ? Object.fromEntries(Array.from({ length: MAX_START_LEVEL_OPTION }, (_, index) => {
+                  const levelValue = index + 1;
+                  return [levelValue, stored.campaign.coop.completedLevels[levelValue] === true];
+                }))
+              : {},
+            levelRecords: stored.campaign.coop?.levelRecords && typeof stored.campaign.coop.levelRecords === 'object'
+              ? Object.fromEntries(Array.from({ length: MAX_START_LEVEL_OPTION }, (_, index) => {
+                  const levelValue = index + 1;
+                  const record = stored.campaign.coop.levelRecords[levelValue];
+                  return [levelValue, normalizeCampaignLevelRecord(record)];
+                }))
+              : {}
+          }
+        }
+      : createDefaultCampaignState();
     return {
       unlockedSkins,
       unlockedShipSkins,
@@ -1170,7 +1262,8 @@ function loadMetaState() {
       challengeCompletions: Math.max(0, Number(stored.challengeCompletions) || 0),
       unlockLog,
       bestiary,
-      tutorialFlags
+      tutorialFlags,
+      campaign
     };
   } catch {
     return {
@@ -1182,7 +1275,8 @@ function loadMetaState() {
       challengeCompletions: 0,
       unlockLog: [],
       bestiary: { seen: {}, defeated: {} },
-      tutorialFlags: {}
+      tutorialFlags: {},
+      campaign: createDefaultCampaignState()
     };
   }
 }
@@ -1211,6 +1305,8 @@ function normalizeHistoryEntry(entry) {
   return {
     score: Number(entry.score) || 0,
     level: Number(entry.level) || 1,
+    lives: Math.max(0, Number(entry.lives) || 0),
+    squadLivesEnd: Math.max(0, Number(entry.squadLivesEnd) || 0),
     accuracy: Number(entry.accuracy) || 0,
     shots: Number(entry.shots) || 0,
     hits: Number(entry.hits) || 0,
@@ -1246,6 +1342,7 @@ function loadAggregateStats() {
     const legacyBestLevel = Math.max(0, Number(stored.bestLevel) || 0);
     const bestClassicLevel = Math.max(0, Number(stored.bestClassicLevel) || legacyBestLevel);
     const bestCoopLevel = Math.max(0, Number(stored.bestCoopLevel) || 0);
+    const bestSurvivalLevel = Math.max(0, Number(stored.bestSurvivalLevel) || 0);
     return {
       gamesPlayed: Math.max(0, Number(stored.gamesPlayed) || 0),
       totalScore: Math.max(0, Number(stored.totalScore) || 0),
@@ -1256,16 +1353,20 @@ function loadAggregateStats() {
       totalPowerUpsCollected: Math.max(0, Number(stored.totalPowerUpsCollected) || 0),
       totalBossesDefeated: Math.max(0, Number(stored.totalBossesDefeated) || 0),
       totalClassicGames: Math.max(0, Number(stored.totalClassicGames) || 0),
+      totalSurvivalGames: Math.max(0, Number(stored.totalSurvivalGames) || 0),
       totalCoopGames: Math.max(0, Number(stored.totalCoopGames) || 0),
       totalTimeAttackGames: Math.max(0, Number(stored.totalTimeAttackGames) || 0),
       totalEasyGames: Math.max(0, Number(stored.totalEasyGames) || 0),
       totalNormalGames: Math.max(0, Number(stored.totalNormalGames) || 0),
       totalHardGames: Math.max(0, Number(stored.totalHardGames) || 0),
       totalCoopRespawns: Math.max(0, Number(stored.totalCoopRespawns) || 0),
-      bestLevel: Math.max(legacyBestLevel, bestClassicLevel, bestCoopLevel),
+      bestLevel: Math.max(legacyBestLevel, bestClassicLevel, bestCoopLevel, bestSurvivalLevel),
       bestClassicLevel,
+      bestSurvivalLevel,
       bestCoopLevel,
       bestClassicScore: Math.max(0, Number(stored.bestClassicScore) || 0),
+      bestSurvivalScore: Math.max(0, Number(stored.bestSurvivalScore) || 0),
+      bestSurvivalTimeMs: Math.max(0, Number(stored.bestSurvivalTimeMs) || 0),
       bestCoopScore: Math.max(0, Number(stored.bestCoopScore) || 0),
       bestCombo: Math.max(1, Number(stored.bestCombo) || 1),
       bestTimeAttackScore: Math.max(0, Number(stored.bestTimeAttackScore) || 0),
@@ -1318,6 +1419,7 @@ function getRunPlayerStats(index = 0, runStats = currentRunStats) {
 function createRunStats() {
   return {
     startedAt: 0,
+    startedLevel: 1,
     shots: 0,
     hits: 0,
     enemiesDestroyed: 0,
@@ -1749,11 +1851,40 @@ function refreshModeAvailability() {
 function updateMobileStartPanelState() {
   if (!overlayPanels) return;
   const panelIds = ['game-settings', 'visual-settings', 'start-objectives', 'bestiary'];
-  const mobileActive = overlayMode === 'start' && isMobileViewport();
+  const mobileActive = false;
   panelIds.forEach(panelId => {
     const panel = overlayPanels.querySelector(`[data-mobile-panel="${panelId}"]`);
     if (!panel) return;
     panel.classList.toggle('is-mobile-collapsed', mobileActive && (!mobileStartPanel || mobileStartPanel !== panelId));
+  });
+}
+
+function getStartDashboardTabConfig() {
+  return {
+    summary: [startSummaryPanel, aggregatePanel, historyPanel],
+    game: [gameSettingsPanel],
+    visual: [visualSettingsPanel],
+    objectives: [startObjectivesPanel],
+    collection: [bestiaryPanel],
+    options: [optionsSettingsPanel]
+  };
+}
+
+function applyStartDashboardTab() {
+  if (!overlay || !startDashboardTabsEl || overlayMode !== 'start') return;
+  const config = getStartDashboardTabConfig();
+  const activeTab = Object.prototype.hasOwnProperty.call(config, startDashboardTab) ? startDashboardTab : 'summary';
+  overlay.dataset.startTab = activeTab;
+  startDashboardTabsEl.querySelectorAll('[data-start-dashboard-tab]').forEach(trigger => {
+    const isActive = trigger.dataset.startDashboardTab === activeTab;
+    trigger.classList.toggle('is-active', isActive);
+    trigger.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
+  const visiblePanels = new Set(config[activeTab]);
+  Object.values(config).flat().forEach(panel => {
+    if (!panel) return;
+    panel.classList.toggle('is-start-tab-active', visiblePanels.has(panel));
+    setPanelVisibility(panel, visiblePanels.has(panel));
   });
 }
 
@@ -1768,8 +1899,10 @@ function applySettingsUI() {
   if (shipSkinSelect) shipSkinSelect.value = gameSettings.shipSkin;
   vibrationToggle.checked = gameSettings.vibration;
   if (fxVolumeEl) fxVolumeEl.value = gameSettings.fxVolume.toFixed(2);
-  if (reducedEffectsToggle) reducedEffectsToggle.checked = gameSettings.reducedEffects;
-  if (highContrastToggle) highContrastToggle.checked = gameSettings.highContrast;
+  if (visualIntensitySelect) visualIntensitySelect.value = gameSettings.reducedEffects ? 'reduced' : 'normal';
+  if (fontScaleSelect) fontScaleSelect.value = normalizeFontScale(gameSettings.fontScale);
+  if (showTipsToggle) showTipsToggle.checked = gameSettings.showTips !== false;
+  if (compactHudToggle) compactHudToggle.checked = gameSettings.compactHud === true;
   renderStartLevelGrid();
   applyVisualPreferences();
   renderShipPreview();
@@ -1795,6 +1928,7 @@ function formatDifficultyLabel(value) {
 }
 
 function formatModeLabel(value) {
+  if (value === 'survival') return 'SUPERVIVENCIA';
   if (value === 'timeattack') return 'CONTRARRELOJ';
   if (value === 'coop') return '2P COOP';
   return 'CLASICO';
@@ -1803,6 +1937,7 @@ function formatModeLabel(value) {
 function getModeGameCounts() {
   return {
     classic: aggregateStats.totalClassicGames || 0,
+    survival: aggregateStats.totalSurvivalGames || 0,
     coop: aggregateStats.totalCoopGames || 0,
     timeattack: aggregateStats.totalTimeAttackGames || 0
   };
@@ -1871,22 +2006,177 @@ function getProfileProgressSummary(unlockedAchievements) {
   const seenThreats = countBestiarySeen(metaState, Object.keys(BESTIARY_DEFS));
   const totalEquipment = Object.keys(SKIN_THEMES).length + Object.keys(SHIP_SKIN_DEFS).length;
   const unlockedEquipment = metaState.unlockedSkins.length + metaState.unlockedShipSkins.length;
+  const completedCampaignLevels = countCompletedCampaignLevels('classic');
   return [
     { label: 'Logros', value: `${unlockedAchievements}/${ACHIEVEMENT_DEFS.length}` },
     { label: 'Amenazas', value: `${seenThreats}/${Object.keys(BESTIARY_DEFS).length}` },
     { label: 'Equipación', value: `${unlockedEquipment}/${totalEquipment}` },
-    { label: 'Campaña', value: `${Math.min(aggregateStats.bestLevel || 1, MAX_START_LEVEL_OPTION)}/${MAX_START_LEVEL_OPTION}` }
+    { label: 'Campaña', value: `${completedCampaignLevels}/${MAX_START_LEVEL_OPTION}` }
   ];
 }
 
 function getBestUnlockedLevelForMode(mode = gameSettings.mode) {
   if (mode === 'coop') return aggregateStats?.bestCoopLevel || 0;
+  if (mode === 'survival') return 1;
   if (mode === 'timeattack') return 1;
   return aggregateStats?.bestClassicLevel || aggregateStats?.bestLevel || 0;
 }
 
 function getMaxUnlockedStartLevel(mode = gameSettings.mode) {
   return Math.max(1, Math.min(MAX_START_LEVEL_OPTION, getBestUnlockedLevelForMode(mode) || 1));
+}
+
+function getCampaignModeKey(mode = gameSettings.mode) {
+  if (mode === 'coop') return 'coop';
+  if (mode === 'classic') return 'classic';
+  return null;
+}
+
+function getCampaignModeState(mode = gameSettings.mode, create = true) {
+  const modeKey = getCampaignModeKey(mode);
+  if (!modeKey) return null;
+  if (!metaState.campaign) {
+    if (!create) return null;
+    metaState.campaign = createDefaultCampaignState();
+  }
+  if (!metaState.campaign[modeKey] && create) {
+    metaState.campaign[modeKey] = createDefaultCampaignModeState();
+  }
+  return metaState.campaign[modeKey] || null;
+}
+
+function getCampaignLevelRecord(mode = gameSettings.mode, levelValue = 1, create = true) {
+  const modeState = getCampaignModeState(mode, create);
+  if (!modeState) return null;
+  if (!modeState.levelRecords[levelValue] && create) {
+    modeState.levelRecords[levelValue] = normalizeCampaignLevelRecord();
+  }
+  return modeState.levelRecords[levelValue] || null;
+}
+
+function isCampaignLevelCompleted(mode = gameSettings.mode, levelValue = 1) {
+  return getCampaignModeState(mode, false)?.completedLevels?.[levelValue] === true;
+}
+
+function isCampaignLevelDominated(mode = gameSettings.mode, levelValue = 1) {
+  return Boolean(getCampaignLevelRecord(mode, levelValue, false)?.dominatedAt);
+}
+
+function countCompletedCampaignLevels(mode = gameSettings.mode) {
+  return Array.from({ length: MAX_START_LEVEL_OPTION }, (_, index) => index + 1)
+    .filter(levelValue => isCampaignLevelCompleted(mode, levelValue)).length;
+}
+
+function countDominatedCampaignLevels(mode = gameSettings.mode) {
+  return Array.from({ length: MAX_START_LEVEL_OPTION }, (_, index) => index + 1)
+    .filter(levelValue => isCampaignLevelDominated(mode, levelValue)).length;
+}
+
+function getSectorByLevel(levelValue) {
+  return CAMPAIGN_SECTORS.find(sector => levelValue >= sector.start && levelValue <= sector.end) || CAMPAIGN_SECTORS[0];
+}
+
+function getSectorCompletedCount(mode = gameSettings.mode, sector) {
+  let count = 0;
+  for (let levelValue = sector.start; levelValue <= sector.end; levelValue++) {
+    if (isCampaignLevelCompleted(mode, levelValue)) count++;
+  }
+  return count;
+}
+
+function getSectorDominatedCount(mode = gameSettings.mode, sector) {
+  let count = 0;
+  for (let levelValue = sector.start; levelValue <= sector.end; levelValue++) {
+    if (isCampaignLevelDominated(mode, levelValue)) count++;
+  }
+  return count;
+}
+
+function isSectorCompleted(mode = gameSettings.mode, sector) {
+  return getSectorCompletedCount(mode, sector) === (sector.end - sector.start + 1);
+}
+
+function isSectorDominated(mode = gameSettings.mode, sector) {
+  return getSectorDominatedCount(mode, sector) === (sector.end - sector.start + 1);
+}
+
+function getCampaignNextTargetLevel(mode = gameSettings.mode) {
+  if (!getCampaignModeKey(mode)) return 1;
+  for (let levelValue = 1; levelValue <= MAX_START_LEVEL_OPTION; levelValue++) {
+    if (!isCampaignLevelCompleted(mode, levelValue)) return levelValue;
+  }
+  return MAX_START_LEVEL_OPTION;
+}
+
+function getCampaignCompletedThrough(entry) {
+  if (!entry || entry.mode === 'timeattack') return 0;
+  return Math.max(0, Math.min(MAX_START_LEVEL_OPTION, entry.level - 1));
+}
+
+function getCampaignRewardState(sector) {
+  return metaState.campaign?.rewardsClaimed?.[sector.id] === true;
+}
+
+function getCampaignEntryRemainingLives(entry) {
+  if (!entry) return 0;
+  if (entry.mode === 'coop') {
+    if (Number.isFinite(Number(entry.squadLivesEnd))) return Math.max(0, Number(entry.squadLivesEnd) || 0);
+    return 0;
+  }
+  return Math.max(0, Number(entry.lives) || 0);
+}
+
+function doesCampaignEntryDominate(entry) {
+  return getCampaignEntryRemainingLives(entry) >= CAMPAIGN_DOMINATION_MIN_LIVES
+    && Math.max(0, Number(entry?.accuracy) || 0) >= CAMPAIGN_DOMINATION_MIN_ACCURACY;
+}
+
+function recordCampaignLevelClear(levelValue, snapshot = getLiveRunSnapshot()) {
+  if (!snapshot || (snapshot.mode !== 'classic' && snapshot.mode !== 'coop')) return;
+  const normalizedLevel = normalizeStartLevel(levelValue, MAX_START_LEVEL_OPTION);
+  const modeState = getCampaignModeState(snapshot.mode);
+  modeState.completedLevels[normalizedLevel] = true;
+  const levelRecord = getCampaignLevelRecord(snapshot.mode, normalizedLevel);
+  levelRecord.bestLivesEnd = Math.max(levelRecord.bestLivesEnd, getCampaignEntryRemainingLives(snapshot));
+  levelRecord.bestAccuracy = Math.max(levelRecord.bestAccuracy, Math.max(0, Number(snapshot.accuracy) || 0));
+  if (!levelRecord.completedAt) levelRecord.completedAt = new Date().toISOString();
+  if (doesCampaignEntryDominate(snapshot) && !levelRecord.dominatedAt) {
+    levelRecord.dominatedAt = new Date().toISOString();
+  }
+  persistMetaState();
+}
+
+function getCampaignSelectedLevelSummary(mode = gameSettings.mode, levelValue = gameSettings.startLevel) {
+  const record = getCampaignLevelRecord(mode, levelValue, false);
+  const sector = getSectorByLevel(levelValue);
+  const encounter = getLevelEncounterPreviewText(levelValue, mode);
+  const event = getWaveEventForLevel(levelValue, mode);
+  const fixedStartMode = mode === 'timeattack' || mode === 'survival';
+  const unlocked = fixedStartMode ? levelValue === 1 : levelValue <= getMaxUnlockedStartLevel(mode);
+  const completed = isCampaignLevelCompleted(mode, levelValue);
+  const dominated = isCampaignLevelDominated(mode, levelValue);
+  const stateLabel = fixedStartMode
+    ? 'FIJO'
+    : dominated
+      ? 'DOMINADO'
+      : completed
+      ? 'SUPERADO'
+      : unlocked
+        ? 'DESBLOQUEADO'
+        : 'BLOQUEADO';
+  return {
+    sector,
+    encounter,
+    event,
+    unlocked,
+    completed,
+    dominated,
+    stateLabel,
+    bestScore: record?.bestScore || 0,
+    bestAccuracy: record?.bestAccuracy || 0,
+    bestReach: record?.bestReach || 0,
+    bestLivesEnd: record?.bestLivesEnd || 0
+  };
 }
 
 function syncStartLevelSetting() {
@@ -1898,33 +2188,105 @@ function renderStartLevelGrid() {
   if (!startLevelSelectorEl) return;
   syncStartLevelSetting();
   const maxUnlocked = getMaxUnlockedStartLevel(gameSettings.mode);
-  const isTimeAttack = gameSettings.mode === 'timeattack';
+  const fixedStartMode = gameSettings.mode === 'timeattack' || gameSettings.mode === 'survival';
+  const selectedLevel = fixedStartMode ? 1 : gameSettings.startLevel;
+  const selectedSummary = getCampaignSelectedLevelSummary(gameSettings.mode, selectedLevel);
+  const completedLevels = countCompletedCampaignLevels(gameSettings.mode);
+  const dominatedLevels = countDominatedCampaignLevels(gameSettings.mode);
   if (startLevelStatusEl) {
-    startLevelStatusEl.textContent = isTimeAttack
+    startLevelStatusEl.textContent = gameSettings.mode === 'survival'
+      ? 'Supervivencia arranca siempre en 1'
+      : gameSettings.mode === 'timeattack'
       ? 'Contrarreloj arranca en 1'
       : gameSettings.mode === 'coop'
-        ? `Cooperativo desbloqueado hasta ${maxUnlocked}`
-        : `Clásico desbloqueado hasta ${maxUnlocked}`;
+        ? `${completedLevels}/${MAX_START_LEVEL_OPTION} superados · ${dominatedLevels} dominados · coop hasta ${maxUnlocked}`
+        : `${completedLevels}/${MAX_START_LEVEL_OPTION} superados · ${dominatedLevels} dominados · clásico hasta ${maxUnlocked}`;
   }
 
-  startLevelSelectorEl.innerHTML = Array.from({ length: MAX_START_LEVEL_OPTION }, (_, index) => {
-    const levelValue = index + 1;
-    const unlocked = levelValue <= maxUnlocked;
-    const disabled = isTimeAttack || !unlocked;
-    const active = !isTimeAttack && levelValue === gameSettings.startLevel;
+  startLevelSelectorEl.innerHTML = CAMPAIGN_SECTORS.map(sector => {
+    const completedInSector = getSectorCompletedCount(gameSettings.mode, sector);
+    const dominatedInSector = getSectorDominatedCount(gameSettings.mode, sector);
+    const totalInSector = sector.end - sector.start + 1;
+    const rewardLabel = getRewardLabel(sector.reward);
+    const sectorDominated = isSectorDominated(gameSettings.mode, sector);
+    const rewardClaimed = getCampaignRewardState(sector);
     return `
-      <button
-        type="button"
-        class="start-level-btn${active ? ' is-active' : ''}${disabled ? ' is-locked' : ''}"
-        data-start-level="${levelValue}"
-        ${disabled ? 'disabled aria-disabled="true"' : ''}
-        aria-pressed="${active ? 'true' : 'false'}"
-      >${levelValue}</button>
+      <div class="campaign-sector${selectedLevel >= sector.start && selectedLevel <= sector.end ? ' is-active' : ''}">
+        <div class="campaign-sector-head">
+          <div class="campaign-sector-copy">
+            <strong>${sector.label}</strong>
+            <span>${completedInSector}/${totalInSector} superados · ${dominatedInSector}/${totalInSector} dominados · boss ${getBossProfileForLevel(sector.bossLevel, gameSettings.mode).label}</span>
+          </div>
+          <div class="campaign-sector-badges">
+            ${sectorDominated ? '<span class="campaign-sector-reward is-dominated">SECTOR DOMINADO</span>' : ''}
+            <span class="campaign-sector-reward${rewardClaimed ? ' is-claimed' : ''}">${rewardClaimed ? `OBTENIDA ${rewardLabel}` : rewardLabel}</span>
+          </div>
+        </div>
+        <div class="campaign-level-grid">
+          ${Array.from({ length: totalInSector }, (_, offset) => {
+            const levelValue = sector.start + offset;
+            const unlocked = levelValue <= maxUnlocked;
+            const completed = isCampaignLevelCompleted(gameSettings.mode, levelValue);
+            const dominated = isCampaignLevelDominated(gameSettings.mode, levelValue);
+            const disabled = fixedStartMode || !unlocked;
+            const active = !fixedStartMode && levelValue === gameSettings.startLevel;
+            const event = getWaveEventForLevel(levelValue, gameSettings.mode);
+            const tag = shouldSpawnBossForLevel(levelValue)
+              ? 'BOSS'
+              : shouldSpawnMiniBossForLevel(levelValue)
+                ? 'ELITE'
+                : event.id !== 'standard'
+                  ? event.label
+                  : '';
+            return `
+              <button
+                type="button"
+                class="start-level-btn${active ? ' is-active' : ''}${disabled ? ' is-locked' : ''}${completed ? ' is-complete' : ''}${dominated ? ' is-dominated' : ''}"
+                data-start-level="${levelValue}"
+                ${disabled ? 'disabled aria-disabled="true"' : ''}
+                aria-pressed="${active ? 'true' : 'false'}"
+              >
+                <span class="start-level-value">${levelValue}</span>
+                <span class="start-level-meta">${dominated ? 'DOMINADO' : completed ? 'SUPERADO' : unlocked ? 'LISTO' : 'BLOQ.'}</span>
+                ${tag ? `<span class="start-level-chip">${tag}</span>` : ''}
+              </button>
+            `;
+          }).join('')}
+        </div>
+      </div>
     `;
   }).join('');
+
+  if (startLevelDetailsEl) {
+    startLevelDetailsEl.innerHTML = `
+      <div class="start-level-detail-card">
+        <div class="start-level-detail-head">
+          <div>
+            <span class="start-level-detail-kicker">${selectedSummary.sector.label}</span>
+            <strong>NIVEL ${selectedLevel}</strong>
+          </div>
+          <span class="start-level-detail-state${selectedSummary.dominated ? ' is-dominated' : selectedSummary.completed ? ' is-complete' : ''}">${selectedSummary.stateLabel}</span>
+        </div>
+        <span class="start-level-detail-copy">${selectedSummary.encounter}</span>
+        <div class="start-level-detail-meta">
+          <span>${selectedSummary.event.id !== 'standard' ? `Evento ${selectedSummary.event.label}` : 'Oleada estándar'}</span>
+          <span>Mejor score ${selectedSummary.bestScore || 0} pts</span>
+          <span>Mejor alcance NIV ${selectedSummary.bestReach || selectedLevel}</span>
+          <span>${selectedSummary.bestAccuracy ? `${selectedSummary.bestAccuracy}% precisión` : 'Sin marca de precisión aún'}</span>
+          <span>${selectedSummary.bestLivesEnd ? `Mejor cierre ${selectedSummary.bestLivesEnd} vidas` : 'Sin cierre sólido aún'}</span>
+        </div>
+        ${selectedSummary.unlocked && !selectedSummary.dominated && !fixedStartMode ? `<span class="start-level-detail-goal">Domina este nivel acabando con ${CAMPAIGN_DOMINATION_MIN_LIVES} vidas y ${CAMPAIGN_DOMINATION_MIN_ACCURACY}% de precisión.</span>` : ''}
+      </div>
+    `;
+  }
 }
 
 function getThreatLevel(currentLevel = level) {
+  const activeMode = running ? currentRunStats.mode : gameSettings.mode;
+  if (activeMode === 'survival') {
+    if (currentLevel <= 4) return currentLevel;
+    return 4 + (currentLevel - 4) * 0.58;
+  }
   if (currentLevel <= 4) return currentLevel;
   return 4 + (currentLevel - 4) * 0.72;
 }
@@ -2014,6 +2376,49 @@ function getLevelEncounterPreviewText(currentLevel, mode = running ? currentRunS
     return `${getMiniBossProfileForLevel(currentLevel).label} ENTRANTE`;
   }
   return 'Prepárate...';
+}
+
+function claimCampaignSectorReward(sector) {
+  if (!metaState.campaign) metaState.campaign = createDefaultCampaignState();
+  if (metaState.campaign.rewardsClaimed[sector.id]) return false;
+  metaState.campaign.rewardsClaimed[sector.id] = true;
+  const rewardLabel = getRewardLabel(sector.reward);
+  grantReward(sector.reward, { silent: true });
+  pushUnlockLog(createUnlockLogEntry('campaign', sector.label, `Sector completado: niveles ${sector.start}-${sector.end}.`, rewardLabel));
+  spawnFloatingText(canvas.width / 2, canvas.height * 0.26, sector.label, '#ffef88');
+  spawnFloatingText(canvas.width / 2, canvas.height * 0.32, rewardLabel, '#ffffff');
+  spawnShockwave(canvas.width / 2, canvas.height * 0.28, 'rgba(255,239,136,0.3)', 18, 3.2);
+  return true;
+}
+
+function recordCampaignProgress(entry) {
+  if (!entry || (entry.mode !== 'classic' && entry.mode !== 'coop')) return;
+  const startLevel = normalizeStartLevel(entry.startedLevel || 1, MAX_START_LEVEL_OPTION);
+  const completedThrough = getCampaignCompletedThrough(entry);
+  const modeState = getCampaignModeState(entry.mode);
+  const startedRecord = getCampaignLevelRecord(entry.mode, startLevel);
+  startedRecord.bestScore = Math.max(startedRecord.bestScore, entry.score);
+  startedRecord.bestAccuracy = Math.max(startedRecord.bestAccuracy, entry.accuracy);
+  startedRecord.bestReach = Math.max(startedRecord.bestReach, entry.level);
+  if (completedThrough >= startLevel && !startedRecord.completedAt) {
+    startedRecord.completedAt = entry.playedAt;
+  }
+  for (let levelValue = startLevel; levelValue <= completedThrough; levelValue++) {
+    modeState.completedLevels[levelValue] = true;
+    const levelRecord = getCampaignLevelRecord(entry.mode, levelValue);
+    if (!levelRecord.completedAt) levelRecord.completedAt = entry.playedAt;
+  }
+  let sectorRewardGranted = false;
+  for (const sector of CAMPAIGN_SECTORS) {
+    if (isSectorCompleted(entry.mode, sector) && !getCampaignRewardState(sector)) {
+      sectorRewardGranted = claimCampaignSectorReward(sector) || sectorRewardGranted;
+    }
+  }
+  if (sectorRewardGranted) {
+    refreshSkinOptions();
+    refreshShipSkinOptions();
+  }
+  persistMetaState();
 }
 
 function rollUfoVariant(currentLevel, mode = gameSettings.mode) {
@@ -2178,6 +2583,7 @@ function pushUnlockLog(entry) {
 }
 
 function queueTutorialPrompt(key, title, copy, duration = 240) {
+  if (gameSettings.showTips === false) return false;
   if (hasTutorialSeen(key) || activeTutorialPrompt?.key === key || pendingTutorialPromptQueue.some(entry => entry.key === key)) return false;
   markTutorialSeen(key);
   const prompt = { key, title, copy, timer: duration, maxTimer: duration };
@@ -2451,8 +2857,10 @@ function sanitizeSelectedShipSkin() {
 
 function applyVisualPreferences() {
   bodyEl.dataset.skin = gameSettings.skin;
+  bodyEl.dataset.fontScale = normalizeFontScale(gameSettings.fontScale);
   bodyEl.classList.toggle('high-contrast', gameSettings.highContrast);
   bodyEl.classList.toggle('reduced-effects', gameSettings.reducedEffects);
+  bodyEl.classList.toggle('compact-hud', gameSettings.compactHud === true);
 }
 
 function refreshSkinOptions() {
@@ -2577,17 +2985,30 @@ function setPanelVisibility(panel, visible) {
 
 function configureGameSettingsPanel(mode = overlayMode) {
   if (!gameSettingsPanel) return;
-  gameSettingsPanel.classList.toggle('is-pause-audio', mode === 'pause');
   if (gameSettingsPanelTitle) {
-    gameSettingsPanelTitle.textContent = mode === 'pause' ? 'AUDIO' : 'PARTIDA';
+    gameSettingsPanelTitle.textContent = 'PARTIDA';
   }
   if (gameSettingsPanelBadge) {
-    gameSettingsPanelBadge.textContent = mode === 'pause' ? 'SISTEMA' : 'GAMEPLAY';
+    gameSettingsPanelBadge.textContent = 'GAMEPLAY';
   }
   if (gameSettingsPanelIntro) {
-    gameSettingsPanelIntro.textContent = mode === 'pause'
+    gameSettingsPanelIntro.textContent = 'Define el ritmo de la sesión antes de despegar.';
+  }
+}
+
+function configureOptionsPanel(mode = overlayMode) {
+  if (!optionsSettingsPanel) return;
+  optionsSettingsPanel.classList.toggle('is-pause-audio', mode === 'pause');
+  if (optionsSettingsPanelTitle) {
+    optionsSettingsPanelTitle.textContent = mode === 'pause' ? 'AUDIO' : 'OPCIONES';
+  }
+  if (optionsSettingsPanelBadge) {
+    optionsSettingsPanelBadge.textContent = 'SISTEMA';
+  }
+  if (optionsSettingsPanelIntro) {
+    optionsSettingsPanelIntro.textContent = mode === 'pause'
       ? 'Ajusta música y efectos sin perder de vista la sesión activa.'
-      : 'Define el ritmo de la sesión antes de despegar.';
+      : 'Ajusta comodidad, audio y accesos rápidos antes de volver al combate.';
   }
 }
 
@@ -2801,7 +3222,7 @@ function renderStatsPanel() {
       ? '<div class="stats-empty">Todavia no hay partidas registradas.</div>'
     : [
         ['Partidas', aggregateStats.gamesPlayed],
-        ['Modos', `${aggregateStats.totalClassicGames} clasico · ${aggregateStats.totalCoopGames} coop · ${aggregateStats.totalTimeAttackGames} contrarreloj`],
+        ['Modos', `${aggregateStats.totalClassicGames} clasico · ${aggregateStats.totalSurvivalGames} supervivencia · ${aggregateStats.totalCoopGames} coop · ${aggregateStats.totalTimeAttackGames} contrarreloj`],
         ['Puntos totales', aggregateStats.totalScore],
         ['Mejor nivel', aggregateStats.bestLevel],
         ['Mejor combo', `x${aggregateStats.bestCombo}`],
@@ -2902,6 +3323,40 @@ function renderAchievementOverviewCard({ unlockedAchievements, pendingAchievemen
       <span class="achievement-meta">${getLatestUnlockEntry() ? `${getLatestUnlockEntry().title} · ${getLatestUnlockEntry().reward || getLatestUnlockEntry().detail}` : 'Todavía no hay desbloqueos recientes.'}</span>
     </div>
   `;
+}
+
+function getCampaignSummary(mode = gameSettings.mode) {
+  if (mode === 'survival') {
+    return {
+      mode: 'survival',
+      completedLevels: 0,
+      nextTargetLevel: 1,
+      currentSector: { label: 'SUPERVIVENCIA', start: 1, end: MAX_START_LEVEL_OPTION, reward: null },
+      completedSectors: 0,
+      unlockedLevel: 1,
+      sectorProgress: 0,
+      sectorTotal: MAX_START_LEVEL_OPTION,
+      sectorRewardLabel: 'SIN CAMPAÑA',
+      sectorRewardClaimed: false
+    };
+  }
+  const playableMode = mode === 'timeattack' ? 'classic' : mode;
+  const completedLevels = countCompletedCampaignLevels(playableMode);
+  const nextTargetLevel = getCampaignNextTargetLevel(playableMode);
+  const currentSector = getSectorByLevel(Math.min(MAX_START_LEVEL_OPTION, Math.max(1, nextTargetLevel)));
+  const completedSectors = CAMPAIGN_SECTORS.filter(sector => isSectorCompleted(playableMode, sector)).length;
+  return {
+    mode: playableMode,
+    completedLevels,
+    nextTargetLevel,
+    currentSector,
+    completedSectors,
+    unlockedLevel: getMaxUnlockedStartLevel(playableMode),
+    sectorProgress: getSectorCompletedCount(playableMode, currentSector),
+    sectorTotal: currentSector.end - currentSector.start + 1,
+    sectorRewardLabel: getRewardLabel(currentSector.reward),
+    sectorRewardClaimed: getCampaignRewardState(currentSector)
+  };
 }
 
 function drawBestiaryEnemyPreview(ctxRef, type, color) {
@@ -3300,6 +3755,7 @@ function createDefaultAggregateStats() {
     totalPowerUpsCollected: 0,
     totalBossesDefeated: 0,
     totalClassicGames: 0,
+    totalSurvivalGames: 0,
     totalCoopGames: 0,
     totalTimeAttackGames: 0,
     totalEasyGames: 0,
@@ -3308,8 +3764,11 @@ function createDefaultAggregateStats() {
     totalCoopRespawns: 0,
     bestLevel: 1,
     bestClassicLevel: 1,
+    bestSurvivalLevel: 0,
     bestCoopLevel: 0,
     bestClassicScore: 0,
+    bestSurvivalScore: 0,
+    bestSurvivalTimeMs: 0,
     bestCoopScore: 0,
     bestCombo: 1,
     bestTimeAttackScore: 0,
@@ -3517,6 +3976,7 @@ function renderStartScreenPanels() {
   const archetype = getPlayerArchetype(globalAccuracy);
   const featuredBadge = getFeaturedBadge();
   const profileProgress = getProfileProgressSummary(unlockedAchievements);
+  const campaignSummary = getCampaignSummary(gameSettings.mode);
   const startContext = buildAchievementContext();
   const pendingGroups = getPendingAchievementsByCategory(startContext);
   const completedGroups = getCompletedAchievementsByCategory();
@@ -3528,6 +3988,7 @@ function renderStartScreenPanels() {
   const shipNoteEl = document.getElementById('ship-note');
   const settingsNoteEl = document.getElementById('settings-note');
   const audioNoteEl = document.getElementById('audio-note');
+  const optionsNoteEl = document.getElementById('options-note');
   if (startObjectivesCountEl) {
     startObjectivesCountEl.textContent = `${unlockedAchievements}/${ACHIEVEMENT_DEFS.length}`;
   }
@@ -3535,6 +3996,8 @@ function renderStartScreenPanels() {
   if (modeNoteEl) {
     modeNoteEl.textContent = gameSettings.mode === 'timeattack'
       ? 'Contrarreloj aprieta desde el segundo uno y premia decisiones rápidas.'
+      : gameSettings.mode === 'survival'
+        ? 'Supervivencia arranca siempre en el nivel 1 y suaviza la escalada para aguantar runs largas.'
       : gameSettings.mode === 'coop'
         ? 'Cooperativo local para dos pilotos en teclado. P1 usa A/D y espacio; P2 usa flechas y enter.'
         : 'Clásico deja crecer la partida con power-ups, bosses y oleadas sin límite de tiempo.';
@@ -3549,9 +4012,11 @@ function renderStartScreenPanels() {
   if (startLevelNoteEl) {
     startLevelNoteEl.textContent = gameSettings.mode === 'timeattack'
       ? 'Contrarreloj siempre empieza en el nivel 1 para mantener su economía y presión originales.'
+      : gameSettings.mode === 'survival'
+        ? 'Supervivencia siempre empieza en el nivel 1 y no usa progreso de campaña ni selector de arranque.'
       : gameSettings.mode === 'coop'
-        ? `En cooperativo solo puedes arrancar desde niveles ya conquistados en 2P. Ahora tienes del 1 al ${getMaxUnlockedStartLevel(gameSettings.mode)}.`
-        : `En clásico solo puedes arrancar desde niveles ya conquistados en clásico. Ahora puedes practicar del 1 al ${getMaxUnlockedStartLevel(gameSettings.mode)}.`;
+        ? `La campaña coop se desbloquea por separado. Sector activo ${campaignSummary.currentSector.label} · siguiente hito NIV ${campaignSummary.nextTargetLevel}.`
+        : `La campaña clásica ya marca progreso real por sectores. Sector activo ${campaignSummary.currentSector.label} · siguiente hito NIV ${campaignSummary.nextTargetLevel}.`;
   }
   if (skinNoteEl) {
     skinNoteEl.textContent = `Skin activa ${SKIN_THEMES[gameSettings.skin].label}. ${metaState.unlockedSkins.length}/${Object.keys(SKIN_THEMES).length} skins de cabina desbloqueadas.`;
@@ -3564,6 +4029,9 @@ function renderStartScreenPanels() {
   }
   if (audioNoteEl) {
     audioNoteEl.textContent = `Música ${musicEnabled ? 'activa' : 'silenciada'} al ${formatVolumePercent(musicVolume)} · FX al ${formatVolumePercent(gameSettings.fxVolume)}.`;
+  }
+  if (optionsNoteEl) {
+    optionsNoteEl.textContent = `${gameSettings.reducedEffects ? 'Visual reducida' : 'Visual normal'} · ayudas ${gameSettings.showTips === false ? 'ocultas' : 'activas'} · HUD ${gameSettings.compactHud ? 'compacto' : 'estándar'}.`;
   }
 
   startSummaryEl.innerHTML = `
@@ -3593,8 +4061,8 @@ function renderStartScreenPanels() {
       <div class="summary-stat">
         <span class="summary-label">MEJORES MARCAS</span>
         <strong class="summary-value">${highscore} pts</strong>
-        <span class="summary-copy">Clásico hasta nivel ${bestClassicLevel} · 2P coop hasta nivel ${bestCoopLevel || '1'} · combo máximo x${bestCombo}.</span>
-        <span class="summary-meta">Clásico ${aggregateStats.bestClassicScore || highscore} pts · 2P ${aggregateStats.bestCoopScore || 0} pts · Contrarreloj ${aggregateStats.bestTimeAttackScore} pts</span>
+        <span class="summary-copy">Clásico hasta nivel ${bestClassicLevel} · Supervivencia hasta nivel ${aggregateStats.bestSurvivalLevel || '1'} · 2P coop hasta nivel ${bestCoopLevel || '1'}.</span>
+        <span class="summary-meta">Clásico ${aggregateStats.bestClassicScore || highscore} pts · Supervivencia ${aggregateStats.bestSurvivalScore || 0} pts · 2P ${aggregateStats.bestCoopScore || 0} pts · Contrarreloj ${aggregateStats.bestTimeAttackScore} pts</span>
       </div>
       <div class="summary-stat">
         <span class="summary-label">ULTIMA SESION</span>
@@ -3603,10 +4071,10 @@ function renderStartScreenPanels() {
         <span class="summary-meta">${latestSession ? `${formatDifficultyLabel(latestSession.difficulty)} · ${formatPlayedAt(latestSession.playedAt)}` : 'Tu última sesión aparecerá aquí automáticamente.'}</span>
       </div>
       <div class="summary-stat is-wide">
-        <span class="summary-label">DOSSIER</span>
-        <strong class="summary-value">${featuredBadge ? featuredBadge.label : 'SIN INSIGNIA DESTACADA'}</strong>
-        <span class="summary-copy">${featuredBadge ? featuredBadge.copy : 'Desbloquea insignias para que tu perfil gane una firma visual y una ruta de progreso más reconocible.'}</span>
-        <span class="summary-meta">${aggregateStats.gamesPlayed} partidas · ${aggregateStats.totalPowerUpsCollected} power-ups · ${metaState.unlockedBadges.length} insignias · ${aggregateStats.totalTimeMs ? `Tiempo total ${formatDuration(aggregateStats.totalTimeMs)}` : 'Todavía sin tiempo acumulado relevante'}</span>
+        <span class="summary-label">CAMPAÑA</span>
+        <strong class="summary-value">${campaignSummary.currentSector.label}</strong>
+        <span class="summary-copy">${campaignSummary.completedLevels}/${MAX_START_LEVEL_OPTION} niveles superados · ${campaignSummary.completedSectors}/${CAMPAIGN_SECTORS.length} sectores cerrados · ${campaignSummary.completedLevels >= MAX_START_LEVEL_OPTION ? 'campaña base completada.' : `siguiente hito ${getLevelEncounterPreviewText(campaignSummary.nextTargetLevel, campaignSummary.mode)}.`}</span>
+        <span class="summary-meta">${campaignSummary.sectorProgress}/${campaignSummary.sectorTotal} niveles en el sector activo · ${campaignSummary.sectorRewardClaimed ? `Recompensa lograda: ${campaignSummary.sectorRewardLabel}` : `Recompensa pendiente: ${campaignSummary.sectorRewardLabel}`}</span>
       </div>
     </div>
     <div class="summary-ribbon">
@@ -3668,6 +4136,7 @@ function renderStartScreenPanels() {
   refreshShipSkinOptions();
   renderShipPreview();
   renderBestiaryPanel();
+  applyStartDashboardTab();
   updateMobileStartPanelState();
 }
 
@@ -3723,6 +4192,12 @@ function returnToMenu() {
   draw();
 }
 
+function handlePrimaryOverlayAction() {
+  initAudio();
+  if (overlayMode === 'pause') togglePause();
+  else startGame();
+}
+
 function setOverlayMode(mode, entry = null) {
   overlayMode = mode;
   overlay.dataset.mode = mode;
@@ -3734,20 +4209,20 @@ function setOverlayMode(mode, entry = null) {
   if (mode === 'start') {
     overlayKicker.textContent = 'ARCADE SESSION';
     overlayTitle.textContent = 'SPACE INVADERS';
-    overlayMsg.innerHTML = 'Elige cómo vas a jugar, revisa tu progreso y entra con un objetivo claro desde el primer segundo.';
+    overlayMsg.innerHTML = 'Vuelve al combate contra las hordas del espacio.';
     btnStart.textContent = 'JUGAR';
+    if (btnStartNav) {
+      btnStartNav.textContent = 'JUGAR';
+      btnStartNav.hidden = false;
+    }
+    btnStart.hidden = true;
     btnMenu.hidden = true;
     btnMenu.textContent = 'VOLVER AL MENU';
     configureGameSettingsPanel('start');
-    setPanelVisibility(gameSettingsPanel, true);
-    setPanelVisibility(visualSettingsPanel, true);
-    setPanelVisibility(startSummaryPanel, true);
-    setPanelVisibility(startObjectivesPanel, true);
-    setPanelVisibility(bestiaryPanel, true);
+    configureOptionsPanel('start');
     setPanelVisibility(runPanel, false);
-    setPanelVisibility(aggregatePanel, true);
-    setPanelVisibility(historyPanel, true);
     setPanelVisibility(metaPanel, false);
+    applyStartDashboardTab();
   } else if (mode === 'pause') {
     overlayKicker.textContent = 'PARTIDA EN CURSO';
     overlayTitle.textContent = 'PAUSA';
@@ -3755,13 +4230,18 @@ function setOverlayMode(mode, entry = null) {
       ? 'La escuadra está en espera. Revisa el estado de ambos pilotos, ajusta el audio y vuelve cuando quieras.'
       : 'Has detenido la partida. Revisa tu progreso y continua cuando quieras.';
     btnStart.textContent = 'CONTINUAR';
+    if (btnStartNav) btnStartNav.hidden = true;
+    btnStart.hidden = false;
     btnMenu.hidden = false;
     btnMenu.textContent = 'ABANDONAR';
     runPanelTitle.textContent = 'RESUMEN ACTUAL';
     runPanelBadge.textContent = formatModeLabel(currentRunStats.mode);
     renderRunStats(entry, mode);
     configureGameSettingsPanel('pause');
-    setPanelVisibility(gameSettingsPanel, true);
+    configureOptionsPanel('pause');
+    overlay.dataset.startTab = '';
+    setPanelVisibility(gameSettingsPanel, false);
+    setPanelVisibility(optionsSettingsPanel, true);
     setPanelVisibility(visualSettingsPanel, false);
     setPanelVisibility(startSummaryPanel, false);
     setPanelVisibility(startObjectivesPanel, false);
@@ -3783,20 +4263,25 @@ function setOverlayMode(mode, entry = null) {
         ? 'Has firmado una gran marca. Revisa el cierre de la partida, los desbloqueos logrados y decide si relanzas otra run o vuelves al menú.'
         : 'La partida ha terminado. Aquí tienes el cierre completo, tu progreso y el siguiente paso claro sin ruido extra.';
     btnStart.textContent = 'REINTENTAR';
+    if (btnStartNav) btnStartNav.hidden = true;
+    btnStart.hidden = false;
     btnMenu.hidden = false;
     btnMenu.textContent = 'VOLVER AL MENU';
     runPanelTitle.textContent = coopEntry ? 'CIERRE DE ESCUADRA' : 'ULTIMA PARTIDA';
     runPanelBadge.textContent = formatModeLabel(entry?.mode || currentRunStats.mode);
     renderRunStats(entry, mode);
     configureGameSettingsPanel('gameover');
+    configureOptionsPanel('gameover');
+    overlay.dataset.startTab = '';
     setPanelVisibility(gameSettingsPanel, false);
+    setPanelVisibility(optionsSettingsPanel, false);
     setPanelVisibility(visualSettingsPanel, false);
     setPanelVisibility(startSummaryPanel, false);
     setPanelVisibility(startObjectivesPanel, false);
     setPanelVisibility(bestiaryPanel, false);
     setPanelVisibility(runPanel, true);
-    setPanelVisibility(aggregatePanel, true);
-    setPanelVisibility(historyPanel, true);
+    setPanelVisibility(aggregatePanel, false);
+    setPanelVisibility(historyPanel, false);
     setPanelVisibility(metaPanel, false);
   }
 
@@ -3816,6 +4301,7 @@ let currentRunStats = createRunStats();
 let overlayMode = 'start';
 let progressPanelTab = 'pending';
 let startObjectivesTab = 'pending';
+let startDashboardTab = 'summary';
 let guidePanelTab = 'bestiary';
 let collectionTab = 'skins';
 let bestiaryTab = 'invaders';
@@ -4096,11 +4582,8 @@ document.addEventListener('keyup', event => {
   keys[event.code] = false;
 });
 
-btnStart.addEventListener('click', () => {
-  initAudio();
-  if (overlayMode === 'pause') togglePause();
-  else startGame();
-});
+btnStart.addEventListener('click', handlePrimaryOverlayAction);
+if (btnStartNav) btnStartNav.addEventListener('click', handlePrimaryOverlayAction);
 btnMenu.addEventListener('click', returnToMenu);
 btnMusic.addEventListener('click', toggleMusic);
 if (btnPauseMobile) btnPauseMobile.addEventListener('click', togglePause);
@@ -4172,7 +4655,7 @@ modeSelect.addEventListener('change', event => {
 if (startLevelSelectorEl) {
   startLevelSelectorEl.addEventListener('click', event => {
     const trigger = event.target.closest('[data-start-level]');
-    if (!trigger || gameSettings.mode === 'timeattack') return;
+    if (!trigger || gameSettings.mode === 'timeattack' || gameSettings.mode === 'survival') return;
     gameSettings.startLevel = normalizeStartLevel(trigger.dataset.startLevel, getMaxUnlockedStartLevel());
     persistGameSettings();
     applySettingsUI();
@@ -4184,17 +4667,36 @@ vibrationToggle.addEventListener('change', event => {
   persistGameSettings();
   renderStartScreenPanels();
 });
-if (reducedEffectsToggle) {
-  reducedEffectsToggle.addEventListener('change', event => {
-    gameSettings.reducedEffects = !!event.target.checked;
+if (visualIntensitySelect) {
+  visualIntensitySelect.addEventListener('change', event => {
+    gameSettings.reducedEffects = event.target.value === 'reduced';
     persistGameSettings();
     applySettingsUI();
     renderStartScreenPanels();
   });
 }
-if (highContrastToggle) {
-  highContrastToggle.addEventListener('change', event => {
-    gameSettings.highContrast = !!event.target.checked;
+if (fontScaleSelect) {
+  fontScaleSelect.addEventListener('change', event => {
+    gameSettings.fontScale = normalizeFontScale(event.target.value);
+    persistGameSettings();
+    applySettingsUI();
+    renderStartScreenPanels();
+  });
+}
+if (showTipsToggle) {
+  showTipsToggle.addEventListener('change', event => {
+    gameSettings.showTips = !!event.target.checked;
+    if (!gameSettings.showTips) {
+      activeTutorialPrompt = null;
+      pendingTutorialPromptQueue.length = 0;
+    }
+    persistGameSettings();
+    renderStartScreenPanels();
+  });
+}
+if (compactHudToggle) {
+  compactHudToggle.addEventListener('change', event => {
+    gameSettings.compactHud = !!event.target.checked;
     persistGameSettings();
     applySettingsUI();
     renderStartScreenPanels();
@@ -4216,6 +4718,17 @@ startAchievementsEl.addEventListener('click', event => {
   startObjectivesTab = nextTab;
   renderStartScreenPanels();
 });
+if (startDashboardTabsEl) {
+  startDashboardTabsEl.addEventListener('click', event => {
+    const trigger = event.target.closest('[data-start-dashboard-tab]');
+    if (!trigger || overlayMode !== 'start') return;
+    const nextTab = trigger.dataset.startDashboardTab;
+    if (!nextTab || startDashboardTab === nextTab) return;
+    startDashboardTab = nextTab;
+    applyStartDashboardTab();
+    overlay.scrollTo?.({ top: 0, behavior: 'smooth' });
+  });
+}
 if (overlayPanels) {
   overlayPanels.addEventListener('click', event => {
     const trigger = event.target.closest('[data-mobile-panel-toggle]');
@@ -4644,7 +5157,8 @@ function getEnemyLayout(pattern = currentWavePattern) {
   const patternScale = pattern?.gapScaleX || 1;
   const gapX = Math.floor(((canvas.width - totalW - 20) / (COLS - 1)) * patternScale);
   const marginX = 10;
-  const startY = Math.min((pattern?.startYBase || 65) + (level - 1) * 15, pattern?.maxStartY || 140);
+  const baseStartY = Math.min((pattern?.startYBase || 65) + (level - 1) * 15, pattern?.maxStartY || 140);
+  const startY = level === 19 ? 24 : baseStartY;
   const gapY = pattern?.gapY || 38;
   return { marginX, gapX, gapY, startY };
 }
@@ -4655,7 +5169,8 @@ function getEnemyTickInterval() {
   const threatLevel = getThreatLevel();
   const base = Math.max(5, 26 - (threatLevel - 1) * 1.7);
   const lateWaveSoftener = level >= 17 ? 1.18 + Math.min(0.18, (level - 17) * 0.014) : 1;
-  return Math.max(3, Math.round(base * preset.enemyTickFactor * (currentWaveEvent?.tickFactor || 1) * (alive / Math.max(1, currentWaveEnemyCount)) * lateWaveSoftener * (globalEffects.freeze > 0 ? 2.4 : 1)));
+  const level19Softener = level === 19 ? 1.2 : 1;
+  return Math.max(3, Math.round(base * preset.enemyTickFactor * (currentWaveEvent?.tickFactor || 1) * (alive / Math.max(1, currentWaveEnemyCount)) * lateWaveSoftener * level19Softener * (globalEffects.freeze > 0 ? 2.4 : 1)));
 }
 
 function getAliveEnemyBounds(enemyList = enemies) {
@@ -4906,6 +5421,7 @@ function completeLevel() {
       awardTimedBonus(fastWaveBonus, canvas.width / 2, 108, '#c4f7ff', `RAPIDA ${formatTimeAttackBonusLabel(fastWaveBonus)}`);
     }
   }
+  recordCampaignLevelClear(level);
   level++;
   levelEl.textContent = level;
   bossEncounteredThisLevel = false;
@@ -6105,6 +6621,7 @@ function updateAggregateStats(entry) {
   aggregateStats.totalPowerUpsCollected += entry.powerUpsCollected;
   aggregateStats.totalBossesDefeated += entry.bossesDefeated;
   if (entry.mode === 'timeattack') aggregateStats.totalTimeAttackGames += 1;
+  else if (entry.mode === 'survival') aggregateStats.totalSurvivalGames += 1;
   else if (entry.mode === 'coop') aggregateStats.totalCoopGames += 1;
   else aggregateStats.totalClassicGames += 1;
   if (entry.difficulty === 'easy') aggregateStats.totalEasyGames += 1;
@@ -6112,12 +6629,15 @@ function updateAggregateStats(entry) {
   else aggregateStats.totalNormalGames += 1;
   aggregateStats.totalCoopRespawns += Math.max(0, Number(entry.coopRespawns) || 0);
   if (entry.mode === 'coop') aggregateStats.bestCoopLevel = Math.max(aggregateStats.bestCoopLevel, entry.level);
+  else if (entry.mode === 'survival') aggregateStats.bestSurvivalLevel = Math.max(aggregateStats.bestSurvivalLevel, entry.level);
   else if (entry.mode === 'classic') aggregateStats.bestClassicLevel = Math.max(aggregateStats.bestClassicLevel, entry.level);
   if (entry.mode === 'coop') aggregateStats.bestCoopScore = Math.max(aggregateStats.bestCoopScore, entry.score);
+  else if (entry.mode === 'survival') aggregateStats.bestSurvivalScore = Math.max(aggregateStats.bestSurvivalScore, entry.score);
   else if (entry.mode === 'classic') aggregateStats.bestClassicScore = Math.max(aggregateStats.bestClassicScore, entry.score);
   aggregateStats.bestLevel = Math.max(aggregateStats.bestLevel, entry.level);
   aggregateStats.bestCombo = Math.max(aggregateStats.bestCombo, entry.maxCombo);
   if (entry.mode === 'timeattack') aggregateStats.bestTimeAttackScore = Math.max(aggregateStats.bestTimeAttackScore, entry.score);
+  if (entry.mode === 'survival') aggregateStats.bestSurvivalTimeMs = Math.max(aggregateStats.bestSurvivalTimeMs, entry.durationMs);
   if (entry.shots >= 25) aggregateStats.bestAccuracy25 = Math.max(aggregateStats.bestAccuracy25, entry.accuracy);
   if (entry.shots >= 35) aggregateStats.bestAccuracy35 = Math.max(aggregateStats.bestAccuracy35, entry.accuracy);
   aggregateStats.totalTimeMs += entry.durationMs;
@@ -6145,7 +6665,10 @@ function gameOver(reason = 'defeat') {
   const entry = {
     score,
     level,
+    startedLevel: currentRunStats.startedLevel || 1,
     accuracy: finalAccuracy,
+    lives: finalSnapshot.lives,
+    squadLivesEnd: isCoopMode(currentRunStats.mode) ? players.reduce((sum, playerState) => sum + Math.max(0, playerState.lives || 0), 0) : finalSnapshot.lives,
     shots: currentRunStats.shots,
     hits: currentRunStats.hits,
     enemiesDestroyed: currentRunStats.enemiesDestroyed,
@@ -6168,6 +6691,7 @@ function gameOver(reason = 'defeat') {
   };
 
   saveScore(entry);
+  recordCampaignProgress(entry);
   updateAggregateStats(entry);
   evaluateAchievements('end', { run: entry });
   evaluateAchievements('profile');
@@ -6179,6 +6703,8 @@ function startGame() {
   const preset = getDifficultyConfig();
   const startingLevel = (gameSettings.mode === 'classic' || gameSettings.mode === 'coop')
     ? normalizeStartLevel(gameSettings.startLevel, getMaxUnlockedStartLevel())
+    : gameSettings.mode === 'survival'
+      ? 1
     : 1;
   closeOverlayDialog();
   if (!isCoopAvailable() && gameSettings.mode === 'coop') {
@@ -6188,6 +6714,7 @@ function startGame() {
   currentChallenge = getCurrentChallengeDefinition();
   currentRunStats = createRunStats();
   currentRunStats.startedAt = Date.now();
+  currentRunStats.startedLevel = startingLevel;
   currentRunStats.difficulty = gameSettings.difficulty;
   currentRunStats.mode = gameSettings.mode;
   currentRunStats.challengeId = currentChallenge.id;
