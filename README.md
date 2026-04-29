@@ -1,150 +1,45 @@
-# Space Invaders Game
+# Space Invaders
 
-![IMG](recreativas_invaders.png "Space Invaders Image")
+Implementación web del clásico `Space Invaders` con `HTML + CSS + JavaScript` sin dependencias ni build step. El repositorio también conserva una versión histórica en `Python/Pygame` dentro de `legacy/`.
 
-Implementación web del clásico **Space Invaders** con una base muy ligera: `HTML + CSS + JavaScript` sin dependencias ni build step. El repositorio también conserva una versión histórica en `Python/Pygame` dentro de `legacy/`.
+## Estado actual
 
-## Resumen
+- Juego 2D sobre `canvas` con cinco modos: `classic`, `survival`, `timeattack`, `coop` y `competitive`.
+- Campaña clásica por sectores, progreso cooperativo separado y dominación de niveles.
+- Meta persistente con logros, desafíos rotatorios, skins, naves, insignias y bestiario.
+- Dashboard inicial por pestañas, overlays de pausa/game over y soporte táctil para móvil.
+- Despliegue estático a GitHub Pages desde `main`.
 
-- Juego 2D sobre `canvas` de `800x600`.
-- Interfaz retro responsive para escritorio y móvil.
-- Lógica principal concentrada en `js/game.js`.
-- Persistencia local de récord e historial mediante `localStorage`.
-- Despliegue automático a GitHub Pages desde `main`.
+## Documentación
 
-## Funcionalidades implementadas
+- Producto y experiencia de juego: [docs/producto.md](docs/producto.md)
+- Arquitectura y mantenimiento técnico: [docs/arquitectura.md](docs/arquitectura.md)
 
-- Pantalla de inicio con overlay y botón de arranque.
-- HUD con puntuación, récord, vidas y nivel.
-- Movimiento del jugador por teclado y controles táctiles.
-- Pausa con `P` o `Esc`.
-- Disparo del jugador con una bala activa simultánea.
-- Oleadas de enemigos en rejilla con desplazamiento lateral, descenso y animación simple.
-- Disparo enemigo por columnas activas.
-- Escudos destructibles.
-- UFO especial con aparición aleatoria y puntuación extra.
-- Sistema de combos con textos flotantes.
-- Explosiones y feedback visual al impactar.
-- Audio retro sintetizado con `WebAudio API`.
-- Música de fondo procedural con control de activación y volumen.
-- Soporte para pantalla completa.
-- Panel inicial de ajustes con dificultad y vibración.
-- Selector de modo entre clásico y contrarreloj.
-- Atajos visibles y accesos directos para música/fullscreen.
-- Vibración en dispositivos compatibles al recibir daño.
-- Transición entre niveles y dificultad progresiva.
-- Primera oleada suavizada en nivel 1 para facilitar la entrada al juego.
-- Power-ups simples: disparo rápido, escudo y corazón de curación.
-- Curación limitada a un máximo de `5` vidas, comenzando cada partida con `3`.
-- Boss arcade al final de cada ciclo de `3` niveles.
-- Oleadas variadas con formaciones `grid`, `split wings`, `spearhead`, `staggered` y `fortress`.
-- Enemigos con roles diferenciados: `classic`, `shooter`, `scout` y `tank`.
-- Variantes de UFO con comportamiento, silueta y recompensa propia: `bonus`, `cargo`, `disruptor` y `jackpot`.
-- Oleadas evento con identidad jugable propia: `standard`, `hunter`, `armored` y `bonus`.
-- Mini boss de escuadra con líder central y dos escoltas.
-- Bosses con perfiles alternos: `striker`, `pulse` y `warden`, con transición visible a fase 2.
-- HUD de vidas con corazones pixel art y estado activo de partida.
-- Fondo dinámico, partículas, shockwaves y screen shake con estética arcade renovada.
-- Entrada cinematográfica del boss y feedback visual reforzado en impactos y pickups.
-- Sistema de meta renovado con logros por categorías, progreso parcial visible, recompensas explícitas y registro de desbloqueos.
-- Desafío activo rotatorio con hitos meta por sellos completados.
-- Skins de cabina y modelos de nave desbloqueables con inventario persistente.
-- Insignias meta persistentes ligadas a logros y desafíos.
-- Preview de nave en el dashboard inicial y selector de silueta jugable.
-- Tutorial contextual de primera partida con avisos breves en combate.
-- Bestiario persistente en portada con enemigos, UFOs, élites y bosses, más contador de derrotas por tipo.
-- Nuevos logros meta ligados a descubrimiento del bestiario y caza de amenazas concretas.
-- Volumen separado para `musica` y `fx` desde el dashboard inicial.
-- Tutorial rejugable en overlay desde la zona de ajustes de partida.
-- Reinicio de perfil con confirmación desde UI manteniendo la base de ajustes.
-- Colección meta unificada con el bestiario en una misma zona navegable.
-- Nuevos power-ups: `freeze`, `piercing` y `drone wing`.
-- Estadísticas de partida y acumuladas.
-- Guardado local de récord (`si_hs`), historial enriquecido (`si_history`), estadísticas acumuladas (`si_stats`) y meta persistente (`si_meta`).
-
-## Estructura del proyecto
+## Estructura rápida
 
 ```text
 spaceInvaders/
 ├─ index.html
 ├─ README.md
-├─ recreativas_invaders.png
 ├─ css/
 │  └─ style.css
 ├─ js/
 │  └─ game.js
+├─ docs/
+│  ├─ producto.md
+│  └─ arquitectura.md
 ├─ legacy/
 │  ├─ main.py
 │  ├─ proyecto_9.py
-│  ├─ imágenes, sonidos y fuentes de la versión Pygame
+│  └─ assets de la versión Pygame
 └─ .github/
    └─ workflows/
       └─ deploy.yml
 ```
 
-## Cómo está estructurada la aplicación
-
-### 1. Capa de interfaz
-
-- `index.html` define un layout mínimo con HUD, `canvas`, overlay de inicio/game over, controles táctiles y enlace externo.
-- La web no usa componentes ni framework; toda la UI está montada directamente sobre el DOM y el `canvas`.
-
-### 2. Capa visual y responsive
-
-- `css/style.css` controla el look retro con paleta neón, layout vertical para móvil y ajustes específicos para `landscape`.
-- Los controles táctiles solo aparecen en dispositivos con puntero grueso (`pointer: coarse`).
-- El `canvas` escala de forma fluida manteniendo el aspecto jugable.
-
-### 3. Capa de juego
-
-`js/game.js` concentra toda la lógica. A nivel práctico funciona como un único módulo con estas responsabilidades:
-
-- Estado global de partida: `score`, `lives`, `level`, `running`, `paused`, `combo`, `frameCount`.
-- Modos y progreso: clásico, contrarreloj, bosses por ciclo y power-ups temporales.
-- Composición de oleadas: patrones, roles enemigos, UFOs variantes y bosses por perfil.
-- Persistencia: lectura y escritura en `localStorage` para récord, historial, ajustes y estadísticas.
-- Personalización: temas visuales, siluetas de nave desbloqueables y recompensas meta.
-- Onboarding y guía: tutorial contextual de primera partida y bestiario consultable desde portada.
-- Audio: generación procedural de efectos con `AudioContext`.
-- Entrada: teclado, botón de inicio y controles táctiles.
-- Sistemas de juego: jugador, balas múltiples del jugador, balas enemigas, escudos, enemigos, UFO, boss, power-ups, explosiones, textos flotantes y tracking de métricas.
-- Bucle principal: `update()` + `draw()` + `requestAnimationFrame(loop)`.
-
-### 4. Flujo de una partida
-
-1. `startGame()` reinicia estado, HUD, modo elegido, enemigos, boss y escudos.
-2. `loop()` ejecuta actualización y render mientras `running` sea `true`.
-3. `update()` resuelve movimiento, disparos, colisiones, power-ups, contrarreloj, avance de nivel, boss y muerte.
-4. `draw()` renderiza todos los elementos del juego sobre el `canvas`.
-5. `gameOver()` guarda puntuación, muestra historial y reabre el overlay.
-
-## Contexto técnico útil
-
-### Fortalezas actuales
-
-- La app es simple de desplegar y de entender.
-- No depende de librerías externas.
-- El juego ya cubre el núcleo jugable: progresión, scoring, feedback audiovisual y soporte móvil.
-
-### Limitaciones estructurales
-
-- `js/game.js` es monolítico; cualquier mejora grande va a tocar varias zonas del mismo archivo.
-- No hay separación por módulos, clases ni sistemas desacoplados.
-- No existen tests automáticos.
-- No hay pipeline de build, lint ni empaquetado.
-- El workflow de deploy solo publica archivos estáticos; no hay backend ni servicios externos.
-
-### Qué implica esto para futuras mejoras
-
-- Mejoras pequeñas como música, dificultad, fullscreen o ajustes siguen siendo directas.
-- Funcionalidades como ranking online, guardado de progreso remoto o editor de niveles requerirán separar estado, persistencia y UI.
-- Si el proyecto sigue creciendo, conviene dividir `game.js` por dominios: entrada, audio, entidades, render y persistencia.
-
-## Ejecutar el proyecto
+## Ejecutar
 
 No requiere instalación de dependencias. Basta con abrir `index.html` en el navegador o servir el directorio como estático.
-
-Ejemplo con un servidor simple:
 
 ```bash
 python -m http.server 8000
@@ -152,82 +47,12 @@ python -m http.server 8000
 
 Después abre `http://localhost:8000`.
 
-## Deploy automático
+## Deploy
 
-El deploy está definido en `.github/workflows/deploy.yml`.
+El workflow de `.github/workflows/deploy.yml` publica el repositorio raíz en GitHub Pages en cada `push` a `main`, excluyendo `.github`, `legacy` e `.idea`.
 
-- Se ejecuta en cualquier `push` a la rama `main`.
-- Publica el repositorio raíz en GitHub Pages.
-- Excluye `.github`, `legacy` e `.idea` del contenido publicado.
+## Limitaciones conocidas
 
-## Directorio legacy
- 
-La carpeta `legacy/` conserva material previo y de referencia:
-
-- `legacy/main.py`: versión original del juego en `Python/Pygame`, con assets locales, música y lógica clásica.
-- `legacy/proyecto_9.py`: script independiente de búsqueda de patrones; no forma parte del juego.
-- Recursos binarios: imágenes, sonidos y tipografías usadas por la versión antigua.
-
-Esta carpeta no interviene en la versión web actual, pero sí aporta contexto histórico sobre la evolución del proyecto.
-
-## Roadmap de mejoras
-
-### Lote 3 implementado
-
-1. Selector de modo `clasico` / `contrarreloj`.
-2. Power-ups simples con `disparo rapido`, `escudo` y `corazon`.
-3. Recuperacion de vida limitada a `5` corazones como maximo, iniciando con `3`.
-4. Boss al final de cada ciclo de `3` niveles.
-5. Primera oleada del nivel 1 suavizada con media fila superior ausente.
-
-### Lote 4 implementado
-
-1. Logros persistentes con desbloqueo por hitos jugables.
-2. Desafio activo diario/rotatorio mostrado en el overlay.
-3. Skins cosméticas y modelos de nave desbloqueables y seleccionables.
-4. Dashboard inicial con preview de nave y mejor separación entre personalización y meta.
-5. Power-ups avanzados: `freeze`, `piercing` y `drone wing`.
-6. Meta rediseñada con categorías (`inicio`, `progresion`, `habilidad`, `modos`, `coleccion`, `meta`).
-7. Recompensas explícitas por logro: skins, modelos de nave e insignias persistentes.
-8. Progreso parcial visible, hitos cercanos y catálogo estructurado en pausa/game over.
-
-### Lote 5 implementado
-
-1. Formaciones de oleada variadas con escalado por nivel y modo.
-2. Roles enemigos con diferencias reales de resistencia, disparo y prioridad táctica.
-3. UFOs `bonus`, `cargo`, `disruptor` y `jackpot` con silueta, efecto y recompensa propias.
-4. Oleadas evento que alteran presión, drops y frecuencia de UFO.
-5. Mini boss de escuadra con líder central y dos escoltas.
-6. Bosses `striker`, `pulse` y `warden` con patrones alternos y fase 2 visible.
-7. Escalado de presión más inteligente entre early, mid y late game.
-8. Tutorial contextual de primera partida con tips al descubrir amenazas y power-ups.
-9. Bestiario persistente con fichas de amenazas, estadísticas legibles y derrotas acumuladas.
-10. Nuevos logros meta ligados a descubrimiento y dominio del bestiario.
-
-### Mejoras de bajo coste pendientes
-
-1. Reset fino por categorías de progreso o ajustes.
-
-### Mejoras de impacto medio pendientes
-
-1. Animaciones avanzadas.
-2. Efectos de partículas.
-3. Personalización de controles.
-4. Selección de skins o temas.
-
-### Mejoras que exigen más arquitectura
-
-1. Guardado de progreso.
-2. Misiones semanales o de temporada.
-3. Ranking online/global.
-4. Modo multijugador.
-5. Integración con servicios externos.
-6. Editor de niveles.
-7. Replay de partidas.
-8. Recompensas diarias.
-9. Opciones de accesibilidad completas.
-10. Mejoras reales de CI/CD con validaciones y pruebas.
-
-## Siguiente paso recomendado
-
-Si el objetivo es seguir iterando esta base sin reescribirla, el mejor siguiente paso es extraer `js/game.js` en módulos pequeños antes de añadir features persistentes o conectadas a red.
+- `js/game.js` sigue siendo el centro monolítico del juego.
+- No hay tests automáticos ni pipeline de build.
+- El multijugador `2P` está pensado para teclado; en superficies táctiles se oculta para evitar una experiencia incoherente.

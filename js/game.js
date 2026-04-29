@@ -27,6 +27,7 @@ const skinSelect = document.getElementById('skin-select');
 const shipSkinSelect = document.getElementById('ship-skin-select');
 const difficultySelect = document.getElementById('difficulty-select');
 const modeSelect = document.getElementById('mode-select');
+const modeAvailabilityNoteEl = document.getElementById('mode-availability-note');
 const startLevelSelectorEl = document.getElementById('start-level-selector');
 const startLevelStatusEl = document.getElementById('start-level-status');
 const startLevelDetailsEl = document.getElementById('start-level-details');
@@ -173,6 +174,36 @@ const SKIN_THEMES = {
     shield: '#7ef2d5',
     drone: '#d8dfff',
     accent: '#b9c6ff'
+  },
+  afterglow: {
+    label: 'AFTERGLOW',
+    player: '#7affc1',
+    playerBullet: '#fff0a8',
+    enemyRows: ['#5be0b2', '#8cf4ff', '#ffd580'],
+    ufo: '#ff8e82',
+    shield: '#65f7b2',
+    drone: '#d8fff2',
+    accent: '#7affc1'
+  },
+  volt: {
+    label: 'VOLT',
+    player: '#7dafff',
+    playerBullet: '#fff07d',
+    enemyRows: ['#7dafff', '#ff7da6', '#ffd66f'],
+    ufo: '#ff5f92',
+    shield: '#6ff0d9',
+    drone: '#dce7ff',
+    accent: '#7dafff'
+  },
+  citadel: {
+    label: 'CITADEL',
+    player: '#c8d4ff',
+    playerBullet: '#ffe29a',
+    enemyRows: ['#9ca9ff', '#ffb36b', '#7ff0db'],
+    ufo: '#ff7a6e',
+    shield: '#8df3c5',
+    drone: '#e8eeff',
+    accent: '#c8d4ff'
   }
 };
 
@@ -192,6 +223,14 @@ const SHIP_SKIN_DEFS = {
   nova: {
     label: 'NOVA',
     copy: 'Cabina afilada para sesiones de precisión.'
+  },
+  tandem: {
+    label: 'TANDEM',
+    copy: 'Doble cabina para runs que se juegan mejor a dos voces.'
+  },
+  regent: {
+    label: 'REGENT',
+    copy: 'Chasis de mando para cerrar la campana alta con presencia.'
   }
 };
 
@@ -212,10 +251,18 @@ const BADGE_DEFS = {
   wingmate: { label: 'WINGMATE', copy: 'Ya has compartido cabina y presión real con otro piloto.' },
   relay: { label: 'RELAY', copy: 'Sabes sostener la sesión mientras tu compañero vuelve al frente.' },
   tandem: { label: 'TANDEM', copy: 'Cuando los dos seguís en pie, la run coop cambia de nivel.' },
+  endurance: { label: 'ENDURANCE', copy: 'Has abierto la ruta de supervivencia y ya sabes sostener presión sin reloj.' },
+  survivor: { label: 'SURVIVOR', copy: 'Tu supervivencia ya no depende de una buena salida, sino de aguante real.' },
+  challenger: { label: 'CHALLENGER', copy: 'Has activado el duelo local y ya juegas contra otra lectura humana.' },
+  duelist: { label: 'DUELIST', copy: 'Sabes mantener presión, ritmo y score incluso con otro piloto disputando cada ventana.' },
   trailblazer: { label: 'TRAILBLAZER', copy: 'Has cerrado el primer bloque de campaña y ya no juegas solo por inercia.' },
   pathfinder: { label: 'PATHFINDER', copy: 'El segundo sector ya forma parte de tu mapa, no de tus intentos sueltos.' },
   citadel: { label: 'CITADEL', copy: 'Tu campaña ya resiste presión alta y encuentros de verdad.' },
   overdrive: { label: 'OVERDRIVE', copy: 'Has llegado al extremo alto de la campaña y el tablero ya te reconoce.' },
+  trailmark: { label: 'TRAILMARK', copy: 'El primer tramo de campaña ya está consolidado dentro del catálogo.' },
+  pathmark: { label: 'PATHMARK', copy: 'La ruta media de campaña ya tiene continuidad y no se queda en un pico aislado.' },
+  overseer: { label: 'OVERSEER', copy: 'Dominas niveles concretos en vez de limitarte a sobrevivirlos.' },
+  standardbearer: { label: 'STANDARDBEARER', copy: 'La campaña clásica base ya está cerrada bajo tu nombre.' },
   spotter: { label: 'SPOTTER', copy: 'Reconoces todas las siluetas base del frente.' },
   radar: { label: 'RADAR', copy: 'Ya lees el tráfico UFO como un patrón conocido.' },
   breacher: { label: 'BREACHER', copy: 'Las élites dejan de parecer encuentros aislados.' },
@@ -526,12 +573,12 @@ const ACHIEVEMENT_DEFS = [
   {
     id: 'vector_precise',
     title: 'VECTOR FINO',
-    copy: 'Cierra una partida con 55% de precisión y 20 disparos o más para desbloquear una nave ágil.',
+    copy: 'Cierra una partida con 55% de precisión y 25 disparos o más para desbloquear una nave ágil.',
     category: 'HABILIDAD',
     tier: 'CORE',
     reward: { type: 'shipSkin', id: 'arrow' },
     track: 'end',
-    status: ctx => buildPercentStatus(ctx.bestAccuracy25, 55, 20)
+    status: ctx => buildPercentStatus(ctx.bestAccuracy25, 55, 25)
   },
   {
     id: 'sharpshooter',
@@ -574,6 +621,46 @@ const ACHIEVEMENT_DEFS = [
     status: ctx => buildCountStatus(ctx.totalBossesDefeated, 3, 'BOSS')
   },
   {
+    id: 'campaign_sector_1',
+    title: 'SECTOR ASEGURADO',
+    copy: 'Completa 6 niveles de la campaña clásica. El arranque ya cuenta como progreso real dentro del catálogo.',
+    category: 'PROGRESION',
+    tier: 'CORE',
+    reward: { type: 'badge', id: 'trailmark' },
+    track: 'profile',
+    status: () => buildCountStatus(countCompletedCampaignLevels('classic'), 6, 'NIVELES')
+  },
+  {
+    id: 'campaign_sector_2',
+    title: 'RUTA MEDIA',
+    copy: 'Completa 12 niveles de la campaña clásica. Aquí la progresión deja de ser una promesa y se vuelve estable.',
+    category: 'PROGRESION',
+    tier: 'ELITE',
+    reward: { type: 'badge', id: 'pathmark' },
+    track: 'profile',
+    status: () => buildCountStatus(countCompletedCampaignLevels('classic'), 12, 'NIVELES')
+  },
+  {
+    id: 'campaign_dominion',
+    title: 'DOMINIO DE CAMPO',
+    copy: 'Domina 6 niveles de la campaña clásica cerrando con margen real de vidas y precisión.',
+    category: 'PROGRESION',
+    tier: 'MASTER',
+    reward: { type: 'badge', id: 'overseer' },
+    track: 'profile',
+    status: () => buildCountStatus(countDominatedCampaignLevels('classic'), 6, 'NIVELES')
+  },
+  {
+    id: 'campaign_classic_complete',
+    title: 'CAMPAÑA BASE',
+    copy: 'Completa los 24 niveles de la campaña clásica y deja cerrada la ruta principal del tablero.',
+    category: 'PROGRESION',
+    tier: 'MASTER',
+    reward: { type: 'badge', id: 'standardbearer' },
+    track: 'profile',
+    status: () => buildCountStatus(countCompletedCampaignLevels('classic'), MAX_START_LEVEL_OPTION, 'NIVELES')
+  },
+  {
     id: 'time_pilot',
     title: 'PILOTO CRONO',
     copy: 'Cierra tu primera partida en contrarreloj y entra en otro ritmo.',
@@ -606,12 +693,32 @@ const ACHIEVEMENT_DEFS = [
   {
     id: 'coop_sortie',
     title: 'ALA COMPARTIDA',
-    copy: 'Cierra tu primera sesión en 2 jugadores cooperativo y activa la ruta de escuadrón.',
+    copy: 'Cierra tu primera sesion en 2 jugadores cooperativo y abre un chasis de escuadron real para el hangar.',
     category: 'MODOS',
     tier: 'BASE',
-    reward: { type: 'badge', id: 'wingmate' },
+    reward: { type: 'shipSkin', id: 'tandem' },
     track: 'end',
     status: ctx => buildCountStatus(ctx.aggregate.totalCoopGames, 1, 'RUN')
+  },
+  {
+    id: 'survival_sortie',
+    title: 'SIN RELEVO',
+    copy: 'Cierra tu primera partida en supervivencia y desbloquea una skin pensada para runs largas.',
+    category: 'MODOS',
+    tier: 'BASE',
+    reward: { type: 'skin', id: 'afterglow' },
+    track: 'end',
+    status: ctx => buildCountStatus(ctx.aggregate.totalSurvivalGames, 1, 'RUN')
+  },
+  {
+    id: 'survival_10min',
+    title: 'AGUANTE REAL',
+    copy: 'Sobrevive 10 minutos en supervivencia. Aquí ya pesa más sostener que arrancar fuerte.',
+    category: 'MODOS',
+    tier: 'ELITE',
+    reward: { type: 'badge', id: 'survivor' },
+    track: 'end',
+    status: ctx => buildDurationStatus(ctx.aggregate.bestSurvivalTimeMs, 600000)
   },
   {
     id: 'coop_respawns',
@@ -632,6 +739,26 @@ const ACHIEVEMENT_DEFS = [
     reward: { type: 'badge', id: 'tandem' },
     track: 'end',
     status: ctx => buildBinaryStatus(Boolean(ctx.run && ctx.run.mode === 'coop' && ctx.run.coopBothStanding), '2/2 ACTIVOS')
+  },
+  {
+    id: 'competitive_sortie',
+    title: 'DUELO ABIERTO',
+    copy: 'Cierra tu primera sesión en 2 jugadores competitivo y activa la lectura real de duelo.',
+    category: 'MODOS',
+    tier: 'BASE',
+    reward: { type: 'badge', id: 'challenger' },
+    track: 'end',
+    status: ctx => buildCountStatus(ctx.aggregate.totalCompetitiveGames, 1, 'RUN')
+  },
+  {
+    id: 'competitive_level_5',
+    title: 'PRESION A DOS BANDAS',
+    copy: 'Alcanza el nivel 5 en 2 jugadores competitivo y desbloquea una skin hecha para duelos largos.',
+    category: 'MODOS',
+    tier: 'CORE',
+    reward: { type: 'skin', id: 'volt' },
+    track: 'end',
+    status: ctx => buildLevelStatus(ctx.aggregate.bestCompetitiveLevel, 5)
   },
   {
     id: 'challenge_streak',
@@ -686,7 +813,7 @@ const ACHIEVEMENT_DEFS = [
   {
     id: 'boss_archive',
     title: 'ARCHIVO BOSS',
-    copy: 'Derrota al menos una vez a Striker, Pulse y Warden para completar el archivo principal.',
+    copy: 'Derrota al menos una vez a Striker, Pulse, Warden y Overlord para completar el archivo principal.',
     category: 'COLECCION',
     tier: 'ELITE',
     reward: { type: 'badge', id: 'archivist' },
@@ -1050,8 +1177,8 @@ const BOSS_CAMPAIGN_LEVELS = {
 const CAMPAIGN_SECTORS = [
   { id: 'sector_1', label: 'SECTOR 1', start: 1, end: 6, bossLevel: 6, reward: { type: 'badge', id: 'trailblazer' } },
   { id: 'sector_2', label: 'SECTOR 2', start: 7, end: 12, bossLevel: 12, reward: { type: 'badge', id: 'pathfinder' } },
-  { id: 'sector_3', label: 'SECTOR 3', start: 13, end: 18, bossLevel: 18, reward: { type: 'badge', id: 'citadel' } },
-  { id: 'sector_4', label: 'SECTOR 4', start: 19, end: 24, bossLevel: 24, reward: { type: 'badge', id: 'overdrive' } }
+  { id: 'sector_3', label: 'SECTOR 3', start: 13, end: 18, bossLevel: 18, reward: { type: 'skin', id: 'citadel' } },
+  { id: 'sector_4', label: 'SECTOR 4', start: 19, end: 24, bossLevel: 24, reward: { type: 'shipSkin', id: 'regent' } }
 ];
 const CAMPAIGN_DOMINATION_MIN_LIVES = 3;
 const CAMPAIGN_DOMINATION_MIN_ACCURACY = 60;
@@ -1116,6 +1243,10 @@ function isMobileViewport() {
   return window.matchMedia('(max-width: 720px)').matches;
 }
 
+function isCoarsePointerDevice() {
+  return window.matchMedia('(pointer: coarse)').matches || window.matchMedia('(any-pointer: coarse)').matches;
+}
+
 function isCoopMode(value = gameSettings.mode) {
   return value === 'coop';
 }
@@ -1129,7 +1260,16 @@ function isTwoPlayerMode(value = gameSettings.mode) {
 }
 
 function isTwoPlayerModeAvailable() {
-  return !isMobileViewport();
+  return !isMobileViewport() && !isCoarsePointerDevice();
+}
+
+function updateModeAvailabilityNote() {
+  if (!modeAvailabilityNoteEl) return;
+  const disabled = !isTwoPlayerModeAvailable();
+  modeAvailabilityNoteEl.hidden = !disabled;
+  if (disabled) {
+    modeAvailabilityNoteEl.textContent = 'En tactil y movil, los modos 2P requieren teclado o mandos externos.';
+  }
 }
 
 function formatVolumePercent(value) {
@@ -1504,6 +1644,24 @@ function drawPlayerShipModel(ctxRef, x, y, w, h, model = gameSettings.shipSkin, 
       fillShipRect(ctxRef, x, y, w, h, 0.22, 0.68, 0.16, 0.16);
       fillShipRect(ctxRef, x, y, w, h, 0.62, 0.68, 0.16, 0.16);
       break;
+    case 'tandem':
+      fillShipRect(ctxRef, x, y, w, h, 0.2, 0.12, 0.16, 0.22);
+      fillShipRect(ctxRef, x, y, w, h, 0.64, 0.12, 0.16, 0.22);
+      fillShipRect(ctxRef, x, y, w, h, 0.42, 0.0, 0.16, 0.18);
+      fillShipRect(ctxRef, x, y, w, h, 0.28, 0.3, 0.44, 0.18);
+      fillShipRect(ctxRef, x, y, w, h, 0.06, 0.5, 0.22, 0.18);
+      fillShipRect(ctxRef, x, y, w, h, 0.72, 0.5, 0.22, 0.18);
+      fillShipRect(ctxRef, x, y, w, h, 0.18, 0.66, 0.64, 0.18);
+      break;
+    case 'regent':
+      fillShipRect(ctxRef, x, y, w, h, 0.4, 0.0, 0.2, 0.2);
+      fillShipRect(ctxRef, x, y, w, h, 0.26, 0.18, 0.48, 0.18);
+      fillShipRect(ctxRef, x, y, w, h, 0.1, 0.38, 0.8, 0.22);
+      fillShipRect(ctxRef, x, y, w, h, 0.0, 0.54, 0.2, 0.18);
+      fillShipRect(ctxRef, x, y, w, h, 0.8, 0.54, 0.2, 0.18);
+      fillShipRect(ctxRef, x, y, w, h, 0.18, 0.68, 0.18, 0.16);
+      fillShipRect(ctxRef, x, y, w, h, 0.64, 0.68, 0.18, 0.16);
+      break;
     case 'classic':
     default:
       fillShipRect(ctxRef, x, y, w, h, 0.2, 0.4, 0.6, 0.6);
@@ -1867,6 +2025,7 @@ function refreshModeAvailability() {
     gameSettings.mode = 'classic';
     persistGameSettings();
   }
+  updateModeAvailabilityNote();
 }
 
 function updateMobileStartPanelState() {
@@ -2555,6 +2714,17 @@ function buildScoreStatus(value, target) {
     ratio: Math.min(1, safeValue / target),
     complete: safeValue >= target,
     label: `${Math.min(safeValue, target)}/${target} PTS`
+  };
+}
+
+function buildDurationStatus(value, target) {
+  const safeValue = Math.max(0, Number(value) || 0);
+  return {
+    value: safeValue,
+    target,
+    ratio: Math.min(1, safeValue / target),
+    complete: safeValue >= target,
+    label: `${formatDuration(Math.min(safeValue, target))}/${formatDuration(target)}`
   };
 }
 
@@ -3590,6 +3760,8 @@ function renderBestiaryEntry(def) {
 function getRewardUnlockSource(type, id) {
   const achievement = ACHIEVEMENT_DEFS.find(def => def.reward?.type === type && def.reward.id === id);
   if (achievement) return achievement.title;
+  const sector = CAMPAIGN_SECTORS.find(entry => entry.reward?.type === type && entry.reward.id === id);
+  if (sector) return `CAMPANA ${sector.label}`;
   if (id === 'classic') return 'BASE';
   return 'POR DESCUBRIR';
 }
@@ -3598,12 +3770,18 @@ function getCollectionUnlockLabel(type, id, unlocked) {
   const source = getRewardUnlockSource(type, id);
   if (source === 'BASE') return 'Disponible desde el inicio';
   if (source === 'POR DESCUBRIR') {
-    return unlocked ? 'Ya forma parte de tu hangar.' : 'Sigue avanzando para revelar su reto.';
+    return unlocked
+      ? (type === 'badge' ? 'Ya forma parte de tu archivo meta.' : 'Ya forma parte de tu hangar.')
+      : 'Sigue avanzando para revelar su reto.';
+  }
+  if (type === 'badge') {
+    return unlocked ? `Obtenida por ${source}` : `Consigue: ${source}`;
   }
   return unlocked ? `Desbloqueada por ${source}` : `Desbloquea: ${source}`;
 }
 
-function renderCollectionItem({ title, copy, unlocked, active = false, source, previewMarkup = '' }) {
+function renderCollectionItem({ title, copy, unlocked, active = false, stateLabel = '', source, previewMarkup = '' }) {
+  const resolvedStateLabel = stateLabel || (active ? 'ACTIVA' : unlocked ? 'DESBLOQUEADA' : 'BLOQUEADA');
   return `
     <article class="collection-item${unlocked ? ' is-unlocked' : ' is-locked'}${active ? ' is-active' : ''}">
       ${previewMarkup}
@@ -3612,7 +3790,7 @@ function renderCollectionItem({ title, copy, unlocked, active = false, source, p
           <strong class="achievement-title">${title}</strong>
           <span class="achievement-copy">${copy}</span>
         </div>
-        <span class="achievement-state${unlocked ? ' is-unlocked' : ''}">${active ? 'ACTIVA' : unlocked ? 'DESBLOQUEADA' : 'BLOQUEADA'}</span>
+        <span class="achievement-state${unlocked ? ' is-unlocked' : ''}">${resolvedStateLabel}</span>
       </div>
       <span class="achievement-meta">${source}</span>
     </article>
@@ -3662,7 +3840,8 @@ function renderCollectionPreviews() {
 }
 
 function renderCollectionPanel() {
-  const activeCollectionTab = collectionTab === 'ships' ? 'ships' : 'skins';
+  const activeCollectionTab = collectionTab === 'ships' || collectionTab === 'badges' ? collectionTab : 'skins';
+  const featuredBadge = getFeaturedBadge();
   const skinItems = Object.entries(SKIN_THEMES).map(([id, def]) => renderCollectionItem({
     title: def.label,
     copy: `Tema de cabina con acento ${def.accent}.`,
@@ -3705,13 +3884,35 @@ function renderCollectionPanel() {
     `
   })).join('');
 
+  const badgeItems = Object.entries(BADGE_DEFS).map(([id, def]) => {
+    const unlocked = metaState.unlockedBadges.includes(id);
+    const featured = featuredBadge?.id === id;
+    return renderCollectionItem({
+      title: def.label,
+      copy: def.copy,
+      unlocked,
+      active: featured,
+      stateLabel: featured ? 'DESTACADA' : unlocked ? 'OBTENIDA' : 'PENDIENTE',
+      source: getCollectionUnlockLabel('badge', id, unlocked),
+      previewMarkup: `
+        <div class="collection-preview-frame is-badge">
+          <div class="collection-badge-preview${unlocked ? ' is-unlocked' : ''}">
+            <span class="card-badge">${def.label}</span>
+            <strong>${featured ? 'INSIGNIA DESTACADA' : unlocked ? 'INSIGNIA ARCHIVADA' : 'INSIGNIA BLOQUEADA'}</strong>
+            <span>${unlocked ? 'Ya cuenta dentro de tu perfil meta.' : 'Completa su objetivo para sumarla al archivo.'}</span>
+          </div>
+        </div>
+      `
+    });
+  }).join('');
+
   return `
     <div class="collection-shell">
       <div class="bestiary-overview">
         <div class="bestiary-overview-copy">
           <span class="achievement-kicker">COLECCION META</span>
           <strong class="achievement-title">EQUIPACION DESBLOQUEADA</strong>
-          <span class="achievement-copy">Previsualiza las cabinas y siluetas que ya forman parte de tu hangar o siguen esperando a que las ganes.</span>
+          <span class="achievement-copy">Previsualiza skins, naves e insignias para leer mejor que ya ganaste y que piezas siguen pendientes.</span>
         </div>
         <div class="bestiary-overview-stats">
           <div class="achievement-overview-stat">
@@ -3721,6 +3922,10 @@ function renderCollectionPanel() {
           <div class="achievement-overview-stat">
             <span class="achievement-overview-label">Naves</span>
             <strong>${metaState.unlockedShipSkins.length}/${Object.keys(SHIP_SKIN_DEFS).length}</strong>
+          </div>
+          <div class="achievement-overview-stat">
+            <span class="achievement-overview-label">Insignias</span>
+            <strong>${metaState.unlockedBadges.length}/${Object.keys(BADGE_DEFS).length}</strong>
           </div>
         </div>
       </div>
@@ -3733,6 +3938,10 @@ function renderCollectionPanel() {
           NAVES
           <span>${metaState.unlockedShipSkins.length}/${Object.keys(SHIP_SKIN_DEFS).length}</span>
         </button>
+        <button type="button" class="bestiary-tab${activeCollectionTab === 'badges' ? ' is-active' : ''}" data-collection-tab="badges" role="tab" aria-selected="${activeCollectionTab === 'badges'}">
+          INSIGNIAS
+          <span>${metaState.unlockedBadges.length}/${Object.keys(BADGE_DEFS).length}</span>
+        </button>
       </div>
       <div class="collection-grid">
         ${activeCollectionTab === 'skins' ? `
@@ -3743,13 +3952,21 @@ function renderCollectionPanel() {
             </div>
             <div class="collection-card-grid">${skinItems}</div>
           </section>
-        ` : `
+        ` : activeCollectionTab === 'ships' ? `
           <section class="collection-group">
             <div class="collection-group-head">
               <strong>NAVES</strong>
               <span>${metaState.unlockedShipSkins.length}/${Object.keys(SHIP_SKIN_DEFS).length} disponibles</span>
             </div>
             <div class="collection-card-grid">${shipItems}</div>
+          </section>
+        ` : `
+          <section class="collection-group">
+            <div class="collection-group-head">
+              <strong>INSIGNIAS</strong>
+              <span>${metaState.unlockedBadges.length}/${Object.keys(BADGE_DEFS).length} archivadas</span>
+            </div>
+            <div class="collection-card-grid">${badgeItems}</div>
           </section>
         `}
       </div>
@@ -3769,7 +3986,7 @@ function renderBestiaryPanel() {
 
   if (guidePanelTab === 'collection') {
     if (panelIntro) {
-      panelIntro.textContent = 'Previsualiza las skins y naves que ya forman parte de tu hangar y detecta qué piezas siguen bloqueadas.';
+      panelIntro.textContent = 'Previsualiza skins, naves e insignias y detecta que piezas ya forman parte del perfil o siguen bloqueadas.';
     }
     bestiaryBrowserEl.innerHTML = `
       <div class="guide-shell">
@@ -4931,7 +5148,11 @@ if (bestiaryBrowserEl) {
     }
     const collectionTrigger = event.target.closest('[data-collection-tab]');
     if (collectionTrigger) {
-      const nextCollectionTab = collectionTrigger.dataset.collectionTab === 'ships' ? 'ships' : 'skins';
+      const nextCollectionTab = collectionTrigger.dataset.collectionTab === 'ships'
+        ? 'ships'
+        : collectionTrigger.dataset.collectionTab === 'badges'
+          ? 'badges'
+          : 'skins';
       if (collectionTab !== nextCollectionTab) {
         collectionTab = nextCollectionTab;
         renderBestiaryPanel();
@@ -7002,7 +7223,7 @@ function addTouchBtn(id, onStart, onEnd) {
     initAudio();
     onStart();
   }, { passive: false }));
-  ['touchend', 'mouseup', 'mouseleave'].forEach(eventName => button.addEventListener(eventName, event => {
+  ['touchend', 'touchcancel', 'mouseup', 'mouseleave'].forEach(eventName => button.addEventListener(eventName, event => {
     event.preventDefault();
     onEnd();
   }, { passive: false }));

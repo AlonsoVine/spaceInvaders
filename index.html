@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Space Invaders arcade modernizado por Alonso Vine, con bosses, bestiario, logros y modos de juego." />
   <meta name="theme-color" content="#04110c" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -68,15 +68,18 @@
               <span class="card-badge">GAMEPLAY</span>
             </div>
             <p class="card-intro">Define el ritmo de la sesión antes de despegar.</p>
-            <div class="setting-row">
+            <div class="setting-row setting-row-mode">
               <label for="mode-select">MODO</label>
-              <select id="mode-select">
-                <option value="classic" selected>CLASICO</option>
-                <option value="survival">SUPERVIVENCIA</option>
-                <option value="timeattack">CONTRARRELOJ</option>
-                <option value="coop">2 JUGADORES COOPERATIVO</option>
-                <option value="competitive">2 JUGADORES COMPETITIVO</option>
-              </select>
+              <div class="setting-inline-stack">
+                <select id="mode-select">
+                  <option value="classic" selected>CLASICO</option>
+                  <option value="survival">SUPERVIVENCIA</option>
+                  <option value="timeattack">CONTRARRELOJ</option>
+                  <option value="coop">2 JUGADORES COOPERATIVO</option>
+                  <option value="competitive">2 JUGADORES COMPETITIVO</option>
+                </select>
+                <p id="mode-availability-note" class="setting-hint setting-hint-touch" hidden>En tactil y movil, los modos 2P requieren teclado o mandos externos.</p>
+              </div>
             </div>
             <div class="setting-row">
               <label for="difficulty-select">DIFICULTAD</label>
