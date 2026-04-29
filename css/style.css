@@ -2962,7 +2962,12 @@ body:fullscreen #meta-footer {
   }
 
   #btn-start-nav {
-    width: 100%;
+    width: auto;
+    min-width: 112px;
+    padding: 10px 16px;
+    font-size: 11px;
+    letter-spacing: 2px;
+    align-self: flex-start;
   }
 
   #overlay[data-mode="start"] #game-settings-panel,
