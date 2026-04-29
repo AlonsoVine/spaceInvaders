@@ -23,8 +23,10 @@ const startDashboardTabsEl = document.getElementById('start-dashboard-tabs');
 const btnStartNav = document.getElementById('btn-start-nav');
 const btnStart = document.getElementById('btn-start');
 const btnMenu = document.getElementById('btn-menu');
+const btnRetryLevel = document.getElementById('btn-retry-level');
 const skinSelect = document.getElementById('skin-select');
 const shipSkinSelect = document.getElementById('ship-skin-select');
+const starterLoadoutSelect = document.getElementById('starter-loadout-select');
 const difficultySelect = document.getElementById('difficulty-select');
 const modeSelect = document.getElementById('mode-select');
 const modeAvailabilityNoteEl = document.getElementById('mode-availability-note');
@@ -36,6 +38,7 @@ const visualIntensitySelect = document.getElementById('visual-intensity-select')
 const fontScaleSelect = document.getElementById('font-scale-select');
 const showTipsToggle = document.getElementById('toggle-show-tips');
 const compactHudToggle = document.getElementById('toggle-compact-hud');
+const unlockAllLevelsToggle = document.getElementById('toggle-unlock-all-levels');
 const btnMusic = document.getElementById('btn-music');
 const btnPauseMobile = document.getElementById('btn-pause-mobile');
 const btnFullscreen = document.getElementById('btn-fullscreen');
@@ -95,7 +98,8 @@ const TIME_ATTACK_FAST_WAVE_BONUS_MS = 3000;
 const TIME_ATTACK_BOSS_BONUS_MS = 18000;
 const TIME_ATTACK_MINI_BOSS_BONUS_MS = 10000;
 const TIME_ATTACK_MAX_MS = 150000;
-const MAX_START_LEVEL_OPTION = 24;
+const MAX_START_LEVEL_OPTION = 30;
+const FINAL_CAMPAIGN_LEVEL = 30;
 const RAPID_FIRE_DURATION_MS = 9000;
 const POWERUP_DROP_CHANCE = 0.14;
 const PLAYER_BASE_COOLDOWN = 16;
@@ -231,6 +235,33 @@ const SHIP_SKIN_DEFS = {
   regent: {
     label: 'REGENT',
     copy: 'Chasis de mando para cerrar la campana alta con presencia.'
+  },
+  dreadnought: {
+    label: 'DREADNOUGHT',
+    copy: 'Casco terminal reservado para quien cierra la campana completa.'
+  }
+};
+
+const STARTER_LOADOUT_DEFS = {
+  none: {
+    label: 'NINGUNA',
+    copy: 'Empieza sin ventaja inicial equipada.'
+  },
+  shield: {
+    label: 'ESCUDO',
+    copy: 'Empieza la run con una carga de escudo ya activa.'
+  },
+  rapid: {
+    label: 'RAPID',
+    copy: 'Abre la partida con una ventana corta de disparo rapido.'
+  },
+  piercing: {
+    label: 'PIERCE',
+    copy: 'Entras con disparo perforante temporal desde el primer segundo.'
+  },
+  drone: {
+    label: 'DRONES',
+    copy: 'Arranca con drones de apoyo temporales ya desplegados.'
   }
 };
 
@@ -262,7 +293,7 @@ const BADGE_DEFS = {
   trailmark: { label: 'TRAILMARK', copy: 'El primer tramo de campaña ya está consolidado dentro del catálogo.' },
   pathmark: { label: 'PATHMARK', copy: 'La ruta media de campaña ya tiene continuidad y no se queda en un pico aislado.' },
   overseer: { label: 'OVERSEER', copy: 'Dominas niveles concretos en vez de limitarte a sobrevivirlos.' },
-  standardbearer: { label: 'STANDARDBEARER', copy: 'La campaña clásica base ya está cerrada bajo tu nombre.' },
+  standardbearer: { label: 'STANDARDBEARER', copy: 'La campaña clásica completa ya está cerrada bajo tu nombre.' },
   spotter: { label: 'SPOTTER', copy: 'Reconoces todas las siluetas base del frente.' },
   radar: { label: 'RADAR', copy: 'Ya lees el tráfico UFO como un patrón conocido.' },
   breacher: { label: 'BREACHER', copy: 'Las élites dejan de parecer encuentros aislados.' },
@@ -439,6 +470,16 @@ const BESTIARY_DEFS = {
     stats: ['VIDA ESCALADA', 'ATAQUE HIBRIDO', 'MOVIMIENTO ALTO', '500+ PTS'],
     tipTitle: 'BOSS OVERLORD',
     tipCopy: 'Overlord mezcla presión lateral y centro cargado. No te fijes solo en el patrón: lee la siguiente salva antes de disparar.'
+  },
+  boss_nemesis: {
+    id: 'boss_nemesis',
+    category: 'boss',
+    title: 'NEMESIS',
+    copy: 'Boss final de cierre. Entra con presencia pesada, castiga el centro y rellena la pantalla con refuerzos cuando nota huecos.',
+    preview: { kind: 'boss', type: 'nemesis' },
+    stats: ['VIDA MUY ALTA', 'ATAQUE DE ASEDIO', 'REFUERZOS PERIODICOS', '700+ PTS'],
+    tipTitle: 'BOSS NEMESIS',
+    tipCopy: 'NEMESIS no busca solo acertarte: intenta saturar la pantalla. Corta refuerzos rápido y vuelve siempre al cuerpo principal.'
   }
 };
 
@@ -653,12 +694,52 @@ const ACHIEVEMENT_DEFS = [
   {
     id: 'campaign_classic_complete',
     title: 'CAMPAÑA BASE',
-    copy: 'Completa los 24 niveles de la campaña clásica y deja cerrada la ruta principal del tablero.',
+    copy: 'Completa los 30 niveles de la campaña clásica y deja cerrada la ruta principal del tablero.',
     category: 'PROGRESION',
     tier: 'MASTER',
     reward: { type: 'badge', id: 'standardbearer' },
     track: 'profile',
     status: () => buildCountStatus(countCompletedCampaignLevels('classic'), MAX_START_LEVEL_OPTION, 'NIVELES')
+  },
+  {
+    id: 'loadout_shield',
+    title: 'BUFFER TACTICO',
+    copy: 'Completa 6 niveles de la campaña clásica para desbloquear un escudo inicial equipable desde Visual.',
+    category: 'PROGRESION',
+    tier: 'CORE',
+    reward: { type: 'starterLoadout', id: 'shield' },
+    track: 'profile',
+    status: () => buildCountStatus(countCompletedCampaignLevels('classic'), 6, 'NIVELES')
+  },
+  {
+    id: 'loadout_rapid',
+    title: 'RITMO DE APERTURA',
+    copy: 'Lleva el contrarreloj a 1500 puntos para desbloquear una apertura con disparo rapido.',
+    category: 'MODOS',
+    tier: 'CORE',
+    reward: { type: 'starterLoadout', id: 'rapid' },
+    track: 'end',
+    status: ctx => buildScoreStatus(ctx.aggregate.bestTimeAttackScore, 1500)
+  },
+  {
+    id: 'loadout_piercing',
+    title: 'PASO DE ARMADURA',
+    copy: 'Elimina 12 tanks en total para desbloquear un arranque con disparo perforante.',
+    category: 'HABILIDAD',
+    tier: 'CORE',
+    reward: { type: 'starterLoadout', id: 'piercing' },
+    track: 'meta',
+    status: ctx => buildCountStatus(getBestiaryDefeatCount(ctx.meta, 'enemy_tank'), 12, 'TANKS')
+  },
+  {
+    id: 'loadout_drone',
+    title: 'ALA AUTOMATICA',
+    copy: 'Sobrevive 5 minutos en supervivencia para desbloquear una apertura con drones de apoyo.',
+    category: 'MODOS',
+    tier: 'ELITE',
+    reward: { type: 'starterLoadout', id: 'drone' },
+    track: 'end',
+    status: ctx => buildDurationStatus(ctx.aggregate.bestSurvivalTimeMs, 300000)
   },
   {
     id: 'time_pilot',
@@ -1155,6 +1236,18 @@ const BOSS_PROFILES = {
     movePattern: 'overlord',
     volley: 'hybrid',
     rewardMultiplier: 1.38
+  },
+  nemesis: {
+    id: 'nemesis',
+    label: 'NEMESIS',
+    hpBase: 46,
+    hpStep: 8,
+    speedBase: 2.12,
+    speedStep: 0.07,
+    baseY: 66,
+    movePattern: 'nemesis',
+    volley: 'onslaught',
+    rewardMultiplier: 1.75
   }
 };
 
@@ -1164,21 +1257,28 @@ const MINI_BOSS_CAMPAIGN_LEVELS = {
   11: 'squad_trident',
   15: 'squad_trident_plus',
   17: 'squad_trident_plus',
-  21: 'squad_trident_apex'
+  21: 'squad_trident_apex',
+  27: 'squad_trident_apex'
 };
 
 const BOSS_CAMPAIGN_LEVELS = {
   6: 'striker',
   12: 'pulse',
   18: 'warden',
-  24: 'overlord'
+  24: 'overlord',
+  30: 'nemesis'
+};
+
+const SPECIAL_BOSS_SEQUENCES = {
+  29: ['striker', 'pulse', 'warden', 'overlord']
 };
 
 const CAMPAIGN_SECTORS = [
   { id: 'sector_1', label: 'SECTOR 1', start: 1, end: 6, bossLevel: 6, reward: { type: 'badge', id: 'trailblazer' } },
   { id: 'sector_2', label: 'SECTOR 2', start: 7, end: 12, bossLevel: 12, reward: { type: 'badge', id: 'pathfinder' } },
   { id: 'sector_3', label: 'SECTOR 3', start: 13, end: 18, bossLevel: 18, reward: { type: 'skin', id: 'citadel' } },
-  { id: 'sector_4', label: 'SECTOR 4', start: 19, end: 24, bossLevel: 24, reward: { type: 'shipSkin', id: 'regent' } }
+  { id: 'sector_4', label: 'SECTOR 4', start: 19, end: 24, bossLevel: 24, reward: { type: 'shipSkin', id: 'regent' } },
+  { id: 'sector_5', label: 'SECTOR 5', start: 25, end: 30, bossLevel: 30, reward: { type: 'shipSkin', id: 'dreadnought' } }
 ];
 const CAMPAIGN_DOMINATION_MIN_LIVES = 3;
 const CAMPAIGN_DOMINATION_MIN_ACCURACY = 60;
@@ -1197,6 +1297,10 @@ function normalizeSkin(value) {
 
 function normalizeShipSkin(value) {
   return Object.prototype.hasOwnProperty.call(SHIP_SKIN_DEFS, value) ? value : 'classic';
+}
+
+function normalizeStarterLoadout(value) {
+  return Object.prototype.hasOwnProperty.call(STARTER_LOADOUT_DEFS, value) ? value : 'none';
 }
 
 function normalizeAudioVolume(value, fallback = 0.22) {
@@ -1285,6 +1389,8 @@ function loadSettings() {
       startLevel: normalizeStartLevel(stored.startLevel),
       skin: normalizeSkin(stored.skin),
       shipSkin: normalizeShipSkin(stored.shipSkin),
+      starterLoadout: normalizeStarterLoadout(stored.starterLoadout),
+      unlockAllLevels: stored.unlockAllLevels === true,
       vibration: stored.vibration !== false,
       fxVolume: normalizeAudioVolume(stored.fxVolume, 0.22),
       fontScale: normalizeFontScale(stored.fontScale),
@@ -1294,7 +1400,7 @@ function loadSettings() {
       compactHud: stored.compactHud === true
     };
   } catch {
-    return { difficulty: 'normal', mode: 'classic', startLevel: 1, skin: 'classic', shipSkin: 'classic', vibration: true, fxVolume: 0.22, fontScale: 'medium', reducedEffects: false, highContrast: false, showTips: true, compactHud: false };
+    return { difficulty: 'normal', mode: 'classic', startLevel: 1, skin: 'classic', shipSkin: 'classic', starterLoadout: 'none', unlockAllLevels: false, vibration: true, fxVolume: 0.22, fontScale: 'medium', reducedEffects: false, highContrast: false, showTips: true, compactHud: false };
   }
 }
 
@@ -1309,6 +1415,9 @@ function loadMetaState() {
       ? stored.unlockedShipSkins.map(normalizeShipSkin).filter((value, index, array) => array.indexOf(value) === index)
       : ['classic'];
     if (!unlockedShipSkins.includes('classic')) unlockedShipSkins.unshift('classic');
+    const unlockedStarterLoadouts = Array.isArray(stored.unlockedStarterLoadouts)
+      ? stored.unlockedStarterLoadouts.map(normalizeStarterLoadout).filter(id => id !== 'none').filter((value, index, array) => array.indexOf(value) === index)
+      : [];
     const unlockedBadges = Array.isArray(stored.unlockedBadges)
       ? stored.unlockedBadges.filter(id => BADGE_DEFS[id]).filter((value, index, array) => array.indexOf(value) === index)
       : [];
@@ -1404,6 +1513,7 @@ function loadMetaState() {
     return {
       unlockedSkins,
       unlockedShipSkins,
+      unlockedStarterLoadouts,
       unlockedBadges,
       achievements,
       completedChallenges,
@@ -1417,6 +1527,7 @@ function loadMetaState() {
     return {
       unlockedSkins: ['classic'],
       unlockedShipSkins: ['classic'],
+      unlockedStarterLoadouts: [],
       unlockedBadges: [],
       achievements: {},
       completedChallenges: {},
@@ -1470,7 +1581,7 @@ function normalizeHistoryEntry(entry) {
     coopBothStanding: entry.coopBothStanding === true,
     playedAt: typeof entry.playedAt === 'string' ? entry.playedAt : null,
     durationMs: Math.max(0, Number(entry.durationMs) || 0),
-    reason: entry.reason === 'timeout' ? 'timeout' : 'defeat'
+    reason: entry.reason === 'timeout' ? 'timeout' : entry.reason === 'victory' ? 'victory' : 'defeat'
   };
 }
 
@@ -1806,7 +1917,15 @@ function drawBossModel(ctxRef, x, y, w, h, profileId = 'striker', color = '#ff5f
     ctxRef.shadowBlur = glow;
     ctxRef.shadowColor = flash ? '#ffffff' : color;
   }
-  if (profileId === 'overlord') {
+  if (profileId === 'nemesis') {
+    fillModelRect(ctxRef, x, y, w, h, 0.08, 0.18, 0.84, 0.18);
+    fillModelRect(ctxRef, x, y, w, h, 0.03, 0.38, 0.94, 0.24);
+    fillModelRect(ctxRef, x, y, w, h, 0.44, 0.0, 0.12, 0.36);
+    fillModelRect(ctxRef, x, y, w, h, 0.16, 0.64, 0.18, 0.14);
+    fillModelRect(ctxRef, x, y, w, h, 0.66, 0.64, 0.18, 0.14);
+    fillModelRect(ctxRef, x, y, w, h, 0.12, 0.52, 0.12, 0.12);
+    fillModelRect(ctxRef, x, y, w, h, 0.76, 0.52, 0.12, 0.12);
+  } else if (profileId === 'overlord') {
     fillModelRect(ctxRef, x, y, w, h, 0.1, 0.16, 0.8, 0.24);
     fillModelRect(ctxRef, x, y, w, h, 0.04, 0.34, 0.92, 0.24);
     fillModelRect(ctxRef, x, y, w, h, 0.42, 0.0, 0.16, 0.28);
@@ -1829,6 +1948,13 @@ function drawBossModel(ctxRef, x, y, w, h, profileId = 'striker', color = '#ff5f
     ctxRef.fillStyle = '#fff0b5';
     fillModelRect(ctxRef, x, y, w, h, 0.25, 0.27, 0.5, 0.11);
     fillModelRect(ctxRef, x, y, w, h, 0.46, 0.52, 0.08, 0.23);
+  } else if (profileId === 'nemesis') {
+    ctxRef.fillStyle = flash ? '#ffffff' : '#ffd4de';
+    fillModelRect(ctxRef, x, y, w, h, 0.2, 0.26, 0.12, 0.12);
+    fillModelRect(ctxRef, x, y, w, h, 0.68, 0.26, 0.12, 0.12);
+    fillModelRect(ctxRef, x, y, w, h, 0.46, 0.42, 0.08, 0.2);
+    ctxRef.fillStyle = flash ? '#ffffff' : '#ff98ab';
+    fillModelRect(ctxRef, x, y, w, h, 0.36, 0.54, 0.28, 0.08);
   } else if (profileId === 'warden') {
     ctxRef.fillStyle = '#dff7ff';
     fillModelRect(ctxRef, x, y, w, h, 0.22, 0.27, 0.15, 0.17);
@@ -1971,6 +2097,33 @@ function resetPlayersForRun(preset) {
   syncLivesTotal();
 }
 
+function applyStarterLoadoutToPlayer(playerState, loadoutId) {
+  if (!playerState.active || playerState.lives <= 0) return;
+  if (loadoutId === 'shield') {
+    playerState.shieldCharges = Math.max(playerState.shieldCharges, 1);
+    return;
+  }
+  if (loadoutId === 'rapid') {
+    playerState.activeEffects.rapid = Math.max(playerState.activeEffects.rapid, RAPID_FIRE_DURATION_MS);
+    return;
+  }
+  if (loadoutId === 'piercing') {
+    playerState.activeEffects.piercing = Math.max(playerState.activeEffects.piercing, 9000);
+    return;
+  }
+  if (loadoutId === 'drone') {
+    playerState.activeEffects.drone = Math.max(playerState.activeEffects.drone, 10000);
+  }
+}
+
+function applyStarterLoadoutForRun(mode = currentRunStats.mode) {
+  const equippedLoadout = getEquippedStarterLoadout(mode);
+  if (equippedLoadout === 'none') return;
+  const targets = isCoopMode(mode) ? players.filter(playerState => playerState.active) : [player];
+  targets.forEach(playerState => applyStarterLoadoutToPlayer(playerState, equippedLoadout));
+  spawnFloatingText(canvas.width / 2, canvas.height - 78, `EQUIPO ${getStarterLoadoutLabel(equippedLoadout)}`, '#c4f7ff');
+}
+
 function revivePlayersForNextRound() {
   for (const playerState of getRespawnablePlayers()) {
     playerState.lives = Math.min(MAX_LIVES, getDifficultyConfig().startLives);
@@ -2075,14 +2228,17 @@ function applySettingsUI() {
   modeSelect.value = gameSettings.mode;
   refreshSkinOptions();
   refreshShipSkinOptions();
+  refreshStarterLoadoutOptions();
   if (skinSelect) skinSelect.value = gameSettings.skin;
   if (shipSkinSelect) shipSkinSelect.value = gameSettings.shipSkin;
+  if (starterLoadoutSelect) starterLoadoutSelect.value = normalizeStarterLoadout(gameSettings.starterLoadout);
   vibrationToggle.checked = gameSettings.vibration;
   if (fxVolumeEl) fxVolumeEl.value = gameSettings.fxVolume.toFixed(2);
   if (visualIntensitySelect) visualIntensitySelect.value = gameSettings.reducedEffects ? 'reduced' : 'normal';
   if (fontScaleSelect) fontScaleSelect.value = normalizeFontScale(gameSettings.fontScale);
   if (showTipsToggle) showTipsToggle.checked = gameSettings.showTips !== false;
   if (compactHudToggle) compactHudToggle.checked = gameSettings.compactHud === true;
+  if (unlockAllLevelsToggle) unlockAllLevelsToggle.checked = gameSettings.unlockAllLevels === true;
   renderStartLevelGrid();
   applyVisualPreferences();
   renderShipPreview();
@@ -2186,8 +2342,8 @@ function getFeaturedBadge() {
 
 function getProfileProgressSummary(unlockedAchievements) {
   const seenThreats = countBestiarySeen(metaState, Object.keys(BESTIARY_DEFS));
-  const totalEquipment = Object.keys(SKIN_THEMES).length + Object.keys(SHIP_SKIN_DEFS).length;
-  const unlockedEquipment = metaState.unlockedSkins.length + metaState.unlockedShipSkins.length;
+  const totalEquipment = Object.keys(SKIN_THEMES).length + Object.keys(SHIP_SKIN_DEFS).length + (Object.keys(STARTER_LOADOUT_DEFS).length - 1);
+  const unlockedEquipment = metaState.unlockedSkins.length + metaState.unlockedShipSkins.length + metaState.unlockedStarterLoadouts.length;
   const completedCampaignLevels = countCompletedCampaignLevels('classic');
   return [
     { label: 'Logros', value: `${unlockedAchievements}/${ACHIEVEMENT_DEFS.length}` },
@@ -2198,6 +2354,7 @@ function getProfileProgressSummary(unlockedAchievements) {
 }
 
 function getBestUnlockedLevelForMode(mode = gameSettings.mode) {
+  if (gameSettings.unlockAllLevels === true && isCampaignMode(mode)) return MAX_START_LEVEL_OPTION;
   if (mode === 'coop') return aggregateStats?.bestCoopLevel || 0;
   if (mode === 'competitive') return 1;
   if (mode === 'survival') return 1;
@@ -2213,6 +2370,10 @@ function getCampaignModeKey(mode = gameSettings.mode) {
   if (mode === 'coop') return 'coop';
   if (mode === 'classic') return 'classic';
   return null;
+}
+
+function isCampaignMode(mode = gameSettings.mode) {
+  return getCampaignModeKey(mode) !== null;
 }
 
 function getCampaignModeState(mode = gameSettings.mode, create = true) {
@@ -2293,6 +2454,7 @@ function getCampaignNextTargetLevel(mode = gameSettings.mode) {
 
 function getCampaignCompletedThrough(entry) {
   if (!entry || entry.mode === 'timeattack' || entry.mode === 'survival' || entry.mode === 'competitive') return 0;
+  if (entry.reason === 'victory') return Math.max(0, Math.min(MAX_START_LEVEL_OPTION, entry.level));
   return Math.max(0, Math.min(MAX_START_LEVEL_OPTION, entry.level - 1));
 }
 
@@ -2383,6 +2545,8 @@ function renderStartLevelGrid() {
       ? 'Contrarreloj arranca en 1'
       : gameSettings.mode === 'competitive'
         ? 'Competitivo arranca siempre en 1'
+      : gameSettings.unlockAllLevels === true
+        ? `${completedLevels}/${MAX_START_LEVEL_OPTION} superados · ${dominatedLevels}/${MAX_START_LEVEL_OPTION} dominados · selector completo desbloqueado`
       : gameSettings.mode === 'coop'
         ? `${completedLevels}/${MAX_START_LEVEL_OPTION} superados · ${dominatedLevels} dominados · coop hasta ${maxUnlocked}`
         : `${completedLevels}/${MAX_START_LEVEL_OPTION} superados · ${dominatedLevels} dominados · clásico hasta ${maxUnlocked}`;
@@ -2415,14 +2579,7 @@ function renderStartLevelGrid() {
             const dominated = isCampaignLevelDominated(gameSettings.mode, levelValue);
             const disabled = fixedStartMode || !unlocked;
             const active = !fixedStartMode && levelValue === gameSettings.startLevel;
-            const event = getWaveEventForLevel(levelValue, gameSettings.mode);
-            const tag = shouldSpawnBossForLevel(levelValue)
-              ? 'BOSS'
-              : shouldSpawnMiniBossForLevel(levelValue)
-                ? 'ELITE'
-                : event.id !== 'standard'
-                  ? event.label
-                  : '';
+            const tag = getLevelEncounterTag(levelValue, gameSettings.mode);
             return `
               <button
                 type="button"
@@ -2476,6 +2633,25 @@ function getThreatLevel(currentLevel = level) {
   return 4 + (currentLevel - 4) * 0.72;
 }
 
+function getBossSequenceForLevel(currentLevel, mode = gameSettings.mode) {
+  if (isCampaignMode(mode)) {
+    if (SPECIAL_BOSS_SEQUENCES[currentLevel]) return [...SPECIAL_BOSS_SEQUENCES[currentLevel]];
+    const scriptedProfileId = BOSS_CAMPAIGN_LEVELS[currentLevel];
+    return scriptedProfileId ? [scriptedProfileId] : [];
+  }
+  const scriptedProfileId = BOSS_CAMPAIGN_LEVELS[currentLevel];
+  return currentLevel <= 24 && scriptedProfileId ? [scriptedProfileId] : [];
+}
+
+function getLevelEncounterTag(currentLevel, mode = running ? currentRunStats.mode : gameSettings.mode) {
+  const bossSequence = getBossSequenceForLevel(currentLevel, mode);
+  if (bossSequence.length > 1) return 'GAUNTLET';
+  if (bossSequence.length === 1) return 'BOSS';
+  if (shouldSpawnMiniBossForLevel(currentLevel)) return 'ELITE';
+  const event = getWaveEventForLevel(currentLevel, mode);
+  return event.id !== 'standard' ? event.label : '';
+}
+
 function shouldSpawnMiniBossForLevel(currentLevel) {
   return Boolean(MINI_BOSS_CAMPAIGN_LEVELS[currentLevel]);
 }
@@ -2483,6 +2659,32 @@ function shouldSpawnMiniBossForLevel(currentLevel) {
 function getMiniBossProfileForLevel(currentLevel) {
   const profileId = MINI_BOSS_CAMPAIGN_LEVELS[currentLevel];
   return MINI_BOSS_PROFILES[profileId] || MINI_BOSS_PROFILES.squad_basic;
+}
+
+function resetLevelEncounterState(currentLevel = level, mode = running ? currentRunStats.mode : gameSettings.mode) {
+  levelEncounterState.levelKey = `${mode}:${currentLevel}`;
+  levelEncounterState.pendingBossQueue = getBossSequenceForLevel(currentLevel, mode);
+}
+
+function ensureLevelEncounterState(currentLevel = level, mode = running ? currentRunStats.mode : gameSettings.mode) {
+  const nextKey = `${mode}:${currentLevel}`;
+  if (levelEncounterState.levelKey !== nextKey) {
+    resetLevelEncounterState(currentLevel, mode);
+  }
+}
+
+function getNextBossProfileIdForLevel(currentLevel = level, mode = running ? currentRunStats.mode : gameSettings.mode) {
+  ensureLevelEncounterState(currentLevel, mode);
+  return levelEncounterState.pendingBossQueue[0] || null;
+}
+
+function consumeNextBossProfileIdForLevel(currentLevel = level, mode = running ? currentRunStats.mode : gameSettings.mode) {
+  ensureLevelEncounterState(currentLevel, mode);
+  return levelEncounterState.pendingBossQueue.shift() || null;
+}
+
+function hasPendingBossForLevel(currentLevel = level, mode = running ? currentRunStats.mode : gameSettings.mode) {
+  return Boolean(getNextBossProfileIdForLevel(currentLevel, mode));
 }
 
 function getWaveEventForLevel(currentLevel, mode = gameSettings.mode) {
@@ -2541,6 +2743,8 @@ function getEnemyScore(enemy) {
 }
 
 function getBossProfileForLevel(currentLevel, mode = gameSettings.mode) {
+  const scriptedSequence = getBossSequenceForLevel(currentLevel, mode);
+  if (scriptedSequence.length) return BOSS_PROFILES[scriptedSequence[0]] || BOSS_PROFILES.striker;
   const scriptedProfileId = BOSS_CAMPAIGN_LEVELS[currentLevel];
   if (scriptedProfileId) return BOSS_PROFILES[scriptedProfileId];
 
@@ -2554,13 +2758,21 @@ function getBossBaseReward(profile) {
 }
 
 function getLevelEncounterPreviewText(currentLevel, mode = running ? currentRunStats.mode : gameSettings.mode) {
-  if (shouldSpawnBossForLevel(currentLevel)) {
+  const bossSequence = getBossSequenceForLevel(currentLevel, mode);
+  if (bossSequence.length > 1) {
+    return `GAUNTLET ${bossSequence.map(profileId => getBossProfileLabel(profileId)).join(' > ')}`;
+  }
+  if (bossSequence.length === 1) {
     return `${getBossProfileForLevel(currentLevel, mode).label} ENTRA EN ESCENA`;
   }
   if (shouldSpawnMiniBossForLevel(currentLevel)) {
     return `${getMiniBossProfileForLevel(currentLevel).label} ENTRANTE`;
   }
   return 'Prepárate...';
+}
+
+function getBossProfileLabel(profileId) {
+  return (BOSS_PROFILES[profileId] || BOSS_PROFILES.striker).label;
 }
 
 function claimCampaignSectorReward(sector) {
@@ -2626,6 +2838,7 @@ function getBossAccentColor(profileId = boss.profileId) {
   if (profileId === 'pulse') return '#ffd66f';
   if (profileId === 'warden') return '#8fe0ff';
   if (profileId === 'overlord') return '#d5a6ff';
+  if (profileId === 'nemesis') return '#ff4d6d';
   return '#ff5f98';
 }
 
@@ -2755,10 +2968,28 @@ function getShipSkinLabel(id) {
   return SHIP_SKIN_DEFS[id]?.label || SHIP_SKIN_DEFS.classic.label;
 }
 
+function getStarterLoadoutLabel(id) {
+  return STARTER_LOADOUT_DEFS[id]?.label || STARTER_LOADOUT_DEFS.none.label;
+}
+
+function isStarterLoadoutUnlocked(id) {
+  return id === 'none' || metaState.unlockedStarterLoadouts.includes(id);
+}
+
+function isStarterLoadoutModeEnabled(mode = gameSettings.mode) {
+  return mode === 'classic' || mode === 'coop' || mode === 'survival';
+}
+
+function getEquippedStarterLoadout(mode = gameSettings.mode) {
+  if (!isStarterLoadoutModeEnabled(mode)) return 'none';
+  return isStarterLoadoutUnlocked(gameSettings.starterLoadout) ? gameSettings.starterLoadout : 'none';
+}
+
 function getRewardLabel(reward) {
   if (!reward) return 'SIN RECOMPENSA EXTRA';
   if (reward.type === 'skin' && SKIN_THEMES[reward.id]) return `SKIN ${SKIN_THEMES[reward.id].label}`;
   if (reward.type === 'shipSkin' && SHIP_SKIN_DEFS[reward.id]) return `NAVE ${SHIP_SKIN_DEFS[reward.id].label}`;
+  if (reward.type === 'starterLoadout' && STARTER_LOADOUT_DEFS[reward.id]) return `EQUIPO ${STARTER_LOADOUT_DEFS[reward.id].label}`;
   if (reward.type === 'badge' && BADGE_DEFS[reward.id]) return `INSIGNIA ${BADGE_DEFS[reward.id].label}`;
   return 'RECOMPENSA META';
 }
@@ -3031,6 +3262,9 @@ function syncUnlockedRewardsFromAchievements() {
     if (def.reward.type === 'shipSkin' && SHIP_SKIN_DEFS[def.reward.id] && !metaState.unlockedShipSkins.includes(def.reward.id)) {
       metaState.unlockedShipSkins.push(def.reward.id);
     }
+    if (def.reward.type === 'starterLoadout' && STARTER_LOADOUT_DEFS[def.reward.id] && !metaState.unlockedStarterLoadouts.includes(def.reward.id)) {
+      metaState.unlockedStarterLoadouts.push(def.reward.id);
+    }
     if (def.reward.type === 'badge') {
       grantBadge(def.reward.id, { silent: true });
     }
@@ -3047,6 +3281,13 @@ function sanitizeSelectedSkin() {
 function sanitizeSelectedShipSkin() {
   if (!metaState.unlockedShipSkins.includes(gameSettings.shipSkin)) {
     gameSettings.shipSkin = 'classic';
+    persistGameSettings();
+  }
+}
+
+function sanitizeSelectedStarterLoadout() {
+  if (!isStarterLoadoutUnlocked(gameSettings.starterLoadout)) {
+    gameSettings.starterLoadout = 'none';
     persistGameSettings();
   }
 }
@@ -3076,6 +3317,17 @@ function refreshShipSkinOptions() {
     return `<option value="${key}"${unlocked ? '' : ' disabled'}>${def.label}${unlocked ? '' : ' · BLOQUEADA'}</option>`;
   }).join('');
   shipSkinSelect.value = metaState.unlockedShipSkins.includes(selected) ? selected : 'classic';
+}
+
+function refreshStarterLoadoutOptions() {
+  if (!starterLoadoutSelect) return;
+  const selected = normalizeStarterLoadout(gameSettings.starterLoadout);
+  starterLoadoutSelect.innerHTML = Object.entries(STARTER_LOADOUT_DEFS).map(([key, def]) => {
+    const unlocked = isStarterLoadoutUnlocked(key);
+    const disabled = !unlocked;
+    return `<option value="${key}"${disabled ? ' disabled' : ''}>${def.label}${disabled ? ' · BLOQUEADO' : ''}</option>`;
+  }).join('');
+  starterLoadoutSelect.value = isStarterLoadoutUnlocked(selected) ? selected : 'none';
 }
 
 function getChallengeProgressText(runStats = currentRunStats) {
@@ -3114,6 +3366,20 @@ function unlockShipSkin(id, { silent = false } = {}) {
   return true;
 }
 
+function unlockStarterLoadout(id, { silent = false } = {}) {
+  if (!STARTER_LOADOUT_DEFS[id] || id === 'none' || metaState.unlockedStarterLoadouts.includes(id)) return false;
+  metaState.unlockedStarterLoadouts.push(id);
+  if (!silent) {
+    pushUnlockLog(createUnlockLogEntry('starter', STARTER_LOADOUT_DEFS[id].label, 'Carga inicial desbloqueada.', `EQUIPO ${STARTER_LOADOUT_DEFS[id].label}`));
+  }
+  refreshStarterLoadoutOptions();
+  if (!silent) {
+    spawnFloatingText(canvas.width / 2, canvas.height * 0.34, `EQUIPO ${STARTER_LOADOUT_DEFS[id].label}`, '#ffffff');
+    triggerCinematicFlash(0.08);
+  }
+  return true;
+}
+
 function grantReward(reward, { silent = false } = {}) {
   if (!reward) return false;
   if (reward.type === 'skin') {
@@ -3121,6 +3387,9 @@ function grantReward(reward, { silent = false } = {}) {
   }
   if (reward.type === 'shipSkin') {
     return unlockShipSkin(reward.id, { silent });
+  }
+  if (reward.type === 'starterLoadout') {
+    return unlockStarterLoadout(reward.id, { silent });
   }
   if (reward.type === 'badge') {
     return grantBadge(reward.id, { silent });
@@ -3140,6 +3409,7 @@ function awardAchievement(id, { silent = false } = {}) {
   persistMetaState();
   refreshSkinOptions();
   refreshShipSkinOptions();
+  refreshStarterLoadoutOptions();
   if (silent) return true;
   spawnFloatingText(canvas.width / 2, canvas.height * 0.28, def.title, '#ffef88');
   spawnShockwave(canvas.width / 2, canvas.height * 0.28, 'rgba(255,239,136,0.38)', 18, 3.2);
@@ -4155,9 +4425,11 @@ function resetProfileProgress() {
   bestiaryTab = 'invaders';
   sanitizeSelectedSkin();
   sanitizeSelectedShipSkin();
+  sanitizeSelectedStarterLoadout();
   gameSettings.startLevel = 1;
   gameSettings.skin = 'classic';
   gameSettings.shipSkin = 'classic';
+  gameSettings.starterLoadout = 'none';
   persistGameSettings();
   applySettingsUI();
   renderMetaPanel();
@@ -4346,6 +4618,7 @@ function renderStartScreenPanels() {
   const startLevelNoteEl = document.getElementById('start-level-note');
   const skinNoteEl = document.getElementById('skin-note');
   const shipNoteEl = document.getElementById('ship-note');
+  const starterNoteEl = document.getElementById('starter-note');
   const settingsNoteEl = document.getElementById('settings-note');
   const audioNoteEl = document.getElementById('audio-note');
   const optionsNoteEl = document.getElementById('options-note');
@@ -4378,6 +4651,8 @@ function renderStartScreenPanels() {
         ? 'Supervivencia siempre empieza en el nivel 1 y no usa progreso de campaña ni selector de arranque.'
       : gameSettings.mode === 'competitive'
         ? 'Competitivo siempre empieza en el nivel 1, no usa campaña y resuelve el duelo por puntuación total al caer ambos pilotos.'
+      : gameSettings.unlockAllLevels === true
+        ? 'El desbloqueo manual está activo: puedes entrar a cualquier nivel de campaña sin haberlo superado antes, pero el progreso real sigue registrándose aparte.'
       : gameSettings.mode === 'coop'
         ? `La campaña coop se desbloquea por separado. Sector activo ${campaignSummary.currentSector.label} · siguiente hito NIV ${campaignSummary.nextTargetLevel}.`
         : `La campaña clásica ya marca progreso real por sectores. Sector activo ${campaignSummary.currentSector.label} · siguiente hito NIV ${campaignSummary.nextTargetLevel}.`;
@@ -4388,14 +4663,21 @@ function renderStartScreenPanels() {
   if (shipNoteEl) {
     shipNoteEl.textContent = `Nave activa ${getShipSkinLabel(gameSettings.shipSkin)}. ${metaState.unlockedShipSkins.length}/${Object.keys(SHIP_SKIN_DEFS).length} modelos desbloqueados por logros.`;
   }
+  if (starterNoteEl) {
+    const selectedLoadout = normalizeStarterLoadout(gameSettings.starterLoadout);
+    const enabledCopy = isStarterLoadoutModeEnabled(gameSettings.mode)
+      ? `Carga inicial equipada ${getStarterLoadoutLabel(getEquippedStarterLoadout(gameSettings.mode))}. ${metaState.unlockedStarterLoadouts.length}/${Object.keys(STARTER_LOADOUT_DEFS).length - 1} cargas desbloqueadas por objetivos.`
+      : `Carga equipada ${getStarterLoadoutLabel(selectedLoadout)}. En este modo no se aplica; solo entra en clasico, coop y supervivencia.`;
+    starterNoteEl.textContent = enabledCopy;
+  }
   if (settingsNoteEl) {
-    settingsNoteEl.textContent = 'La preview se actualiza al instante y la nave se usa en la siguiente partida.';
+    settingsNoteEl.textContent = 'La preview se actualiza al instante y la configuracion equipada se usa en la siguiente partida.';
   }
   if (audioNoteEl) {
     audioNoteEl.textContent = `Música ${musicEnabled ? 'activa' : 'silenciada'} al ${formatVolumePercent(musicVolume)} · FX al ${formatVolumePercent(gameSettings.fxVolume)}.`;
   }
   if (optionsNoteEl) {
-    optionsNoteEl.textContent = `${gameSettings.reducedEffects ? 'Visual reducida' : 'Visual normal'} · ayudas ${gameSettings.showTips === false ? 'ocultas' : 'activas'} · HUD ${gameSettings.compactHud ? 'compacto' : 'estándar'}.`;
+    optionsNoteEl.textContent = `${gameSettings.reducedEffects ? 'Visual reducida' : 'Visual normal'} · ayudas ${gameSettings.showTips === false ? 'ocultas' : 'activas'} · HUD ${gameSettings.compactHud ? 'compacto' : 'estándar'} · niveles ${gameSettings.unlockAllLevels ? 'libres' : 'por progreso'}.`;
   }
 
   startSummaryEl.innerHTML = `
@@ -4452,7 +4734,7 @@ function renderStartScreenPanels() {
     <div class="summary-ribbon">
       <span class="summary-ribbon-label">ACTIVA</span>
       <strong class="summary-ribbon-value">${formatModeLabel(gameSettings.mode)} · ${formatDifficultyLabel(gameSettings.difficulty)} · ${SKIN_THEMES[gameSettings.skin].label} · ${getShipSkinLabel(gameSettings.shipSkin)}</strong>
-      <span class="summary-ribbon-copy">${featuredBadge ? `Insignia ${featuredBadge.label}` : 'Sin insignia destacada'} · ${metaState.unlockedSkins.length}/${Object.keys(SKIN_THEMES).length} skins · ${metaState.unlockedShipSkins.length}/${Object.keys(SHIP_SKIN_DEFS).length} naves · ${getCurrentChallengeDefinition().title}</span>
+      <span class="summary-ribbon-copy">${featuredBadge ? `Insignia ${featuredBadge.label}` : 'Sin insignia destacada'} · ${metaState.unlockedSkins.length}/${Object.keys(SKIN_THEMES).length} skins · ${metaState.unlockedShipSkins.length}/${Object.keys(SHIP_SKIN_DEFS).length} naves · ${metaState.unlockedStarterLoadouts.length}/${Object.keys(STARTER_LOADOUT_DEFS).length - 1} cargas · ${getCurrentChallengeDefinition().title}</span>
     </div>
   `;
 
@@ -4559,6 +4841,9 @@ function returnToMenu() {
   enemyBullets.length = 0;
   powerUps.length = 0;
   resetBoss();
+  clearBossSummons();
+  levelEncounterState.levelKey = '';
+  levelEncounterState.pendingBossQueue = [];
   updateHudStatus();
   setOverlayMode('start');
   draw();
@@ -4568,6 +4853,21 @@ function handlePrimaryOverlayAction() {
   initAudio();
   if (overlayMode === 'pause') togglePause();
   else startGame();
+}
+
+function canRetryCurrentLevelFromPause(mode = currentRunStats.mode) {
+  return running
+    && paused
+    && overlayMode === 'pause'
+    && !showingLevelScreen
+    && (mode === 'classic' || mode === 'coop');
+}
+
+function retryCurrentLevelFromPause() {
+  if (!canRetryCurrentLevelFromPause()) return;
+  initAudio();
+  closeOverlayDialog();
+  startGame({ startLevelOverride: normalizeStartLevel(level, MAX_START_LEVEL_OPTION) });
 }
 
 function setOverlayMode(mode, entry = null) {
@@ -4589,6 +4889,7 @@ function setOverlayMode(mode, entry = null) {
     }
     btnStart.hidden = true;
     btnMenu.hidden = true;
+    if (btnRetryLevel) btnRetryLevel.hidden = true;
     btnMenu.textContent = 'VOLVER AL MENU';
     configureGameSettingsPanel('start');
     configureOptionsPanel('start');
@@ -4596,17 +4897,19 @@ function setOverlayMode(mode, entry = null) {
     setPanelVisibility(metaPanel, false);
     applyStartDashboardTab();
   } else if (mode === 'pause') {
+    const retryAvailable = canRetryCurrentLevelFromPause();
     overlayKicker.textContent = 'PARTIDA EN CURSO';
     overlayTitle.textContent = 'PAUSA';
     overlayMsg.innerHTML = isCompetitiveMode(currentRunStats.mode)
       ? 'El duelo está en pausa. Revisa el marcador, ajusta el audio y vuelve cuando quieras.'
       : isCoopMode(currentRunStats.mode)
-      ? 'La escuadra está en espera. Revisa el estado de ambos pilotos, ajusta el audio y vuelve cuando quieras.'
-      : 'Has detenido la partida. Revisa tu progreso y continua cuando quieras.';
+      ? `La escuadra está en espera. Revisa el estado de ambos pilotos, ajusta el audio y ${retryAvailable ? 'reintenta este nivel si la ejecución ya está rota.' : 'vuelve cuando quieras.'}`
+      : `Has detenido la partida. Revisa tu progreso, ajusta el audio y ${retryAvailable ? 'reintenta este nivel si quieres reiniciar el intento actual.' : 'continua cuando quieras.'}`;
     btnStart.textContent = 'CONTINUAR';
     if (btnStartNav) btnStartNav.hidden = true;
     btnStart.hidden = false;
     btnMenu.hidden = false;
+    if (btnRetryLevel) btnRetryLevel.hidden = !retryAvailable;
     btnMenu.textContent = 'ABANDONAR';
     runPanelTitle.textContent = 'RESUMEN ACTUAL';
     runPanelBadge.textContent = formatModeLabel(currentRunStats.mode);
@@ -4626,12 +4929,23 @@ function setOverlayMode(mode, entry = null) {
     setPanelVisibility(metaPanel, false);
   } else {
     const timeout = entry && entry.reason === 'timeout';
+    const victory = entry && entry.reason === 'victory';
     const coopEntry = isCoopMode(entry?.mode);
     const competitiveEntry = isCompetitiveMode(entry?.mode);
-    overlayKicker.textContent = timeout ? 'CUENTA ATRAS AGOTADA' : competitiveEntry ? 'DUELO FINALIZADO' : coopEntry ? 'SESION COOPERATIVA FINALIZADA' : 'SESION FINALIZADA';
-    overlayTitle.textContent = timeout ? 'TIEMPO' : competitiveEntry ? 'FIN COMPETITIVO' : coopEntry ? 'FIN CO-OP' : 'GAME OVER';
+    overlayKicker.textContent = timeout
+      ? 'CUENTA ATRAS AGOTADA'
+      : victory
+        ? 'SECTOR FINAL ASEGURADO'
+        : competitiveEntry
+          ? 'DUELO FINALIZADO'
+          : coopEntry
+            ? 'SESION COOPERATIVA FINALIZADA'
+            : 'SESION FINALIZADA';
+    overlayTitle.textContent = timeout ? 'TIEMPO' : victory ? 'VICTORIA' : competitiveEntry ? 'FIN COMPETITIVO' : coopEntry ? 'FIN CO-OP' : 'GAME OVER';
     overlayMsg.innerHTML = timeout
       ? 'El contrarreloj ha llegado a cero. Tienes un cierre claro de la sesión, el progreso ganado y dos salidas rápidas para volver a entrar o reajustar la partida.'
+      : victory
+        ? 'Has cerrado la campaña completa y derribado la amenaza final. Revisa el cierre de la run, los desbloqueos logrados y decide si vuelves a empezar desde otro sector o cambias de modo.'
       : competitiveEntry
         ? 'Aquí tienes el resultado del duelo con el marcador completo y el detalle de cada piloto. Si uno cayó antes, el otro pudo rascar más puntos antes del siguiente cierre de ronda.'
       : coopEntry
@@ -4643,6 +4957,7 @@ function setOverlayMode(mode, entry = null) {
     if (btnStartNav) btnStartNav.hidden = true;
     btnStart.hidden = false;
     btnMenu.hidden = false;
+    if (btnRetryLevel) btnRetryLevel.hidden = true;
     btnMenu.textContent = 'VOLVER AL MENU';
     runPanelTitle.textContent = competitiveEntry ? 'RESULTADO DEL DUELO' : coopEntry ? 'CIERRE DE ESCUADRA' : 'ULTIMA PARTIDA';
     runPanelBadge.textContent = formatModeLabel(entry?.mode || currentRunStats.mode);
@@ -4671,6 +4986,7 @@ let metaState = loadMetaState();
 syncUnlockedRewardsFromAchievements();
 sanitizeSelectedSkin();
 sanitizeSelectedShipSkin();
+sanitizeSelectedStarterLoadout();
 let currentChallenge = getCurrentChallengeDefinition();
 let scoreHistory = loadScoreHistory();
 let aggregateStats = loadAggregateStats();
@@ -4901,6 +5217,10 @@ let miniBossEncounteredThisLevel = false;
 let screenShake = 0;
 let cinematicFlash = 0;
 let waveDisruptTimer = 0;
+const levelEncounterState = {
+  levelKey: '',
+  pendingBossQueue: []
+};
 
 function awardPoints(points, ownerId = null) {
   const safePoints = Math.max(0, Math.round(Number(points) || 0));
@@ -4974,6 +5294,7 @@ document.addEventListener('keyup', event => {
 btnStart.addEventListener('click', handlePrimaryOverlayAction);
 if (btnStartNav) btnStartNav.addEventListener('click', handlePrimaryOverlayAction);
 btnMenu.addEventListener('click', returnToMenu);
+if (btnRetryLevel) btnRetryLevel.addEventListener('click', retryCurrentLevelFromPause);
 btnMusic.addEventListener('click', toggleMusic);
 if (btnPauseMobile) btnPauseMobile.addEventListener('click', togglePause);
 btnFullscreen.addEventListener('click', toggleFullscreen);
@@ -5034,6 +5355,20 @@ if (shipSkinSelect) {
     renderStartScreenPanels();
   });
 }
+if (starterLoadoutSelect) {
+  starterLoadoutSelect.addEventListener('change', event => {
+    const nextLoadout = normalizeStarterLoadout(event.target.value);
+    if (!isStarterLoadoutUnlocked(nextLoadout)) {
+      refreshStarterLoadoutOptions();
+      return;
+    }
+    gameSettings.starterLoadout = nextLoadout;
+    persistGameSettings();
+    applySettingsUI();
+    renderMetaPanel();
+    renderStartScreenPanels();
+  });
+}
 modeSelect.addEventListener('change', event => {
   gameSettings.mode = normalizeGameMode(event.target.value);
   persistGameSettings();
@@ -5086,6 +5421,15 @@ if (showTipsToggle) {
 if (compactHudToggle) {
   compactHudToggle.addEventListener('change', event => {
     gameSettings.compactHud = !!event.target.checked;
+    persistGameSettings();
+    applySettingsUI();
+    renderStartScreenPanels();
+  });
+}
+if (unlockAllLevelsToggle) {
+  unlockAllLevelsToggle.addEventListener('change', event => {
+    gameSettings.unlockAllLevels = !!event.target.checked;
+    gameSettings.startLevel = normalizeStartLevel(gameSettings.startLevel, getMaxUnlockedStartLevel());
     persistGameSettings();
     applySettingsUI();
     renderStartScreenPanels();
@@ -5493,7 +5837,8 @@ const boss = {
   label: 'STRIKER',
   baseY: 68,
   phaseIndex: 1,
-  lastHitOwnerId: 0
+  lastHitOwnerId: 0,
+  summonTimer: 0
 };
 
 const miniBossSquad = {
@@ -5525,6 +5870,88 @@ function resetBoss() {
   boss.baseY = 68;
   boss.phaseIndex = 1;
   boss.lastHitOwnerId = 0;
+  boss.summonTimer = 0;
+}
+
+function countActiveSummonedEnemies() {
+  return enemies.filter(enemy => enemy.alive && enemy.summoned).length;
+}
+
+function clearBossSummons() {
+  if (!enemies.length) return;
+  for (let index = enemies.length - 1; index >= 0; index--) {
+    if (enemies[index].summoned) enemies.splice(index, 1);
+  }
+}
+
+function createSummonedEnemy(type, x, y, columnIndex = 0) {
+  const roleDef = ENEMY_ROLE_DEFS[type] || ENEMY_ROLE_DEFS.classic;
+  const row = type === 'shooter' ? 0 : type === 'tank' ? 2 : 1;
+  return {
+    x,
+    y,
+    w: E_W,
+    h: E_H,
+    alive: true,
+    row,
+    col: 100 + columnIndex,
+    pose: 0,
+    type,
+    hp: roleDef.hp,
+    maxHp: roleDef.hp,
+    shootWeight: roleDef.shootWeight,
+    moveBoost: roleDef.moveBoost,
+    bulletSpeedBonus: roleDef.bulletSpeedBonus,
+    scoreValue: Math.round(getEnemyBasePoints(row) * roleDef.scoreMultiplier),
+    flashTimer: 0,
+    summoned: true,
+    dir: Math.random() < 0.5 ? -1 : 1,
+    driftPhase: Math.random() * Math.PI * 2,
+    shootTimer: Math.floor(Math.random() * 24)
+  };
+}
+
+function spawnBossReinforcements(count = 2) {
+  const safeCount = Math.max(2, Math.min(4, Math.round(count)));
+  const stepX = 44;
+  const formationWidth = (safeCount - 1) * stepX;
+  const originX = Math.max(18, Math.min(canvas.width - formationWidth - E_W - 18, boss.x + boss.w / 2 - formationWidth / 2 - E_W / 2));
+  const possibleTypes = ['classic', 'shooter', 'scout', 'tank'];
+  for (let index = 0; index < safeCount; index++) {
+    const type = possibleTypes[(level + index + Math.floor(Math.random() * possibleTypes.length)) % possibleTypes.length];
+    enemies.push(createSummonedEnemy(type, originX + index * stepX, 86 + (index % 2) * 22, index));
+    markBestiarySeen(`enemy_${type}`, { showTip: type !== 'classic' });
+  }
+  spawnFloatingText(canvas.width / 2, 112, `REFUERZOS x${safeCount}`, '#ff98ab');
+  spawnShockwave(canvas.width / 2, 118, 'rgba(255,77,109,0.24)', 12, 2.2);
+}
+
+function updateSummonedEnemies(activeSummons) {
+  if (!activeSummons.length) return;
+  const freezeFactor = getFreezeFactor();
+  for (const enemy of activeSummons) {
+    enemy.driftPhase += 0.04 * freezeFactor;
+    enemy.x += enemy.dir * (1.1 + Math.max(0, enemy.moveBoost || 0) * 0.25) * freezeFactor;
+    enemy.y += (0.16 + Math.max(0, level - 24) * 0.01) * freezeFactor;
+    enemy.x += Math.sin(enemy.driftPhase) * 0.45;
+    enemy.flashTimer = Math.max(0, (enemy.flashTimer || 0) - 1);
+    if (enemy.x <= 10 || enemy.x + enemy.w >= canvas.width - 10) enemy.dir *= -1;
+    if (enemy.y + enemy.h >= getLowestActivePlayerY()) {
+      const frontline = getActivePlayers().sort((a, b) => a.y - b.y)[0];
+      if (frontline) {
+        triggerDeath(frontline);
+        return;
+      }
+    }
+    enemy.shootTimer = (enemy.shootTimer || 0) + 1;
+    const shootInterval = Math.max(56, 108 - Math.round(getThreatLevel() * 4.5) - Math.round((enemy.shootWeight || 1) * 6));
+    if (enemy.shootTimer >= shootInterval) {
+      enemy.shootTimer = 0;
+      createEnemyBullet(enemy, {
+        speed: getDifficultyConfig().enemyBulletBase + 0.25 + (enemy.bulletSpeedBonus || 0)
+      });
+    }
+  }
 }
 
 function resetMiniBossSquad() {
@@ -5545,7 +5972,7 @@ function resetMiniBossSquad() {
 }
 
 function shouldSpawnBossForLevel(currentLevel) {
-  return Boolean(BOSS_CAMPAIGN_LEVELS[currentLevel]);
+  return hasPendingBossForLevel(currentLevel, running ? currentRunStats.mode : gameSettings.mode);
 }
 
 function getEnemyLayout(pattern = currentWavePattern) {
@@ -5607,6 +6034,7 @@ function getFormationOffsetX(currentLevel, pattern, col) {
 }
 
 function spawnEnemies() {
+  ensureLevelEncounterState(level, currentRunStats.mode || gameSettings.mode);
   enemies.length = 0;
   currentWavePattern = getWavePatternForLevel(level, currentRunStats.mode || gameSettings.mode);
   currentWaveEvent = getWaveEventForLevel(level, currentRunStats.mode || gameSettings.mode);
@@ -5771,7 +6199,8 @@ function defeatMiniBossSquad() {
 }
 
 function startBossFight() {
-  const profile = getBossProfileForLevel(level, currentRunStats.mode || gameSettings.mode);
+  const profileId = consumeNextBossProfileIdForLevel(level, currentRunStats.mode || gameSettings.mode);
+  const profile = BOSS_PROFILES[profileId] || getBossProfileForLevel(level, currentRunStats.mode || gameSettings.mode);
   const threatLevel = getThreatLevel();
   bossEncounteredThisLevel = true;
   markBestiarySeen(`boss_${profile.id}`);
@@ -5790,6 +6219,7 @@ function startBossFight() {
   boss.baseY = profile.baseY;
   boss.phaseIndex = 1;
   boss.lastHitOwnerId = 0;
+  boss.summonTimer = 0;
   boss.x = canvas.width / 2 - boss.w / 2;
   boss.y = -boss.h - 24;
   playerBullets.length = 0;
@@ -5811,6 +6241,8 @@ function startBossFight() {
 }
 
 function completeLevel() {
+  const activeMode = currentRunStats.mode || gameSettings.mode;
+  const clearedLevel = level;
   if (currentRunStats.mode === 'timeattack') {
     awardTimedBonus(TIME_ATTACK_WAVE_BONUS_MS, canvas.width / 2, 88, '#9ed8ff', `OLEADA ${formatTimeAttackBonusLabel(TIME_ATTACK_WAVE_BONUS_MS)}`);
     const fastWaveBonus = getFastWaveBonus();
@@ -5818,21 +6250,34 @@ function completeLevel() {
       awardTimedBonus(fastWaveBonus, canvas.width / 2, 108, '#c4f7ff', `RAPIDA ${formatTimeAttackBonusLabel(fastWaveBonus)}`);
     }
   }
-  recordCampaignLevelClear(level);
+  recordCampaignLevelClear(clearedLevel);
+  if (isCampaignMode(activeMode) && clearedLevel >= FINAL_CAMPAIGN_LEVEL) {
+    waveDisruptTimer = 0;
+    resetBoss();
+    resetMiniBossSquad();
+    clearBossSummons();
+    soundWin();
+    updateHudStatus();
+    gameOver('victory');
+    return;
+  }
   level++;
   levelEl.textContent = level;
   bossEncounteredThisLevel = false;
   miniBossEncounteredThisLevel = false;
   waveDisruptTimer = 0;
+  resetLevelEncounterState(level, activeMode);
   soundWin();
   showingLevelScreen = true;
   levelScreenTimer = 0;
   resetBoss();
   resetMiniBossSquad();
+  clearBossSummons();
   updateHudStatus();
 }
 
 function defeatBoss() {
+  const hasNextBoss = hasPendingBossForLevel(level, currentRunStats.mode || gameSettings.mode);
   const reward = getBossBaseReward(BOSS_PROFILES[boss.profileId] || BOSS_PROFILES.striker);
   currentRunStats.bossesDefeated++;
   incrementBestiaryDefeat(`boss_${boss.profileId}`);
@@ -5852,7 +6297,13 @@ function defeatBoss() {
   addScreenShake(14);
   triggerCinematicFlash(0.22);
   resetBoss();
+  clearBossSummons();
   evaluateAchievements('live', { live: true });
+  if (hasNextBoss) {
+    spawnFloatingText(canvas.width / 2, 92, `SIGUE ${getBossProfileLabel(getNextBossProfileIdForLevel(level, currentRunStats.mode || gameSettings.mode))}`, '#ffd966');
+    updateHudStatus();
+    return;
+  }
   completeLevel();
 }
 
@@ -6099,6 +6550,9 @@ function updateBoss() {
   } else if (profile.movePattern === 'warden') {
     boss.x += boss.dir * boss.speed * 0.68 * freezeFactor;
     boss.y = boss.baseY + Math.sin(boss.phase * 0.8) * 7;
+  } else if (profile.movePattern === 'nemesis') {
+    boss.x += boss.dir * boss.speed * 0.76 * freezeFactor;
+    boss.y = boss.baseY + Math.sin(boss.phase * 0.92) * 16;
   } else if (profile.movePattern === 'overlord') {
     boss.x += boss.dir * boss.speed * 0.88 * freezeFactor;
     boss.y = boss.baseY + Math.sin(boss.phase * 1.05) * 12;
@@ -6114,7 +6568,23 @@ function updateBoss() {
 
   boss.shootTimer++;
   const preset = getDifficultyConfig();
-  const shootIntervalBase = profile.volley === 'wall' ? 88 : profile.volley === 'burst' ? 64 : profile.volley === 'hybrid' ? 70 : 72;
+  if (profile.id === 'nemesis') {
+    boss.summonTimer++;
+    const summonInterval = boss.phaseIndex === 2 ? 180 : 240;
+    if (boss.summonTimer >= summonInterval && countActiveSummonedEnemies() <= 4) {
+      boss.summonTimer = 0;
+      spawnBossReinforcements(2 + Math.floor(Math.random() * 3));
+    }
+  }
+  const shootIntervalBase = profile.volley === 'wall'
+    ? 88
+    : profile.volley === 'burst'
+      ? 64
+      : profile.volley === 'hybrid'
+        ? 70
+        : profile.volley === 'onslaught'
+          ? 58
+          : 72;
   const shootInterval = Math.max(34, Math.round((shootIntervalBase * preset.enemyShootFactor - (boss.maxHp - boss.hp) * 1.05) * (globalEffects.freeze > 0 ? 2.35 : 1)));
   if (boss.shootTimer >= shootInterval) {
     boss.shootTimer = 0;
@@ -6125,6 +6595,8 @@ function updateBoss() {
       spread = [-48, -20, 0, 20, 48];
     } else if (profile.volley === 'hybrid') {
       spread = boss.hp <= Math.ceil(boss.maxHp / 2) ? [-44, -18, 0, 18, 44] : [-34, 0, 34];
+    } else if (profile.volley === 'onslaught') {
+      spread = boss.hp <= Math.ceil(boss.maxHp / 2) ? [-56, -28, -10, 10, 28, 56] : [-48, -20, 0, 20, 48];
     } else if (boss.hp <= Math.ceil(boss.maxHp / 2)) {
       spread = [-36, 0, 36];
     }
@@ -6412,8 +6884,9 @@ function update() {
   if (!running || showingLevelScreen) return;
 
   const aliveEnemies = enemies.filter(enemy => enemy.alive);
+  const activeSummons = aliveEnemies.filter(enemy => enemy.summoned);
   if (!boss.active && !miniBossSquad.active && aliveEnemies.length === 0) {
-    if (shouldSpawnBossForLevel(level) && !bossEncounteredThisLevel) {
+    if (shouldSpawnBossForLevel(level)) {
       startBossFight();
       return;
     }
@@ -6511,6 +6984,9 @@ function update() {
     }
   } else if (boss.active) {
     updateBoss();
+    if (running && activeSummons.length > 0) {
+      updateSummonedEnemies(activeSummons);
+    }
   } else if (miniBossSquad.active) {
     updateMiniBossSquad();
   }
@@ -7099,13 +7575,18 @@ function gameOver(reason = 'defeat') {
   updateHudStatus();
 }
 
-function startGame() {
+function startGame(options = {}) {
   const preset = getDifficultyConfig();
-  const startingLevel = (gameSettings.mode === 'classic' || gameSettings.mode === 'coop')
+  const startLevelOverride = Number.isFinite(Number(options.startLevelOverride))
+    ? normalizeStartLevel(options.startLevelOverride, MAX_START_LEVEL_OPTION)
+    : null;
+  const startingLevel = startLevelOverride !== null
+    ? startLevelOverride
+    : (gameSettings.mode === 'classic' || gameSettings.mode === 'coop')
     ? normalizeStartLevel(gameSettings.startLevel, getMaxUnlockedStartLevel())
     : gameSettings.mode === 'survival' || gameSettings.mode === 'competitive'
       ? 1
-    : 1;
+      : 1;
   closeOverlayDialog();
   if (!isTwoPlayerModeAvailable() && isTwoPlayerMode(gameSettings.mode)) {
     gameSettings.mode = 'classic';
@@ -7121,6 +7602,7 @@ function startGame() {
 
   score = 0;
   level = startingLevel;
+  resetLevelEncounterState(startingLevel, gameSettings.mode);
   timeLeftMs = gameSettings.mode === 'timeattack' ? TIME_ATTACK_DURATION_MS : 0;
   currentWaveStartedAt = Date.now();
   globalEffects.freeze = 0;
@@ -7160,10 +7642,12 @@ function startGame() {
   shockwaves.length = 0;
   resetBoss();
   resetMiniBossSquad();
+  clearBossSummons();
 
   scoreEl.textContent = '0';
   levelEl.textContent = String(level);
   resetPlayersForRun(preset);
+  applyStarterLoadoutForRun(currentRunStats.mode);
 
   updateLivesUI();
   spawnEnemies();

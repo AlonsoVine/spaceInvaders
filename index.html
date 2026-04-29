@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="description" content="Space Invaders arcade modernizado por Alonso Vine, con bosses, bestiario, logros y modos de juego." />
   <meta name="theme-color" content="#04110c" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -75,8 +75,8 @@
                   <option value="classic" selected>CLASICO</option>
                   <option value="survival">SUPERVIVENCIA</option>
                   <option value="timeattack">CONTRARRELOJ</option>
-                  <option value="coop">2 JUGADORES COOPERATIVO</option>
-                  <option value="competitive">2 JUGADORES COMPETITIVO</option>
+                  <option value="coop" data-mobile-unsupported="true">2 JUGADORES COOPERATIVO</option>
+                  <option value="competitive" data-mobile-unsupported="true">2 JUGADORES COMPETITIVO</option>
                 </select>
                 <p id="mode-availability-note" class="setting-hint setting-hint-touch" hidden>En tactil y movil, los modos 2P requieren teclado o mandos externos.</p>
               </div>
@@ -121,9 +121,14 @@
               <label for="ship-skin-select">NAVE</label>
               <select id="ship-skin-select"></select>
             </div>
+            <div class="setting-row">
+              <label for="starter-loadout-select">CARGA INICIAL</label>
+              <select id="starter-loadout-select"></select>
+            </div>
             <div class="card-note-list">
               <p id="skin-note" class="card-note">Cada skin recolorea la cabina sin alterar la jugabilidad.</p>
               <p id="ship-note" class="card-note">Los modelos de nave se desbloquean igual que los skins.</p>
+              <p id="starter-note" class="card-note">Las cargas iniciales se desbloquean por objetivos y se aplican al inicio de la siguiente partida.</p>
               <p id="settings-note" class="card-note">La previsualización refleja al instante la configuración activa.</p>
             </div>
           </section>
@@ -187,6 +192,10 @@
             <label class="setting-toggle" for="toggle-compact-hud">
               <input id="toggle-compact-hud" type="checkbox" />
               <span>HUD COMPACTO</span>
+            </label>
+            <label class="setting-toggle" for="toggle-unlock-all-levels">
+              <input id="toggle-unlock-all-levels" type="checkbox" />
+              <span>DESBLOQUEAR TODOS LOS NIVELES</span>
             </label>
             <div class="settings-subsection">
               <div class="setting-row setting-row-slider">
@@ -253,6 +262,7 @@
           <p id="shortcut-list">ENTER iniciar · P/ESC pausa · M musica · F fullscreen</p>
           <div id="overlay-actions">
             <button id="btn-menu" hidden>VOLVER AL MENU</button>
+            <button id="btn-retry-level" type="button" data-overlay-action="retry-level" hidden>REINTENTAR NIVEL</button>
             <button id="btn-start">JUGAR</button>
           </div>
         </div>

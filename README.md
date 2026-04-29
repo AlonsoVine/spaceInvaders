@@ -5,8 +5,8 @@ Implementación web del clásico `Space Invaders` con `HTML + CSS + JavaScript` 
 ## Estado actual
 
 - Juego 2D sobre `canvas` con cinco modos: `classic`, `survival`, `timeattack`, `coop` y `competitive`.
-- Campaña clásica por sectores, progreso cooperativo separado y dominación de niveles.
-- Meta persistente con logros, desafíos rotatorios, skins, naves, insignias y bestiario.
+- Campaña clásica de `30` niveles en `5` sectores, progreso cooperativo separado y dominación de niveles.
+- Meta persistente con logros, desafíos rotatorios, skins, naves, cargas iniciales equipables, insignias y bestiario.
 - Dashboard inicial por pestañas, overlays de pausa/game over y soporte táctil para móvil.
 - Despliegue estático a GitHub Pages desde `main`.
 
@@ -38,6 +38,10 @@ spaceInvaders/
 ```
 
 ## Ejecutar
+
+Acceder a la url desplegada a través de github actions:
+
+[https://alonsovine.github.io/spaceInvaders/](https://alonsovine.github.io/spaceInvaders/)
 
 No requiere instalación de dependencias. Basta con abrir `index.html` en el navegador o servir el directorio como estático.
 

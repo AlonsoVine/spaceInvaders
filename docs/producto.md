@@ -10,7 +10,7 @@ La versión web de `Space Invaders` ya no es un clon mínimo. El juego combina u
 
 - Es el modo base y el que articula la campaña principal.
 - Permite elegir nivel inicial según progreso desbloqueado.
-- Recorre sectores, bosses y recompensas de campaña.
+- Recorre cinco sectores, bosses y recompensas de campaña.
 
 ### Supervivencia
 
@@ -42,9 +42,15 @@ La versión web de `Space Invaders` ya no es un clon mínimo. El juego combina u
 
 ### Sectores
 
-- La campaña clásica se divide en `4` sectores de `6` niveles.
+- La campaña clásica se divide en `5` sectores de `6` niveles.
 - Cada sector tiene boss objetivo y recompensa asociada.
 - Los sectores altos ya entregan también cosméticos, no solo insignias.
+
+### Cierre de campaña
+
+- El `sector 5` cubre los niveles `25-30`.
+- El nivel `29` funciona como `gauntlet` y encadena `Striker`, `Pulse`, `Warden` y `Overlord` uno detrás de otro.
+- El nivel `30` cierra la campaña con `NEMESIS`, un boss final que además invoca grupos periódicos de enemigos normales.
 
 ### Niveles dominados
 
@@ -63,7 +69,15 @@ La versión web de `Space Invaders` ya no es un clon mínimo. El juego combina u
 
 - El catálogo cubre `inicio`, `progresión`, `habilidad`, `modos`, `colección` y `meta`.
 - Ya existe cobertura específica para `survival`, `timeattack`, `coop`, `competitive`, bestiario y campaña clásica.
-- Las recompensas pueden ser `skins`, `shipSkin` o `badges`.
+- Las recompensas pueden ser `skins`, `shipSkin`, `starterLoadout` o `badges`.
+
+### Cargas iniciales
+
+- Algunas recompensas meta desbloquean cargas iniciales equipables desde `Visual`.
+- La partida puede arrancar con `escudo`, `rapid`, `pierce` o `drones` ya equipados.
+- Su comportamiento sigue siendo temporal o consumible, igual que cuando entran por `power-up`.
+- Se aplican en `classic`, `coop` y `survival`.
+- No se aplican en `timeattack` ni `competitive`.
 
 ### Desafío activo
 
@@ -100,6 +114,7 @@ La versión web de `Space Invaders` ya no es un clon mínimo. El juego combina u
 
 - El overlay cambia de composición según estado.
 - `pause` prioriza continuidad de sesión y ajustes.
+- En `classic` y `coop`, si la partida está en un nivel seleccionable, también permite `reintentar nivel` desde pausa.
 - `gameover` prioriza cierre de partida, resumen y progreso ganado.
 
 ### HUD y feedback
