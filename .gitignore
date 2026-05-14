@@ -1,0 +1,12 @@
+node_modules/
+coverage/
+dist/
+_site/
+.husky/_/
+.vscode/
+.env
+.env.*
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

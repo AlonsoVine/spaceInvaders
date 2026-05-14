@@ -1,0 +1,44 @@
+{
+  "name": "space-invaders-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "python -m http.server 8000",
+    "build": "npm run check:syntax",
+    "check:syntax": "node scripts/check-js-syntax.mjs js/game.js",
+    "lint": "eslint .",
+    "format:check": "prettier --check \"*.{md,json,mjs}\" \".prettierrc.json\" \".github/**/*.{md,yml,yaml}\" \"docs/**/*.md\" \"scripts/**/*.mjs\" \"tests/**/*.js\"",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "quality": "npm run build && npm run lint && npm run typecheck && npm run test:run && npm run format:check",
+    "quality:staged": "lint-staged",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "{js,tests}/**/*.js": [
+      "eslint --max-warnings=0",
+      "node scripts/check-js-syntax.mjs"
+    ],
+    "scripts/**/*.mjs": [
+      "eslint --max-warnings=0",
+      "node scripts/check-js-syntax.mjs",
+      "prettier --check"
+    ],
+    "{tests,scripts}/**/*.{js,mjs}": "prettier --check",
+    "*.{json,md,yml,yaml}": "prettier --check",
+    ".github/**/*.{md,yml,yaml}": "prettier --check",
+    "docs/**/*.md": "prettier --check"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.0",
+    "eslint": "^10.0.0",
+    "globals": "^17.0.0",
+    "husky": "^9.1.0",
+    "lint-staged": "16.1.6",
+    "prettier": "^3.0.0",
+    "typescript": "^6.0.0",
+    "vitest": "^3.2.0"
+  }
+}

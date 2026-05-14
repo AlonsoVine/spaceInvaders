@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+npm run check:syntax
+npm run test:run
+npm run quality:staged
+
