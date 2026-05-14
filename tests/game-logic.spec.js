@@ -37,6 +37,7 @@ function loadGameLogic() {
     globalThis.__gameLogic = {
       normalizeDifficulty,
       normalizeGameMode,
+      isWavesMode,
       normalizeAudioVolume,
       normalizeFontScale,
       normalizeStartLevel,
@@ -54,6 +55,9 @@ function loadGameLogic() {
       doesCampaignEntryDominate,
       getBossSequenceForLevel,
       getLevelEncounterTag,
+      getWavesModeProfile,
+      getWavesBossProfileId,
+      getWavesMiniBossProfileId,
       getWaveEventForLevel,
       getWavePatternForLevel,
       getEnemyBasePoints,
@@ -78,7 +82,9 @@ describe('normalizacion de settings y datos persistidos', () => {
     expect(logic.normalizeDifficulty('hard')).toBe('hard');
     expect(logic.normalizeDifficulty('nightmare')).toBe('normal');
     expect(logic.normalizeGameMode('coop')).toBe('coop');
+    expect(logic.normalizeGameMode('waves')).toBe('waves');
     expect(logic.normalizeGameMode('arcade')).toBe('classic');
+    expect(logic.isWavesMode('waves')).toBe(true);
     expect(logic.normalizeAudioVolume(2)).toBe(0.6);
     expect(logic.normalizeAudioVolume(-1)).toBe(0);
     expect(logic.normalizeAudioVolume('bad', 0.35)).toBe(0.35);
@@ -148,6 +154,7 @@ describe('reglas de campaña', () => {
     expect(logic.getCampaignCompletedThrough({ mode: 'classic', reason: 'defeat', level: 10 })).toBe(9);
     expect(logic.getCampaignCompletedThrough({ mode: 'coop', reason: 'victory', level: 99 })).toBe(30);
     expect(logic.getCampaignCompletedThrough({ mode: 'survival', reason: 'victory', level: 20 })).toBe(0);
+    expect(logic.getCampaignCompletedThrough({ mode: 'waves', reason: 'victory', level: 20 })).toBe(0);
   });
 
   it('distingue vidas restantes para classic y coop', () => {
@@ -170,6 +177,23 @@ describe('encounters, waves y scoring', () => {
     expect(logic.getBossSequenceForLevel(30, 'classic')).toEqual(['nemesis']);
     expect(logic.getLevelEncounterTag(29, 'classic')).toBe('GAUNTLET');
     expect(logic.getLevelEncounterTag(6, 'classic')).toBe('BOSS');
+  });
+
+  it('escala el modo oleadas de basicos a elites y bosses', () => {
+    const wave1 = logic.getWavesModeProfile(1);
+    const wave8 = logic.getWavesModeProfile(8);
+    const wave18 = logic.getWavesModeProfile(18);
+
+    expect(wave1.enemyCount).toBeLessThan(wave8.enemyCount);
+    expect(wave8.roleWeights.some(([role]) => role === 'tank')).toBe(true);
+    expect(wave8.roleWeights.some(([role]) => role === 'shooter')).toBe(true);
+    expect(wave18.enemyCount).toBeGreaterThan(wave8.enemyCount);
+    expect(wave18.hpBonus).toBeGreaterThanOrEqual(0);
+    expect(logic.getWavesMiniBossProfileId(10)).toBe('squad_basic_plus');
+    expect(logic.getWavesBossProfileId(18)).toBe('striker');
+    expect(logic.getBossSequenceForLevel(18, 'waves')).toEqual(['striker']);
+    expect(logic.getLevelEncounterTag(10, 'waves')).toBe('ELITE');
+    expect(logic.getLevelEncounterTag(18, 'waves')).toBe('BOSS');
   });
 
   it('selecciona eventos y patrones de oleada de forma determinista por nivel', () => {
@@ -196,6 +220,7 @@ describe('presentacion y progreso meta', () => {
     expect(logic.formatDuration(65000)).toBe('1:05');
     expect(logic.formatDifficultyLabel('hard')).toBe('DIFICIL');
     expect(logic.formatModeLabel('competitive')).toBe('2P COMP');
+    expect(logic.formatModeLabel('waves')).toBe('OLEADAS');
   });
 
   it('genera etiquetas de recompensa reconocibles', () => {

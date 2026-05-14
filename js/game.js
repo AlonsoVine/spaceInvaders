@@ -1288,7 +1288,7 @@ function normalizeDifficulty(value) {
 }
 
 function normalizeGameMode(value) {
-  return value === 'timeattack' || value === 'coop' || value === 'survival' || value === 'competitive' ? value : 'classic';
+  return value === 'timeattack' || value === 'coop' || value === 'survival' || value === 'competitive' || value === 'waves' ? value : 'classic';
 }
 
 function normalizeSkin(value) {
@@ -1357,6 +1357,10 @@ function isCoopMode(value = gameSettings.mode) {
 
 function isCompetitiveMode(value = gameSettings.mode) {
   return value === 'competitive';
+}
+
+function isWavesMode(value = gameSettings.mode) {
+  return value === 'waves';
 }
 
 function isTwoPlayerMode(value = gameSettings.mode) {
@@ -1603,6 +1607,7 @@ function loadAggregateStats() {
     const bestCoopLevel = Math.max(0, Number(stored.bestCoopLevel) || 0);
     const bestCompetitiveLevel = Math.max(0, Number(stored.bestCompetitiveLevel) || 0);
     const bestSurvivalLevel = Math.max(0, Number(stored.bestSurvivalLevel) || 0);
+    const bestWavesLevel = Math.max(0, Number(stored.bestWavesLevel) || 0);
     return {
       gamesPlayed: Math.max(0, Number(stored.gamesPlayed) || 0),
       totalScore: Math.max(0, Number(stored.totalScore) || 0),
@@ -1616,21 +1621,24 @@ function loadAggregateStats() {
       totalSurvivalGames: Math.max(0, Number(stored.totalSurvivalGames) || 0),
       totalCoopGames: Math.max(0, Number(stored.totalCoopGames) || 0),
       totalCompetitiveGames: Math.max(0, Number(stored.totalCompetitiveGames) || 0),
+      totalWavesGames: Math.max(0, Number(stored.totalWavesGames) || 0),
       totalTimeAttackGames: Math.max(0, Number(stored.totalTimeAttackGames) || 0),
       totalEasyGames: Math.max(0, Number(stored.totalEasyGames) || 0),
       totalNormalGames: Math.max(0, Number(stored.totalNormalGames) || 0),
       totalHardGames: Math.max(0, Number(stored.totalHardGames) || 0),
       totalCoopRespawns: Math.max(0, Number(stored.totalCoopRespawns) || 0),
-      bestLevel: Math.max(legacyBestLevel, bestClassicLevel, bestCoopLevel, bestCompetitiveLevel, bestSurvivalLevel),
+      bestLevel: Math.max(legacyBestLevel, bestClassicLevel, bestCoopLevel, bestCompetitiveLevel, bestSurvivalLevel, bestWavesLevel),
       bestClassicLevel,
       bestSurvivalLevel,
       bestCoopLevel,
       bestCompetitiveLevel,
+      bestWavesLevel,
       bestClassicScore: Math.max(0, Number(stored.bestClassicScore) || 0),
       bestSurvivalScore: Math.max(0, Number(stored.bestSurvivalScore) || 0),
       bestSurvivalTimeMs: Math.max(0, Number(stored.bestSurvivalTimeMs) || 0),
       bestCoopScore: Math.max(0, Number(stored.bestCoopScore) || 0),
       bestCompetitiveScore: Math.max(0, Number(stored.bestCompetitiveScore) || 0),
+      bestWavesScore: Math.max(0, Number(stored.bestWavesScore) || 0),
       bestCombo: Math.max(1, Number(stored.bestCombo) || 1),
       bestTimeAttackScore: Math.max(0, Number(stored.bestTimeAttackScore) || 0),
       bestAccuracy25: Math.max(0, Number(stored.bestAccuracy25) || 0),
@@ -2264,6 +2272,7 @@ function formatDifficultyLabel(value) {
 }
 
 function formatModeLabel(value) {
+  if (value === 'waves') return 'OLEADAS';
   if (value === 'survival') return 'SUPERVIVENCIA';
   if (value === 'timeattack') return 'CONTRARRELOJ';
   if (value === 'coop') return '2P COOP';
@@ -2275,6 +2284,7 @@ function getModeGameCounts() {
   return {
     classic: aggregateStats.totalClassicGames || 0,
     survival: aggregateStats.totalSurvivalGames || 0,
+    waves: aggregateStats.totalWavesGames || 0,
     coop: aggregateStats.totalCoopGames || 0,
     competitive: aggregateStats.totalCompetitiveGames || 0,
     timeattack: aggregateStats.totalTimeAttackGames || 0
@@ -2358,6 +2368,7 @@ function getBestUnlockedLevelForMode(mode = gameSettings.mode) {
   if (mode === 'coop') return aggregateStats?.bestCoopLevel || 0;
   if (mode === 'competitive') return 1;
   if (mode === 'survival') return 1;
+  if (mode === 'waves') return 1;
   if (mode === 'timeattack') return 1;
   return aggregateStats?.bestClassicLevel || aggregateStats?.bestLevel || 0;
 }
@@ -2453,7 +2464,7 @@ function getCampaignNextTargetLevel(mode = gameSettings.mode) {
 }
 
 function getCampaignCompletedThrough(entry) {
-  if (!entry || entry.mode === 'timeattack' || entry.mode === 'survival' || entry.mode === 'competitive') return 0;
+  if (!entry || entry.mode === 'timeattack' || entry.mode === 'survival' || entry.mode === 'competitive' || entry.mode === 'waves') return 0;
   if (entry.reason === 'victory') return Math.max(0, Math.min(MAX_START_LEVEL_OPTION, entry.level));
   return Math.max(0, Math.min(MAX_START_LEVEL_OPTION, entry.level - 1));
 }
@@ -2493,10 +2504,10 @@ function recordCampaignLevelClear(levelValue, snapshot = getLiveRunSnapshot()) {
 
 function getCampaignSelectedLevelSummary(mode = gameSettings.mode, levelValue = gameSettings.startLevel) {
   const record = getCampaignLevelRecord(mode, levelValue, false);
-  const sector = getSectorByLevel(levelValue);
+  const sector = mode === 'waves' ? { label: 'OLEADAS' } : getSectorByLevel(levelValue);
   const encounter = getLevelEncounterPreviewText(levelValue, mode);
   const event = getWaveEventForLevel(levelValue, mode);
-  const fixedStartMode = mode === 'timeattack' || mode === 'survival' || mode === 'competitive';
+  const fixedStartMode = mode === 'timeattack' || mode === 'survival' || mode === 'competitive' || mode === 'waves';
   const unlocked = fixedStartMode ? levelValue === 1 : levelValue <= getMaxUnlockedStartLevel(mode);
   const completed = isCampaignLevelCompleted(mode, levelValue);
   const dominated = isCampaignLevelDominated(mode, levelValue);
@@ -2517,7 +2528,7 @@ function getCampaignSelectedLevelSummary(mode = gameSettings.mode, levelValue = 
     completed,
     dominated,
     stateLabel,
-    bestScore: record?.bestScore || 0,
+    bestScore: mode === 'waves' ? aggregateStats.bestWavesScore || 0 : record?.bestScore || 0,
     bestAccuracy: record?.bestAccuracy || 0,
     bestReach: record?.bestReach || 0,
     bestLivesEnd: record?.bestLivesEnd || 0
@@ -2533,7 +2544,7 @@ function renderStartLevelGrid() {
   if (!startLevelSelectorEl) return;
   syncStartLevelSetting();
   const maxUnlocked = getMaxUnlockedStartLevel(gameSettings.mode);
-  const fixedStartMode = gameSettings.mode === 'timeattack' || gameSettings.mode === 'survival' || gameSettings.mode === 'competitive';
+  const fixedStartMode = gameSettings.mode === 'timeattack' || gameSettings.mode === 'survival' || gameSettings.mode === 'competitive' || gameSettings.mode === 'waves';
   const selectedLevel = fixedStartMode ? 1 : gameSettings.startLevel;
   const selectedSummary = getCampaignSelectedLevelSummary(gameSettings.mode, selectedLevel);
   const completedLevels = countCompletedCampaignLevels(gameSettings.mode);
@@ -2541,6 +2552,8 @@ function renderStartLevelGrid() {
   if (startLevelStatusEl) {
     startLevelStatusEl.textContent = gameSettings.mode === 'survival'
       ? 'Supervivencia arranca siempre en 1'
+      : gameSettings.mode === 'waves'
+        ? 'Oleadas arranca siempre en 1 y escala sin campaña'
       : gameSettings.mode === 'timeattack'
       ? 'Contrarreloj arranca en 1'
       : gameSettings.mode === 'competitive'
@@ -2552,60 +2565,79 @@ function renderStartLevelGrid() {
         : `${completedLevels}/${MAX_START_LEVEL_OPTION} superados · ${dominatedLevels} dominados · clásico hasta ${maxUnlocked}`;
   }
 
-  startLevelSelectorEl.innerHTML = CAMPAIGN_SECTORS.map(sector => {
-    const completedInSector = getSectorCompletedCount(gameSettings.mode, sector);
-    const dominatedInSector = getSectorDominatedCount(gameSettings.mode, sector);
-    const totalInSector = sector.end - sector.start + 1;
-    const rewardLabel = getRewardLabel(sector.reward);
-    const sectorDominated = isSectorDominated(gameSettings.mode, sector);
-    const rewardClaimed = getCampaignRewardState(sector);
-    return `
-      <div class="campaign-sector${selectedLevel >= sector.start && selectedLevel <= sector.end ? ' is-active' : ''}">
+  if (gameSettings.mode === 'waves') {
+    const wavesProfile = getWavesModeProfile(1);
+    startLevelSelectorEl.innerHTML = `
+      <div class="campaign-sector is-active">
         <div class="campaign-sector-head">
           <div class="campaign-sector-copy">
-            <strong>${sector.label}</strong>
-            <span>${completedInSector}/${totalInSector} superados · ${dominatedInSector}/${totalInSector} dominados · boss ${getBossProfileForLevel(sector.bossLevel, gameSettings.mode).label}</span>
+            <strong>OLEADAS INFINITAS</strong>
+            <span>Arranque fijo · ${wavesProfile.enemyCount} contactos iniciales · escalada sin campaña</span>
           </div>
           <div class="campaign-sector-badges">
-            ${sectorDominated ? '<span class="campaign-sector-reward is-dominated">SECTOR DOMINADO</span>' : ''}
-            <span class="campaign-sector-reward${rewardClaimed ? ' is-claimed' : ''}">${rewardClaimed ? `OBTENIDA ${rewardLabel}` : rewardLabel}</span>
+            <span class="campaign-sector-reward">MEJOR OLEADA ${aggregateStats.bestWavesLevel || 1}</span>
           </div>
-        </div>
-        <div class="campaign-level-grid">
-          ${Array.from({ length: totalInSector }, (_, offset) => {
-            const levelValue = sector.start + offset;
-            const unlocked = levelValue <= maxUnlocked;
-            const completed = isCampaignLevelCompleted(gameSettings.mode, levelValue);
-            const dominated = isCampaignLevelDominated(gameSettings.mode, levelValue);
-            const disabled = fixedStartMode || !unlocked;
-            const active = !fixedStartMode && levelValue === gameSettings.startLevel;
-            const tag = getLevelEncounterTag(levelValue, gameSettings.mode);
-            return `
-              <button
-                type="button"
-                class="start-level-btn${active ? ' is-active' : ''}${disabled ? ' is-locked' : ''}${completed ? ' is-complete' : ''}${dominated ? ' is-dominated' : ''}"
-                data-start-level="${levelValue}"
-                ${disabled ? 'disabled aria-disabled="true"' : ''}
-                aria-pressed="${active ? 'true' : 'false'}"
-              >
-                <span class="start-level-value">${levelValue}</span>
-                <span class="start-level-meta">${dominated ? 'DOMINADO' : completed ? 'SUPERADO' : unlocked ? 'LISTO' : 'BLOQ.'}</span>
-                ${tag ? `<span class="start-level-chip">${tag}</span>` : ''}
-              </button>
-            `;
-          }).join('')}
         </div>
       </div>
     `;
-  }).join('');
+  } else {
+    startLevelSelectorEl.innerHTML = CAMPAIGN_SECTORS.map(sector => {
+      const completedInSector = getSectorCompletedCount(gameSettings.mode, sector);
+      const dominatedInSector = getSectorDominatedCount(gameSettings.mode, sector);
+      const totalInSector = sector.end - sector.start + 1;
+      const rewardLabel = getRewardLabel(sector.reward);
+      const sectorDominated = isSectorDominated(gameSettings.mode, sector);
+      const rewardClaimed = getCampaignRewardState(sector);
+      return `
+        <div class="campaign-sector${selectedLevel >= sector.start && selectedLevel <= sector.end ? ' is-active' : ''}">
+          <div class="campaign-sector-head">
+            <div class="campaign-sector-copy">
+              <strong>${sector.label}</strong>
+              <span>${completedInSector}/${totalInSector} superados · ${dominatedInSector}/${totalInSector} dominados · boss ${getBossProfileForLevel(sector.bossLevel, gameSettings.mode).label}</span>
+            </div>
+            <div class="campaign-sector-badges">
+              ${sectorDominated ? '<span class="campaign-sector-reward is-dominated">SECTOR DOMINADO</span>' : ''}
+              <span class="campaign-sector-reward${rewardClaimed ? ' is-claimed' : ''}">${rewardClaimed ? `OBTENIDA ${rewardLabel}` : rewardLabel}</span>
+            </div>
+          </div>
+          <div class="campaign-level-grid">
+            ${Array.from({ length: totalInSector }, (_, offset) => {
+              const levelValue = sector.start + offset;
+              const unlocked = levelValue <= maxUnlocked;
+              const completed = isCampaignLevelCompleted(gameSettings.mode, levelValue);
+              const dominated = isCampaignLevelDominated(gameSettings.mode, levelValue);
+              const disabled = fixedStartMode || !unlocked;
+              const active = !fixedStartMode && levelValue === gameSettings.startLevel;
+              const tag = getLevelEncounterTag(levelValue, gameSettings.mode);
+              return `
+                <button
+                  type="button"
+                  class="start-level-btn${active ? ' is-active' : ''}${disabled ? ' is-locked' : ''}${completed ? ' is-complete' : ''}${dominated ? ' is-dominated' : ''}"
+                  data-start-level="${levelValue}"
+                  ${disabled ? 'disabled aria-disabled="true"' : ''}
+                  aria-pressed="${active ? 'true' : 'false'}"
+                >
+                  <span class="start-level-value">${levelValue}</span>
+                  <span class="start-level-meta">${dominated ? 'DOMINADO' : completed ? 'SUPERADO' : unlocked ? 'LISTO' : 'BLOQ.'}</span>
+                  ${tag ? `<span class="start-level-chip">${tag}</span>` : ''}
+                </button>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
 
   if (startLevelDetailsEl) {
+    const detailLevelLabel = gameSettings.mode === 'waves' ? `OLEADA ${selectedLevel}` : `NIVEL ${selectedLevel}`;
+    const detailReachLabel = gameSettings.mode === 'waves' ? 'Mejor oleada' : 'Mejor alcance NIV';
     startLevelDetailsEl.innerHTML = `
       <div class="start-level-detail-card">
         <div class="start-level-detail-head">
           <div>
             <span class="start-level-detail-kicker">${selectedSummary.sector.label}</span>
-            <strong>NIVEL ${selectedLevel}</strong>
+            <strong>${detailLevelLabel}</strong>
           </div>
           <span class="start-level-detail-state${selectedSummary.dominated ? ' is-dominated' : selectedSummary.completed ? ' is-complete' : ''}">${selectedSummary.stateLabel}</span>
         </div>
@@ -2613,7 +2645,7 @@ function renderStartLevelGrid() {
         <div class="start-level-detail-meta">
           <span>${selectedSummary.event.id !== 'standard' ? `Evento ${selectedSummary.event.label}` : 'Oleada estándar'}</span>
           <span>Mejor score ${selectedSummary.bestScore || 0} pts</span>
-          <span>Mejor alcance NIV ${selectedSummary.bestReach || selectedLevel}</span>
+          <span>${detailReachLabel} ${gameSettings.mode === 'waves' ? (aggregateStats.bestWavesLevel || selectedLevel) : (selectedSummary.bestReach || selectedLevel)}</span>
           <span>${selectedSummary.bestAccuracy ? `${selectedSummary.bestAccuracy}% precisión` : 'Sin marca de precisión aún'}</span>
           <span>${selectedSummary.bestLivesEnd ? `Mejor cierre ${selectedSummary.bestLivesEnd} vidas` : 'Sin cierre sólido aún'}</span>
         </div>
@@ -2623,8 +2655,60 @@ function renderStartLevelGrid() {
   }
 }
 
+function getWavesBossProfileId(waveNumber) {
+  const safeWave = Math.max(1, Number.parseInt(waveNumber, 10) || 1);
+  if (safeWave < 18 || safeWave % 6 !== 0) return null;
+  const sequence = ['striker', 'pulse', 'warden', 'overlord', 'nemesis'];
+  return sequence[Math.floor((safeWave - 18) / 6) % sequence.length];
+}
+
+function getWavesMiniBossProfileId(waveNumber) {
+  const safeWave = Math.max(1, Number.parseInt(waveNumber, 10) || 1);
+  if (safeWave < 10 || safeWave % 5 !== 0 || getWavesBossProfileId(safeWave)) return null;
+  if (safeWave >= 25) return 'squad_trident_apex';
+  if (safeWave >= 18) return 'squad_trident_plus';
+  if (safeWave >= 15) return 'squad_trident';
+  return 'squad_basic_plus';
+}
+
+function getWavesModeProfile(waveNumber) {
+  const safeWave = Math.max(1, Number.parseInt(waveNumber, 10) || 1);
+  const tankWeight = safeWave >= 4 ? Math.min(10, 2 + Math.floor((safeWave - 4) / 2)) : 0;
+  const shooterWeight = safeWave >= 7 ? Math.min(11, 2 + Math.floor((safeWave - 7) / 2)) : 0;
+  const scoutWeight = safeWave >= 3 ? Math.min(6, 1 + Math.floor((safeWave - 3) / 4)) : 0;
+  const classicWeight = Math.max(2, 13 - Math.floor(safeWave / 2));
+  const roleWeights = [['classic', classicWeight]];
+  if (scoutWeight > 0) roleWeights.push(['scout', scoutWeight]);
+  if (tankWeight > 0) roleWeights.push(['tank', tankWeight]);
+  if (shooterWeight > 0) roleWeights.push(['shooter', shooterWeight]);
+  const bossProfileId = getWavesBossProfileId(safeWave);
+  const miniBossProfileId = getWavesMiniBossProfileId(safeWave);
+  const eventId = safeWave < 4
+    ? 'standard'
+    : shooterWeight >= tankWeight && shooterWeight > 0
+      ? 'hunter'
+      : tankWeight > 0
+        ? 'armored'
+        : 'standard';
+  return {
+    wave: safeWave,
+    enemyCount: Math.min(96, Math.round(10 + safeWave * 2.15 + Math.max(0, safeWave - 10) * 0.9)),
+    roleWeights,
+    hpBonus: Math.min(10, Math.floor(Math.max(0, safeWave - 12) / 7)),
+    descentSpeed: Math.min(1.05, 0.18 + safeWave * 0.018),
+    horizontalDrift: Math.min(1.65, 0.5 + safeWave * 0.03),
+    threatLevel: 1 + safeWave * 0.82 + Math.max(0, safeWave - 12) * 0.22,
+    eventId,
+    miniBossProfileId,
+    bossProfileId
+  };
+}
+
 function getThreatLevel(currentLevel = level) {
   const activeMode = running ? currentRunStats.mode : gameSettings.mode;
+  if (activeMode === 'waves') {
+    return getWavesModeProfile(currentLevel).threatLevel;
+  }
   if (activeMode === 'survival') {
     if (currentLevel <= 4) return currentLevel;
     return 4 + (currentLevel - 4) * 0.58;
@@ -2634,6 +2718,10 @@ function getThreatLevel(currentLevel = level) {
 }
 
 function getBossSequenceForLevel(currentLevel, mode = gameSettings.mode) {
+  if (mode === 'waves') {
+    const profileId = getWavesModeProfile(currentLevel).bossProfileId;
+    return profileId ? [profileId] : [];
+  }
   if (isCampaignMode(mode)) {
     if (SPECIAL_BOSS_SEQUENCES[currentLevel]) return [...SPECIAL_BOSS_SEQUENCES[currentLevel]];
     const scriptedProfileId = BOSS_CAMPAIGN_LEVELS[currentLevel];
@@ -2647,17 +2735,20 @@ function getLevelEncounterTag(currentLevel, mode = running ? currentRunStats.mod
   const bossSequence = getBossSequenceForLevel(currentLevel, mode);
   if (bossSequence.length > 1) return 'GAUNTLET';
   if (bossSequence.length === 1) return 'BOSS';
-  if (shouldSpawnMiniBossForLevel(currentLevel)) return 'ELITE';
+  if (shouldSpawnMiniBossForLevel(currentLevel, mode)) return 'ELITE';
   const event = getWaveEventForLevel(currentLevel, mode);
   return event.id !== 'standard' ? event.label : '';
 }
 
-function shouldSpawnMiniBossForLevel(currentLevel) {
+function shouldSpawnMiniBossForLevel(currentLevel, mode = running ? currentRunStats.mode : gameSettings.mode) {
+  if (mode === 'waves') return Boolean(getWavesModeProfile(currentLevel).miniBossProfileId);
   return Boolean(MINI_BOSS_CAMPAIGN_LEVELS[currentLevel]);
 }
 
-function getMiniBossProfileForLevel(currentLevel) {
-  const profileId = MINI_BOSS_CAMPAIGN_LEVELS[currentLevel];
+function getMiniBossProfileForLevel(currentLevel, mode = running ? currentRunStats.mode : gameSettings.mode) {
+  const profileId = mode === 'waves'
+    ? getWavesModeProfile(currentLevel).miniBossProfileId
+    : MINI_BOSS_CAMPAIGN_LEVELS[currentLevel];
   return MINI_BOSS_PROFILES[profileId] || MINI_BOSS_PROFILES.squad_basic;
 }
 
@@ -2688,6 +2779,9 @@ function hasPendingBossForLevel(currentLevel = level, mode = running ? currentRu
 }
 
 function getWaveEventForLevel(currentLevel, mode = gameSettings.mode) {
+  if (mode === 'waves') {
+    return WAVE_EVENT_DEFS[getWavesModeProfile(currentLevel).eventId] || WAVE_EVENT_DEFS.standard;
+  }
   if (currentLevel <= 2) return WAVE_EVENT_DEFS.standard;
   const cycle = currentLevel % 5;
   if (currentLevel >= 4 && cycle === 0) return WAVE_EVENT_DEFS.bonus;
@@ -2697,6 +2791,7 @@ function getWaveEventForLevel(currentLevel, mode = gameSettings.mode) {
 }
 
 function getWavePatternForLevel(currentLevel, mode = gameSettings.mode) {
+  if (mode === 'waves') return WAVE_PATTERNS.fortress;
   if (currentLevel <= 1) return WAVE_PATTERNS.classic_grid;
   const sequence = ['split_wings', 'spearhead', 'staggered', 'classic_grid', 'fortress'];
   const unlockIndex = currentLevel >= 6 ? sequence.length : Math.max(1, Math.min(sequence.length - 1, currentLevel - 1));
@@ -2765,8 +2860,12 @@ function getLevelEncounterPreviewText(currentLevel, mode = running ? currentRunS
   if (bossSequence.length === 1) {
     return `${getBossProfileForLevel(currentLevel, mode).label} ENTRA EN ESCENA`;
   }
-  if (shouldSpawnMiniBossForLevel(currentLevel)) {
-    return `${getMiniBossProfileForLevel(currentLevel).label} ENTRANTE`;
+  if (shouldSpawnMiniBossForLevel(currentLevel, mode)) {
+    return `${getMiniBossProfileForLevel(currentLevel, mode).label} ENTRANTE`;
+  }
+  if (mode === 'waves') {
+    const profile = getWavesModeProfile(currentLevel);
+    return `OLEADA DESCENDENTE x${profile.enemyCount}`;
   }
   return 'Prepárate...';
 }
@@ -2977,7 +3076,7 @@ function isStarterLoadoutUnlocked(id) {
 }
 
 function isStarterLoadoutModeEnabled(mode = gameSettings.mode) {
-  return mode === 'classic' || mode === 'coop' || mode === 'survival';
+  return mode === 'classic' || mode === 'coop' || mode === 'survival' || mode === 'waves';
 }
 
 function getEquippedStarterLoadout(mode = gameSettings.mode) {
@@ -3774,16 +3873,17 @@ function renderRunStats(entry, mode = overlayMode) {
     runStatsGridEl.innerHTML = renderCompetitiveRunStats(currentEntry, mode);
     return;
   }
+  const progressLabel = currentEntry.mode === 'waves' ? `Oleada ${currentEntry.level}` : `Nivel ${currentEntry.level}`;
   const stats = mode === 'pause'
     ? [
-        ['Puntuacion', `${currentEntry.score} pts`, `Nivel ${currentEntry.level} · ${formatModeLabel(currentEntry.mode)}`],
+        ['Puntuacion', `${currentEntry.score} pts`, `${progressLabel} · ${formatModeLabel(currentEntry.mode)}`],
         ['Precision', `${currentEntry.accuracy}%`, `${currentEntry.hits}/${currentEntry.shots} impactos`],
         ['Objetivos', `${currentEntry.enemiesDestroyed} enemigos`, `${currentEntry.ufoDestroyed} UFO · ${currentEntry.bossesDefeated} boss`],
         ['Power-ups', `${currentEntry.powerUpsCollected} recogidos`, `Combo x${currentEntry.maxCombo}`],
         ['Sesion', formatDuration(currentEntry.durationMs), `${formatDifficultyLabel(currentEntry.difficulty)} · ${currentEntry.lives} vidas`]
       ]
     : [
-        ['Puntuacion final', `${currentEntry.score} pts`, `Nivel ${currentEntry.level} · ${formatModeLabel(currentEntry.mode)}`],
+        ['Puntuacion final', `${currentEntry.score} pts`, `${progressLabel} · ${formatModeLabel(currentEntry.mode)}`],
         ['Precision', `${currentEntry.accuracy}%`, `${currentEntry.hits}/${currentEntry.shots} impactos`],
         ['Objetivos', `${currentEntry.enemiesDestroyed} enemigos`, `${currentEntry.ufoDestroyed} UFO · ${currentEntry.bossesDefeated} boss`],
         ['Power-ups', `${currentEntry.powerUpsCollected} recogidos`, `Combo x${currentEntry.maxCombo}`],
@@ -3801,11 +3901,12 @@ function renderStatsPanel() {
       ? '<div class="stats-empty">Todavia no hay partidas registradas.</div>'
     : [
         ['Partidas', aggregateStats.gamesPlayed],
-        ['Modos', `${aggregateStats.totalClassicGames} clasico · ${aggregateStats.totalSurvivalGames} supervivencia · ${aggregateStats.totalCoopGames} coop · ${aggregateStats.totalCompetitiveGames} competitivo · ${aggregateStats.totalTimeAttackGames} contrarreloj`],
+        ['Modos', `${aggregateStats.totalClassicGames} clasico · ${aggregateStats.totalWavesGames} oleadas · ${aggregateStats.totalSurvivalGames} supervivencia · ${aggregateStats.totalCoopGames} coop · ${aggregateStats.totalCompetitiveGames} competitivo · ${aggregateStats.totalTimeAttackGames} contrarreloj`],
         ['Puntos totales', aggregateStats.totalScore],
         ['Mejor nivel', aggregateStats.bestLevel],
         ['Mejor combo', `x${aggregateStats.bestCombo}`],
         ['Mejor contrarreloj', `${aggregateStats.bestTimeAttackScore} pts`],
+        ['Mejor oleadas', `Oleada ${aggregateStats.bestWavesLevel || 1} · ${aggregateStats.bestWavesScore || 0} pts`],
         ['Power-ups', aggregateStats.totalPowerUpsCollected],
         ['Bosses vencidos', aggregateStats.totalBossesDefeated],
         ['Precision global', `${globalAccuracy}%`],
@@ -3815,7 +3916,7 @@ function renderStatsPanel() {
   statsHistoryEl.innerHTML = scoreHistory.length === 0
     ? '<div class="stats-empty">Aun no hay historial de partidas.</div>'
     : scoreHistory.slice(0, 10).map(entry => (
-        `<div class="history-line"><span>${formatPlayedAt(entry.playedAt)} · ${formatDifficultyLabel(entry.difficulty)} · ${formatModeLabel(entry.mode)} · NIV ${entry.level}</span><strong>${entry.score} pts · ${entry.accuracy}%</strong></div>`
+        `<div class="history-line"><span>${formatPlayedAt(entry.playedAt)} · ${formatDifficultyLabel(entry.difficulty)} · ${formatModeLabel(entry.mode)} · ${entry.mode === 'waves' ? 'OLEADA' : 'NIV'} ${entry.level}</span><strong>${entry.score} pts · ${entry.accuracy}%</strong></div>`
       )).join('');
 }
 
@@ -3905,12 +4006,13 @@ function renderAchievementOverviewCard({ unlockedAchievements, pendingAchievemen
 }
 
 function getCampaignSummary(mode = gameSettings.mode) {
-  if (mode === 'survival' || mode === 'competitive') {
+  if (mode === 'survival' || mode === 'competitive' || mode === 'waves') {
+    const label = mode === 'competitive' ? 'COMPETITIVO' : mode === 'waves' ? 'OLEADAS' : 'SUPERVIVENCIA';
     return {
       mode,
       completedLevels: 0,
       nextTargetLevel: 1,
-      currentSector: { label: mode === 'competitive' ? 'COMPETITIVO' : 'SUPERVIVENCIA', start: 1, end: MAX_START_LEVEL_OPTION, reward: null },
+      currentSector: { label, start: 1, end: MAX_START_LEVEL_OPTION, reward: null },
       completedSectors: 0,
       unlockedLevel: 1,
       sectorProgress: 0,
@@ -4384,6 +4486,7 @@ function createDefaultAggregateStats() {
     totalSurvivalGames: 0,
     totalCoopGames: 0,
     totalCompetitiveGames: 0,
+    totalWavesGames: 0,
     totalTimeAttackGames: 0,
     totalEasyGames: 0,
     totalNormalGames: 0,
@@ -4394,11 +4497,13 @@ function createDefaultAggregateStats() {
     bestSurvivalLevel: 0,
     bestCoopLevel: 0,
     bestCompetitiveLevel: 0,
+    bestWavesLevel: 0,
     bestClassicScore: 0,
     bestSurvivalScore: 0,
     bestSurvivalTimeMs: 0,
     bestCoopScore: 0,
     bestCompetitiveScore: 0,
+    bestWavesScore: 0,
     bestCombo: 1,
     bestTimeAttackScore: 0,
     bestAccuracy25: 0,
@@ -4602,6 +4707,7 @@ function renderStartScreenPanels() {
   const bestClassicLevel = aggregateStats.bestClassicLevel || bestLevel;
   const bestCoopLevel = aggregateStats.bestCoopLevel || 0;
   const bestCompetitiveLevel = aggregateStats.bestCompetitiveLevel || 0;
+  const bestWavesLevel = aggregateStats.bestWavesLevel || 0;
   const favoriteMode = getFavoriteMode();
   const favoriteDifficulty = getFavoriteDifficulty();
   const rankProfile = getPlayerRankProfile();
@@ -4629,6 +4735,8 @@ function renderStartScreenPanels() {
   if (modeNoteEl) {
     modeNoteEl.textContent = gameSettings.mode === 'timeattack'
       ? 'Contrarreloj aprieta desde el segundo uno y premia decisiones rápidas.'
+      : gameSettings.mode === 'waves'
+        ? 'Oleadas abre una run infinita con enemigos descendentes, más cantidad y amenazas cada vez más duras.'
       : gameSettings.mode === 'survival'
         ? 'Supervivencia arranca siempre en el nivel 1 y suaviza la escalada para aguantar runs largas.'
       : gameSettings.mode === 'competitive'
@@ -4647,6 +4755,8 @@ function renderStartScreenPanels() {
   if (startLevelNoteEl) {
     startLevelNoteEl.textContent = gameSettings.mode === 'timeattack'
       ? 'Contrarreloj siempre empieza en el nivel 1 para mantener su economía y presión originales.'
+      : gameSettings.mode === 'waves'
+        ? 'Oleadas siempre empieza en 1, no usa campaña y compite por la mejor oleada alcanzada.'
       : gameSettings.mode === 'survival'
         ? 'Supervivencia siempre empieza en el nivel 1 y no usa progreso de campaña ni selector de arranque.'
       : gameSettings.mode === 'competitive'
@@ -4667,7 +4777,7 @@ function renderStartScreenPanels() {
     const selectedLoadout = normalizeStarterLoadout(gameSettings.starterLoadout);
     const enabledCopy = isStarterLoadoutModeEnabled(gameSettings.mode)
       ? `Carga inicial equipada ${getStarterLoadoutLabel(getEquippedStarterLoadout(gameSettings.mode))}. ${metaState.unlockedStarterLoadouts.length}/${Object.keys(STARTER_LOADOUT_DEFS).length - 1} cargas desbloqueadas por objetivos.`
-      : `Carga equipada ${getStarterLoadoutLabel(selectedLoadout)}. En este modo no se aplica; solo entra en clasico, coop y supervivencia.`;
+      : `Carga equipada ${getStarterLoadoutLabel(selectedLoadout)}. En este modo no se aplica; solo entra en clasico, oleadas, coop y supervivencia.`;
     starterNoteEl.textContent = enabledCopy;
   }
   if (settingsNoteEl) {
@@ -4707,8 +4817,8 @@ function renderStartScreenPanels() {
       <div class="summary-stat">
         <span class="summary-label">MEJORES MARCAS</span>
         <strong class="summary-value">${highscore} pts</strong>
-        <span class="summary-copy">Clásico hasta nivel ${bestClassicLevel} · Supervivencia hasta nivel ${aggregateStats.bestSurvivalLevel || '1'} · 2P coop hasta nivel ${bestCoopLevel || '1'} · 2P comp hasta nivel ${bestCompetitiveLevel || '1'}.</span>
-        <span class="summary-meta">Clásico ${aggregateStats.bestClassicScore || highscore} pts · Supervivencia ${aggregateStats.bestSurvivalScore || 0} pts · 2P coop ${aggregateStats.bestCoopScore || 0} pts · 2P comp ${aggregateStats.bestCompetitiveScore || 0} pts · Contrarreloj ${aggregateStats.bestTimeAttackScore} pts</span>
+        <span class="summary-copy">Clásico hasta nivel ${bestClassicLevel} · Oleadas hasta ${bestWavesLevel || '1'} · Supervivencia hasta nivel ${aggregateStats.bestSurvivalLevel || '1'} · 2P coop hasta nivel ${bestCoopLevel || '1'} · 2P comp hasta nivel ${bestCompetitiveLevel || '1'}.</span>
+        <span class="summary-meta">Clásico ${aggregateStats.bestClassicScore || highscore} pts · Oleadas ${aggregateStats.bestWavesScore || 0} pts · Supervivencia ${aggregateStats.bestSurvivalScore || 0} pts · 2P coop ${aggregateStats.bestCoopScore || 0} pts · 2P comp ${aggregateStats.bestCompetitiveScore || 0} pts · Contrarreloj ${aggregateStats.bestTimeAttackScore} pts</span>
       </div>
       <div class="summary-stat">
         <span class="summary-label">ULTIMA SESION</span>
@@ -4721,11 +4831,15 @@ function renderStartScreenPanels() {
         <strong class="summary-value">${campaignSummary.currentSector.label}</strong>
         <span class="summary-copy">${gameSettings.mode === 'survival'
           ? 'Sin campaña. Este modo suaviza la escalada para runs largas desde el nivel 1.'
+          : gameSettings.mode === 'waves'
+            ? 'Sin campaña. Las oleadas descienden desde arriba, escalan sin final y buscan romper tu mejor marca.'
           : gameSettings.mode === 'competitive'
             ? 'Sin campaña. Aquí importa el marcador: gana quien tenga más puntos cuando los dos pilotos caigan.'
             : `${campaignSummary.completedLevels}/${MAX_START_LEVEL_OPTION} niveles superados · ${campaignSummary.completedSectors}/${CAMPAIGN_SECTORS.length} sectores cerrados · ${campaignSummary.completedLevels >= MAX_START_LEVEL_OPTION ? 'campaña base completada.' : `siguiente hito ${getLevelEncounterPreviewText(campaignSummary.nextTargetLevel, campaignSummary.mode)}.`}`}</span>
         <span class="summary-meta">${gameSettings.mode === 'survival'
           ? `Mejor supervivencia: nivel ${aggregateStats.bestSurvivalLevel || 1} · ${aggregateStats.bestSurvivalScore || 0} pts`
+          : gameSettings.mode === 'waves'
+            ? `Mejor oleadas: oleada ${aggregateStats.bestWavesLevel || 1} · ${aggregateStats.bestWavesScore || 0} pts`
           : gameSettings.mode === 'competitive'
             ? `Mejor duelo: nivel ${aggregateStats.bestCompetitiveLevel || 1} · ${aggregateStats.bestCompetitiveScore || 0} pts`
             : `${campaignSummary.sectorProgress}/${campaignSummary.sectorTotal} niveles en el sector activo · ${campaignSummary.sectorRewardClaimed ? `Recompensa lograda: ${campaignSummary.sectorRewardLabel}` : `Recompensa pendiente: ${campaignSummary.sectorRewardLabel}`}`}</span>
@@ -5379,7 +5493,7 @@ modeSelect.addEventListener('change', event => {
 if (startLevelSelectorEl) {
   startLevelSelectorEl.addEventListener('click', event => {
     const trigger = event.target.closest('[data-start-level]');
-    if (!trigger || gameSettings.mode === 'timeattack' || gameSettings.mode === 'survival' || gameSettings.mode === 'competitive') return;
+    if (!trigger || gameSettings.mode === 'timeattack' || gameSettings.mode === 'survival' || gameSettings.mode === 'competitive' || gameSettings.mode === 'waves') return;
     gameSettings.startLevel = normalizeStartLevel(trigger.dataset.startLevel, getMaxUnlockedStartLevel());
     persistGameSettings();
     applySettingsUI();
@@ -5625,6 +5739,9 @@ function getEnemyShootInterval() {
   const threatLevel = getThreatLevel();
   const eventFactor = currentWaveEvent?.shootFactor || 1;
   const disruptFactor = waveDisruptTimer > 0 ? 0.78 : 1;
+  if (currentRunStats.mode === 'waves') {
+    return Math.max(30, Math.round((104 - (threatLevel - 1) * 6.6) * preset.enemyShootFactor * eventFactor * disruptFactor * (globalEffects.freeze > 0 ? 2.25 : 1)));
+  }
   return Math.max(42, Math.round((110 - (threatLevel - 1) * 8) * preset.enemyShootFactor * eventFactor * disruptFactor * (globalEffects.freeze > 0 ? 2.25 : 1)));
 }
 
@@ -5954,6 +6071,23 @@ function updateSummonedEnemies(activeSummons) {
   }
 }
 
+function updateWavesEnemies(aliveEnemies) {
+  if (!aliveEnemies.length) return;
+  const freezeFactor = getFreezeFactor();
+  for (const enemy of aliveEnemies) {
+    enemy.driftPhase = (enemy.driftPhase || 0) + 0.035 * freezeFactor;
+    enemy.y += (enemy.descentSpeed || getWavesModeProfile(level).descentSpeed) * freezeFactor;
+    enemy.x += Math.sin(enemy.driftPhase) * (enemy.horizontalDrift || 0.8) * freezeFactor;
+    enemy.x += (enemy.dir || 1) * 0.18 * freezeFactor;
+    enemy.pose = Math.floor(frameCount / 18) % 2;
+    enemy.flashTimer = Math.max(0, (enemy.flashTimer || 0) - 1);
+    if (enemy.x <= 10 || enemy.x + enemy.w >= canvas.width - 10) {
+      enemy.dir = (enemy.dir || 1) * -1;
+      enemy.x = Math.max(10, Math.min(canvas.width - enemy.w - 10, enemy.x));
+    }
+  }
+}
+
 function resetMiniBossSquad() {
   miniBossSquad.active = false;
   miniBossSquad.x = 0;
@@ -6033,7 +6167,73 @@ function getFormationOffsetX(currentLevel, pattern, col) {
   return 0;
 }
 
+function getWavesEnemyRow(type, index = 0) {
+  if (type === 'shooter') return 0;
+  if (type === 'tank') return 2;
+  if (type === 'scout') return 1;
+  return index % ROWS;
+}
+
+function createWavesEnemy(index, profile) {
+  const role = pickWeightedValue(profile.roleWeights);
+  const roleDef = ENEMY_ROLE_DEFS[role] || ENEMY_ROLE_DEFS.classic;
+  const columns = Math.min(10, Math.max(5, Math.ceil(Math.sqrt(profile.enemyCount) + 1)));
+  const col = index % columns;
+  const rowBand = Math.floor(index / columns);
+  const laneWidth = (canvas.width - 52) / Math.max(1, columns - 1);
+  const row = getWavesEnemyRow(role, index);
+  const hpBonus = role === 'classic' ? Math.floor(profile.hpBonus / 2) : profile.hpBonus;
+  const jitterX = (Math.random() - 0.5) * Math.min(34, laneWidth * 0.42);
+  const entryDelay = rowBand * (32 + Math.min(18, profile.wave)) + Math.random() * 46;
+  return {
+    x: Math.max(12, Math.min(canvas.width - E_W - 12, 26 + col * laneWidth + jitterX)),
+    y: -E_H - entryDelay,
+    w: E_W,
+    h: E_H,
+    alive: true,
+    row,
+    col,
+    pose: 0,
+    type: role,
+    hp: roleDef.hp + hpBonus,
+    maxHp: roleDef.hp + hpBonus,
+    shootWeight: roleDef.shootWeight + Math.min(1.2, profile.wave * 0.035),
+    moveBoost: roleDef.moveBoost,
+    bulletSpeedBonus: roleDef.bulletSpeedBonus + Math.min(0.9, profile.wave * 0.025),
+    scoreValue: Math.round((getEnemyBasePoints(row) + profile.wave * 2) * roleDef.scoreMultiplier),
+    flashTimer: 0,
+    waveMode: true,
+    dir: Math.random() < 0.5 ? -1 : 1,
+    driftPhase: Math.random() * Math.PI * 2,
+    descentSpeed: profile.descentSpeed + Math.max(0, roleDef.moveBoost || 0) * 0.025 + Math.random() * 0.09,
+    horizontalDrift: profile.horizontalDrift + Math.max(0, roleDef.moveBoost || 0) * 0.15,
+    shootTimer: Math.floor(Math.random() * 32)
+  };
+}
+
+function spawnWavesEnemies() {
+  enemies.length = 0;
+  const profile = getWavesModeProfile(level);
+  currentWavePattern = getWavePatternForLevel(level, 'waves');
+  currentWaveEvent = getWaveEventForLevel(level, 'waves');
+  currentWaveStartedAt = Date.now();
+  for (let index = 0; index < profile.enemyCount; index++) {
+    const enemy = createWavesEnemy(index, profile);
+    enemies.push(enemy);
+    markBestiarySeen(`enemy_${enemy.type}`, { showTip: enemy.type !== 'classic' });
+  }
+  currentWaveEnemyCount = Math.max(1, profile.enemyCount);
+  enemyDir = 1;
+  enemyTickTimer = 0;
+  pendingDrop = false;
+  enemyAnimFrame = 0;
+}
+
 function spawnEnemies() {
+  if ((currentRunStats.mode || gameSettings.mode) === 'waves') {
+    spawnWavesEnemies();
+    return;
+  }
   ensureLevelEncounterState(level, currentRunStats.mode || gameSettings.mode);
   enemies.length = 0;
   currentWavePattern = getWavePatternForLevel(level, currentRunStats.mode || gameSettings.mode);
@@ -6122,11 +6322,16 @@ function getFastWaveBonus() {
   return 0;
 }
 
+function isTridentMiniBossProfile(profile) {
+  return typeof profile?.id === 'string' && profile.id.startsWith('squad_trident');
+}
+
 function spawnMiniBossSquad() {
   const profile = getMiniBossProfileForLevel(level);
+  const isTridentProfile = isTridentMiniBossProfile(profile);
   miniBossEncounteredThisLevel = true;
-  markBestiarySeen(profile.id === 'squad_trident' ? 'elite_trident' : 'elite_leader');
-  markBestiarySeen(profile.id === 'squad_trident' ? 'elite_prong' : 'elite_escort', { showTip: false });
+  markBestiarySeen(isTridentProfile ? 'elite_trident' : 'elite_leader');
+  markBestiarySeen(isTridentProfile ? 'elite_prong' : 'elite_escort', { showTip: false });
   miniBossSquad.active = true;
   miniBossSquad.profileId = profile.id;
   miniBossSquad.label = profile.label;
@@ -6142,29 +6347,29 @@ function spawnMiniBossSquad() {
   miniBossSquad.y = -84;
   miniBossSquad.ships = [
     {
-      role: profile.id === 'squad_trident' ? 'prong' : 'escort',
+      role: isTridentProfile ? 'prong' : 'escort',
       side: -1,
       x: canvas.width / 2 - 62,
       y: -58,
       w: 34,
       h: 22,
-      hp: profile.id === 'squad_trident' ? profile.wingHp : profile.escortHp,
-      maxHp: profile.id === 'squad_trident' ? profile.wingHp : profile.escortHp,
+      hp: isTridentProfile ? profile.wingHp : profile.escortHp,
+      maxHp: isTridentProfile ? profile.wingHp : profile.escortHp,
       flashTimer: 0,
-      color: profile.id === 'squad_trident' ? '#a7f4ff' : '#7be6ff'
+      color: isTridentProfile ? '#a7f4ff' : '#7be6ff'
     },
     { role: 'leader', side: 0, x: canvas.width / 2 - 24, y: -76, w: 48, h: 34, hp: profile.leaderHp, maxHp: profile.leaderHp, flashTimer: 0, color: '#ffb35a' },
     {
-      role: profile.id === 'squad_trident' ? 'prong' : 'escort',
+      role: isTridentProfile ? 'prong' : 'escort',
       side: 1,
       x: canvas.width / 2 + 28,
       y: -58,
       w: 34,
       h: 22,
-      hp: profile.id === 'squad_trident' ? profile.wingHp : profile.escortHp,
-      maxHp: profile.id === 'squad_trident' ? profile.wingHp : profile.escortHp,
+      hp: isTridentProfile ? profile.wingHp : profile.escortHp,
+      maxHp: isTridentProfile ? profile.wingHp : profile.escortHp,
       flashTimer: 0,
-      color: profile.id === 'squad_trident' ? '#a7f4ff' : '#7be6ff'
+      color: isTridentProfile ? '#a7f4ff' : '#7be6ff'
     }
   ];
   playerBullets.length = 0;
@@ -6544,6 +6749,11 @@ function updateBoss() {
     triggerCinematicFlash(0.09);
     updateHudStatus();
   }
+  if (currentRunStats.mode === 'waves') {
+    const dangerLine = getLowestActivePlayerY() - boss.h - 18;
+    const descentSpeed = Math.min(0.9, 0.16 + level * 0.018 + (boss.phaseIndex === 2 ? 0.16 : 0));
+    boss.baseY = Math.min(dangerLine, boss.baseY + descentSpeed * freezeFactor);
+  }
   if (profile.movePattern === 'pulse') {
     boss.x += boss.dir * boss.speed * 0.82 * freezeFactor;
     boss.y = boss.baseY + Math.sin(boss.phase * 1.4) * 14;
@@ -6626,25 +6836,28 @@ function updateMiniBossSquad() {
   if (!miniBossSquad.active) return;
   const freezeFactor = getFreezeFactor();
   const profile = MINI_BOSS_PROFILES[miniBossSquad.profileId] || MINI_BOSS_PROFILES.squad_basic;
+  const isTridentProfile = isTridentMiniBossProfile(profile);
   const leader = miniBossSquad.ships.find(ship => ship.role === 'leader' && ship.hp > 0);
   const aliveWings = miniBossSquad.ships.filter(ship => ship.role !== 'leader' && ship.hp > 0).length;
   const leaderRatio = leader ? leader.hp / leader.maxHp : 0;
   const isEnraged = profile.enrageThreshold > 0 && (aliveWings <= 1 || leaderRatio <= profile.enrageThreshold);
+  const leaderAnchorY = currentRunStats.mode === 'waves' ? Math.min(188, 88 + Math.max(0, level - 10) * 4) : 88;
+  const wingAnchorY = leaderAnchorY + 22;
 
   if (miniBossSquad.entryTimer > 0) {
     miniBossSquad.entryTimer--;
-    miniBossSquad.y += (96 - miniBossSquad.y) * 0.12;
+    miniBossSquad.y += (leaderAnchorY + 8 - miniBossSquad.y) * 0.12;
     for (const ship of miniBossSquad.ships) {
-      const targetY = ship.role === 'leader' ? 88 : 110;
+      const targetY = ship.role === 'leader' ? leaderAnchorY : wingAnchorY;
       ship.y += (targetY - ship.y) * 0.08;
     }
     return;
   }
 
-  miniBossSquad.phase += (profile.id === 'squad_trident' ? 0.052 : 0.04) * freezeFactor;
+  miniBossSquad.phase += (isTridentProfile ? 0.052 : 0.04) * freezeFactor;
   const movementSpeed = miniBossSquad.speed + (isEnraged ? 0.3 : 0);
   miniBossSquad.x += miniBossSquad.dir * movementSpeed * freezeFactor;
-  const horizontalSpan = profile.id === 'squad_trident'
+  const horizontalSpan = isTridentProfile
     ? miniBossSquad.horizontalSpan + Math.sin(miniBossSquad.phase * 1.25) * 18 + (isEnraged ? 10 : 0)
     : miniBossSquad.horizontalSpan;
   if (miniBossSquad.x <= 70 || miniBossSquad.x >= canvas.width - 70) {
@@ -6655,15 +6868,15 @@ function updateMiniBossSquad() {
     if (ship.hp <= 0) continue;
     const offsetX = ship.role === 'leader' ? 0 : horizontalSpan * ship.side;
     const bob = ship.role === 'leader'
-      ? Math.sin(miniBossSquad.phase) * (profile.id === 'squad_trident' ? 7 : 6)
-      : Math.cos(miniBossSquad.phase + (ship.side < 0 ? 0.6 : -0.6)) * (profile.id === 'squad_trident' ? 7 : 5);
+      ? Math.sin(miniBossSquad.phase) * (isTridentProfile ? 7 : 6)
+      : Math.cos(miniBossSquad.phase + (ship.side < 0 ? 0.6 : -0.6)) * (isTridentProfile ? 7 : 5);
     ship.x = miniBossSquad.x + offsetX - ship.w / 2;
-    ship.y = (ship.role === 'leader' ? 88 : 110) + bob;
+    ship.y = (ship.role === 'leader' ? leaderAnchorY : wingAnchorY) + bob;
   }
 
   miniBossSquad.shootTimer++;
   const threatLevel = getThreatLevel();
-  const shootInterval = Math.max(40, Math.round(profile.shootIntervalBase - threatLevel * (profile.id === 'squad_trident' ? 4.6 : 4) - (isEnraged ? 6 : 0)));
+  const shootInterval = Math.max(40, Math.round(profile.shootIntervalBase - threatLevel * (isTridentProfile ? 4.6 : 4) - (isEnraged ? 6 : 0)));
   if (miniBossSquad.shootTimer >= shootInterval) {
     miniBossSquad.shootTimer = 0;
     const aliveShips = getMiniBossAliveShips();
@@ -6672,14 +6885,14 @@ function updateMiniBossSquad() {
       if (!canFire) continue;
       const volleyOffsets = ship.role === 'leader'
         ? profile.leaderVolleyOffsets
-        : (profile.id === 'squad_trident' ? [ship.side * -6] : [0]);
+        : (isTridentProfile ? [ship.side * -6] : [0]);
       for (const offset of volleyOffsets) {
         enemyBullets.push({
           x: ship.x + ship.w / 2 + offset - 2,
           y: ship.y + ship.h,
           w: 4,
           h: 12,
-          speed: getDifficultyConfig().enemyBulletBase + 0.6 + (ship.role === 'leader' ? 0.35 : 0) + (profile.id === 'squad_trident' ? 0.12 : 0),
+          speed: getDifficultyConfig().enemyBulletBase + 0.6 + (ship.role === 'leader' ? 0.35 : 0) + (isTridentProfile ? 0.12 : 0),
           fromBoss: false,
           tint: ship.color
         });
@@ -6890,7 +7103,7 @@ function update() {
       startBossFight();
       return;
     }
-    if (shouldSpawnMiniBossForLevel(level) && !miniBossEncounteredThisLevel) {
+    if (shouldSpawnMiniBossForLevel(level, currentRunStats.mode || gameSettings.mode) && !miniBossEncounteredThisLevel) {
       spawnMiniBossSquad();
       return;
     }
@@ -6900,43 +7113,47 @@ function update() {
 
   if (!boss.active && !miniBossSquad.active) {
     tickHeartbeat(aliveEnemies.length);
-    enemyTickTimer++;
+    if (currentRunStats.mode === 'waves') {
+      updateWavesEnemies(aliveEnemies);
+    } else {
+      enemyTickTimer++;
 
-    if (enemyTickTimer >= getEnemyTickInterval()) {
-      enemyTickTimer = 0;
-      enemyAnimFrame++;
+      if (enemyTickTimer >= getEnemyTickInterval()) {
+        enemyTickTimer = 0;
+        enemyAnimFrame++;
 
-      if (pendingDrop) {
-        enemies.forEach(enemy => {
-          if (enemy.alive) {
-            enemy.y += ENEMY_STEP_Y;
-            enemy.pose = enemyAnimFrame % 2;
-          }
-        });
-        enemyDir *= -1;
-        pendingDrop = false;
-      } else {
-        const bounds = getAliveEnemyBounds(aliveEnemies);
-        if (bounds) {
-          const desiredStep = enemyDir * ENEMY_STEP_X;
-          let appliedStep = desiredStep;
-
-          if (enemyDir > 0 && bounds.right + desiredStep > canvas.width - 8) {
-            appliedStep = canvas.width - 8 - bounds.right;
-          } else if (enemyDir < 0 && bounds.left + desiredStep < 8) {
-            appliedStep = 8 - bounds.left;
-          }
-
+        if (pendingDrop) {
           enemies.forEach(enemy => {
             if (enemy.alive) {
-              enemy.x += appliedStep;
+              enemy.y += ENEMY_STEP_Y;
               enemy.pose = enemyAnimFrame % 2;
             }
           });
+          enemyDir *= -1;
+          pendingDrop = false;
+        } else {
+          const bounds = getAliveEnemyBounds(aliveEnemies);
+          if (bounds) {
+            const desiredStep = enemyDir * ENEMY_STEP_X;
+            let appliedStep = desiredStep;
 
-          const nextBounds = getAliveEnemyBounds(aliveEnemies);
-          if (nextBounds && (nextBounds.right >= canvas.width - 8 || nextBounds.left <= 8)) {
-            pendingDrop = true;
+            if (enemyDir > 0 && bounds.right + desiredStep > canvas.width - 8) {
+              appliedStep = canvas.width - 8 - bounds.right;
+            } else if (enemyDir < 0 && bounds.left + desiredStep < 8) {
+              appliedStep = 8 - bounds.left;
+            }
+
+            enemies.forEach(enemy => {
+              if (enemy.alive) {
+                enemy.x += appliedStep;
+                enemy.pose = enemyAnimFrame % 2;
+              }
+            });
+
+            const nextBounds = getAliveEnemyBounds(aliveEnemies);
+            if (nextBounds && (nextBounds.right >= canvas.width - 8 || nextBounds.left <= 8)) {
+              pendingDrop = true;
+            }
           }
         }
       }
@@ -7290,12 +7507,13 @@ function draw() {
 
   if (showingLevelScreen) {
     const previewEvent = getWaveEventForLevel(level, running ? currentRunStats.mode : gameSettings.mode);
+    const levelLabel = (running ? currentRunStats.mode : gameSettings.mode) === 'waves' ? `OLEADA ${level}` : `NIVEL ${level}`;
     ctx.fillStyle = theme.accent;
     ctx.shadowBlur = 20;
     ctx.shadowColor = theme.accent;
     ctx.font = `bold ${Math.floor(canvas.width / 20)}px Courier New`;
     ctx.textAlign = 'center';
-    ctx.fillText(`— NIVEL ${level} —`, canvas.width / 2, canvas.height / 2 - 20);
+    ctx.fillText(`— ${levelLabel} —`, canvas.width / 2, canvas.height / 2 - 20);
     ctx.font = `${Math.floor(canvas.width / 40)}px Courier New`;
     ctx.fillStyle = '#aaa';
     ctx.fillText(getLevelEncounterPreviewText(level), canvas.width / 2, canvas.height / 2 + 24);
@@ -7491,6 +7709,7 @@ function updateAggregateStats(entry) {
   aggregateStats.totalBossesDefeated += entry.bossesDefeated;
   if (entry.mode === 'timeattack') aggregateStats.totalTimeAttackGames += 1;
   else if (entry.mode === 'survival') aggregateStats.totalSurvivalGames += 1;
+  else if (entry.mode === 'waves') aggregateStats.totalWavesGames += 1;
   else if (entry.mode === 'coop') aggregateStats.totalCoopGames += 1;
   else if (entry.mode === 'competitive') aggregateStats.totalCompetitiveGames += 1;
   else aggregateStats.totalClassicGames += 1;
@@ -7501,10 +7720,12 @@ function updateAggregateStats(entry) {
   if (entry.mode === 'coop') aggregateStats.bestCoopLevel = Math.max(aggregateStats.bestCoopLevel, entry.level);
   else if (entry.mode === 'competitive') aggregateStats.bestCompetitiveLevel = Math.max(aggregateStats.bestCompetitiveLevel, entry.level);
   else if (entry.mode === 'survival') aggregateStats.bestSurvivalLevel = Math.max(aggregateStats.bestSurvivalLevel, entry.level);
+  else if (entry.mode === 'waves') aggregateStats.bestWavesLevel = Math.max(aggregateStats.bestWavesLevel, entry.level);
   else if (entry.mode === 'classic') aggregateStats.bestClassicLevel = Math.max(aggregateStats.bestClassicLevel, entry.level);
   if (entry.mode === 'coop') aggregateStats.bestCoopScore = Math.max(aggregateStats.bestCoopScore, entry.score);
   else if (entry.mode === 'competitive') aggregateStats.bestCompetitiveScore = Math.max(aggregateStats.bestCompetitiveScore, entry.score);
   else if (entry.mode === 'survival') aggregateStats.bestSurvivalScore = Math.max(aggregateStats.bestSurvivalScore, entry.score);
+  else if (entry.mode === 'waves') aggregateStats.bestWavesScore = Math.max(aggregateStats.bestWavesScore, entry.score);
   else if (entry.mode === 'classic') aggregateStats.bestClassicScore = Math.max(aggregateStats.bestClassicScore, entry.score);
   aggregateStats.bestLevel = Math.max(aggregateStats.bestLevel, entry.level);
   aggregateStats.bestCombo = Math.max(aggregateStats.bestCombo, entry.maxCombo);
@@ -7584,7 +7805,7 @@ function startGame(options = {}) {
     ? startLevelOverride
     : (gameSettings.mode === 'classic' || gameSettings.mode === 'coop')
     ? normalizeStartLevel(gameSettings.startLevel, getMaxUnlockedStartLevel())
-    : gameSettings.mode === 'survival' || gameSettings.mode === 'competitive'
+    : gameSettings.mode === 'survival' || gameSettings.mode === 'competitive' || gameSettings.mode === 'waves'
       ? 1
       : 1;
   closeOverlayDialog();

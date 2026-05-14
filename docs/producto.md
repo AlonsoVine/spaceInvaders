@@ -18,6 +18,14 @@ La versión web de `Space Invaders` ya no es un clon mínimo. El juego combina u
 - No usa selector de nivel inicial ni campaña por sectores.
 - Alimenta logros y recompensas específicas de resistencia.
 
+### Oleadas
+
+- El modo `waves` / `oleadas` es una run arcade infinita centrada en presión descendente.
+- Los enemigos aparecen desde la parte superior y avanzan hacia abajo en oleadas cada vez más duras.
+- No usa campaña, sectores, selector de nivel inicial ni cierre narrativo.
+- La escalada introduce de forma progresiva enemigos básicos, acorazados/tanks, shooters, minijefes y bosses descendentes.
+- La dificultad no tiene final fijo: la sesión termina por derrota y compite contra mejores marcas persistidas.
+
 ### Contrarreloj
 
 - Reemplaza la presión por oleadas infinitas con una ventana de tiempo fija.
@@ -68,7 +76,7 @@ La versión web de `Space Invaders` ya no es un clon mínimo. El juego combina u
 ### Logros
 
 - El catálogo cubre `inicio`, `progresión`, `habilidad`, `modos`, `colección` y `meta`.
-- Ya existe cobertura específica para `survival`, `timeattack`, `coop`, `competitive`, bestiario y campaña clásica.
+- Ya existe cobertura específica para `survival`, `waves`, `timeattack`, `coop`, `competitive`, bestiario y campaña clásica.
 - Las recompensas pueden ser `skins`, `shipSkin`, `starterLoadout` o `badges`.
 
 ### Cargas iniciales
@@ -77,6 +85,7 @@ La versión web de `Space Invaders` ya no es un clon mínimo. El juego combina u
 - La partida puede arrancar con `escudo`, `rapid`, `pierce` o `drones` ya equipados.
 - Su comportamiento sigue siendo temporal o consumible, igual que cuando entran por `power-up`.
 - Se aplican en `classic`, `coop` y `survival`.
+- En `waves` pueden aplicarse si el balance del modo las admite sin romper la comparación de marcas.
 - No se aplican en `timeattack` ni `competitive`.
 
 ### Desafío activo
@@ -148,6 +157,7 @@ La versión web de `Space Invaders` ya no es un clon mínimo. El juego combina u
 El juego guarda estado local sin servicios externos:
 
 - récord e historial
+- mejores marcas por modo cuando aplica
 - estadísticas acumuladas
 - ajustes de partida y audio
 - meta persistente

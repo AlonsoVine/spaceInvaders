@@ -14,6 +14,7 @@
 - [ ] Ampliar tests de progresion de campaña.
 - [ ] Cubrir reglas de logros y recompensas.
 - [ ] Cubrir seleccion de waves, bosses y eventos.
+- [ ] Cubrir escalado infinito del modo `waves` y persistencia de mejores marcas.
 - [ ] Añadir smoke test browser para carga de `index.html`.
 - [ ] Medir cobertura minima inicial.
 
@@ -34,6 +35,7 @@
 ## Fase 4 - Evolucion Funcional
 
 - [ ] Balancear dificultad por modo con datos de partidas.
+- [ ] Ajustar progresion de `waves`: basicos, acorazados/tanks, shooters, minijefes y bosses descendentes.
 - [ ] Mejorar accesibilidad de overlays y controles.
 - [ ] Evaluar guardado/exportacion de perfil.
 - [ ] Revisar experiencia tactil para modos no 2P.

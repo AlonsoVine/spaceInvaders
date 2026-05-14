@@ -60,7 +60,7 @@ Notas:
 - Mantener JavaScript vanilla en `js/game.js` hasta que exista ADR para modularizacion.
 - Preferir funciones puras para nueva logica de reglas, progresion y calculos.
 - Evitar acoplar nuevas reglas al DOM si pueden probarse por separado.
-- Usar nombres descriptivos y consistentes con el dominio actual: `campaign`, `bestiary`, `achievement`, `starterLoadout`, `boss`, `wave`.
+- Usar nombres descriptivos y consistentes con el dominio actual: `campaign`, `bestiary`, `achievement`, `starterLoadout`, `boss`, `wave`, `waves`.
 - Mantener textos de producto en español.
 - No introducir dependencias de runtime sin justificar impacto en ADR.
 
@@ -89,5 +89,6 @@ La puerta de calidad cubre:
 - Decision: Vitest sera la ruta recomendada para tests unitarios.
 - Decision: el primer blindaje cubre logica pura cargando `js/game.js` en sandbox, sin modificar gameplay.
 - Decision: `tsconfig.json` se configura con `strict: true`, `allowJs: true` y `checkJs: false` para preparar TypeScript sin forzar migracion inmediata del monolito.
+- Decision: el modo `waves` / `oleadas` se documenta como experiencia infinita sin campaña ni selector de nivel, con enemigos descendentes y mejores marcas persistidas.
 - Riesgo conocido: `js/game.js` concentra demasiadas responsabilidades y requiere refactor gradual por dominios.
 - Restriccion: cualquier refactor de `game.js` debe llegar despues de tests que describan el comportamiento actual.

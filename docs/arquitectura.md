@@ -22,12 +22,14 @@
 - score, vidas, nivel, timers y flags de sesión
 - estado del jugador y jugadores `2P`
 - enemigos, bosses, UFOs, power-ups, cargas iniciales y proyectiles
+- generadores de oleadas por modo, incluida progresión infinita descendente para `waves`
 
 ### Sistemas meta
 
 - catálogo de logros
 - bestiario
 - campaña y sectores
+- progresión de modos sin campaña, como `survival`, `timeattack` y `waves`
 - colección de skins, naves, cargas iniciales e insignias
 - desafío activo
 
@@ -55,11 +57,12 @@ Dentro de `si_settings` ya vive también la equipación persistente de `starterL
 
 1. `startGame()` prepara modo, dificultad, progreso aplicable y entidades iniciales.
 2. Si la run lo permite, `startGame()` aplica la carga inicial equipada sin contarla como `pickup`.
-3. Los encuentros de campaña pueden encadenar varios bosses dentro del mismo nivel.
-4. `loop()` coordina `update()` y `draw()` con `requestAnimationFrame`.
-5. `update()` resuelve input, movimiento, colisiones, progresión, meta y cambios de estado.
-6. `draw()` renderiza el estado completo sobre el `canvas`.
-7. `setOverlayMode()` recompone la UI contextual para inicio, pausa o cierre.
+3. Las runs sin campaña omiten selector de nivel y usan reglas propias de presión, temporizador o oleadas infinitas.
+4. Los encuentros de campaña pueden encadenar varios bosses dentro del mismo nivel.
+5. `loop()` coordina `update()` y `draw()` con `requestAnimationFrame`.
+6. `update()` resuelve input, movimiento, colisiones, progresión, meta y cambios de estado.
+7. `draw()` renderiza el estado completo sobre el `canvas`.
+8. `setOverlayMode()` recompone la UI contextual para inicio, pausa o cierre.
 
 ## Render e input
 
@@ -104,3 +107,4 @@ Dentro de `si_settings` ya vive también la equipación persistente de `starterL
 
 - Si cambian reglas de progresión o modos, actualizar `docs/producto.md`.
 - Si cambian estructuras internas, claves persistidas o responsabilidades técnicas, actualizar este documento.
+- Si un modo nuevo reutiliza nombres de dominio como `wave`, documentar si se refiere a campaña, supervivencia o progresión infinita descendente.
