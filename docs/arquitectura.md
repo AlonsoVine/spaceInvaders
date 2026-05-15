@@ -71,6 +71,9 @@ Dentro de `si_settings` ya vive también la equipación persistente de `starterL
 - Todo el gameplay se dibuja en el `canvas`.
 - La UI de producto vive en DOM.
 - La colección usa previews dibujadas o bloques de UI según el tipo de recompensa.
+- El render del canvas debe mantener un lenguaje visual estable por entidad: jugador, enemigos, bosses, proyectiles y power-ups.
+- Las siluetas y señales de oleada forman parte del contrato visual del juego, no solo del estilo.
+- Si se modifica el dibujo de entidades, revisar también legibilidad móvil, contraste y accesibilidad visual.
 
 ### Input
 

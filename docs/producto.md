@@ -132,6 +132,38 @@ La versión web de `Space Invaders` ya no es un clon mínimo. El juego combina u
 - También hay chips para boss activo y power-ups.
 - En móvil existe una variante más compacta y legible.
 
+## Guía visual de sprites y canvas
+
+### Siluetas de entidades
+
+- El jugador debe leerse como nave aliada: base ancha, frente claro hacia arriba y color principal distinto al de enemigos.
+- Los enemigos base usan cuerpos compactos y repetibles, pero cada familia necesita una silueta reconocible antes de depender del color.
+- Los acorazados/tanks deben parecer más pesados: mayor ancho, contorno doble o masa central más densa.
+- Los shooters necesitan un rasgo ofensivo visible, como cañón, núcleo o laterales abiertos.
+- Minijefes y bosses deben ocupar más presencia en pantalla, con geometría única y puntos de impacto claramente legibles.
+
+### Reglas visuales por tipo
+
+- No reutilizar la misma silueta para enemigo normal, élite y boss; si comparten tema, variar escala, proporción y remates.
+- Los proyectiles del jugador y de enemigos deben diferenciarse por dirección, color y forma, no solo por velocidad.
+- Los power-ups deben parecer recogibles y no amenazas: movimiento más amable, icono simple y contraste propio.
+- Las cargas iniciales equipadas deben compartir lenguaje visual con su power-up equivalente para evitar dobles lecturas.
+- Los efectos de daño, escudo, impacto y derrota no deben tapar proyectiles críticos ni ocultar al jugador.
+
+### Telemetría de oleadas
+
+- En `waves`, el jugador debe poder entender presión y progreso sin mirar solo números.
+- La oleada activa se apoya en HUD/chips y en cambios visibles de densidad, entrada y mezcla de enemigos.
+- La aparición de acorazados, shooters, minijefes y bosses descendentes debe anticiparse con señales visuales consistentes.
+- La información de récord, oleada y estado temporal debe seguir legible en móvil y no competir con el área de colisión.
+
+### Accesibilidad visual
+
+- Color nunca debe ser el único canal para distinguir amenaza, recompensa, boss o proyectil.
+- Mantener contraste suficiente entre sprites, fondo, HUD y efectos temporales.
+- Evitar parpadeos rápidos o flashes de pantalla completa; preferir pulsos cortos y localizados.
+- En móvil, priorizar tamaño mínimo y separación de lectura sobre decoración.
+
 ## Controles
 
 ### Teclado

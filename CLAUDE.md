@@ -62,6 +62,7 @@ Notas:
 - Evitar acoplar nuevas reglas al DOM si pueden probarse por separado.
 - Usar nombres descriptivos y consistentes con el dominio actual: `campaign`, `bestiary`, `achievement`, `starterLoadout`, `boss`, `wave`, `waves`.
 - Mantener textos de producto en español.
+- Mantener sprites/canvas con siluetas diferenciadas y señales visuales accesibles; documentar cambios relevantes en `docs/producto.md`.
 - No introducir dependencias de runtime sin justificar impacto en ADR.
 
 ## Calidad Minima

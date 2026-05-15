@@ -36,6 +36,7 @@
 
 - [ ] Balancear dificultad por modo con datos de partidas.
 - [ ] Ajustar progresion de `waves`: basicos, acorazados/tanks, shooters, minijefes y bosses descendentes.
+- [ ] Consolidar guia visual de canvas: siluetas, proyectiles, power-ups, telemetria de oleadas y accesibilidad.
 - [ ] Mejorar accesibilidad de overlays y controles.
 - [ ] Evaluar guardado/exportacion de perfil.
 - [ ] Revisar experiencia tactil para modos no 2P.
