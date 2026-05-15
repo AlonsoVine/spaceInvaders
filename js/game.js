@@ -20,6 +20,7 @@ const overlayKicker = document.getElementById('overlay-kicker');
 const overlayMsg = document.getElementById('overlay-msg');
 const overlayPanels = document.getElementById('overlay-panels');
 const startDashboardTabsEl = document.getElementById('start-dashboard-tabs');
+const btnStartDashboardMenu = document.getElementById('btn-start-dashboard-menu');
 const btnStartNav = document.getElementById('btn-start-nav');
 const btnStart = document.getElementById('btn-start');
 const btnMenu = document.getElementById('btn-menu');
@@ -2389,6 +2390,12 @@ function updateMobileStartPanelState() {
   });
 }
 
+function setStartDashboardMenuOpen(open) {
+  startDashboardMenuOpen = Boolean(open) && isMobileViewport() && overlayMode === 'start';
+  startDashboardTabsEl?.classList.toggle('is-menu-open', startDashboardMenuOpen);
+  btnStartDashboardMenu?.setAttribute('aria-expanded', startDashboardMenuOpen ? 'true' : 'false');
+}
+
 function getStartDashboardTabConfig() {
   return {
     summary: [startSummaryPanel, aggregatePanel, historyPanel],
@@ -2409,9 +2416,6 @@ function applyStartDashboardTab() {
     const isActive = trigger.dataset.startDashboardTab === activeTab;
     trigger.classList.toggle('is-active', isActive);
     trigger.setAttribute('aria-selected', isActive ? 'true' : 'false');
-    if (isActive && isMobileViewport()) {
-      trigger.scrollIntoView?.({ block: 'nearest', inline: 'center', behavior: 'smooth' });
-    }
   });
   const visiblePanels = new Set(config[activeTab]);
   Object.values(config).flat().forEach(panel => {
@@ -5180,6 +5184,7 @@ function setOverlayMode(mode, entry = null) {
   overlayMode = mode;
   overlay.dataset.mode = mode;
   closeOverlayDialog();
+  setStartDashboardMenuOpen(false);
   renderStatsPanel();
   renderMetaPanel();
   renderStartScreenPanels();
@@ -5301,6 +5306,7 @@ let overlayMode = 'start';
 let progressPanelTab = 'pending';
 let startObjectivesTab = 'pending';
 let startDashboardTab = 'summary';
+let startDashboardMenuOpen = false;
 let guidePanelTab = 'bestiary';
 let collectionTab = 'skins';
 let bestiaryTab = 'invaders';
@@ -5762,10 +5768,21 @@ if (startDashboardTabsEl) {
     const trigger = event.target.closest('[data-start-dashboard-tab]');
     if (!trigger || overlayMode !== 'start') return;
     const nextTab = trigger.dataset.startDashboardTab;
-    if (!nextTab || startDashboardTab === nextTab) return;
+    if (!nextTab) return;
+    if (startDashboardTab === nextTab) {
+      setStartDashboardMenuOpen(false);
+      return;
+    }
     startDashboardTab = nextTab;
     applyStartDashboardTab();
+    setStartDashboardMenuOpen(false);
     overlay.scrollTo?.({ top: 0, behavior: 'smooth' });
+  });
+}
+if (btnStartDashboardMenu) {
+  btnStartDashboardMenu.addEventListener('click', () => {
+    if (overlayMode !== 'start') return;
+    setStartDashboardMenuOpen(!startDashboardMenuOpen);
   });
 }
 if (overlayPanels) {
@@ -5819,6 +5836,7 @@ if (bestiaryBrowserEl) {
 }
 window.addEventListener('resize', () => {
   updateMobileStartPanelState();
+  if (!isMobileViewport()) setStartDashboardMenuOpen(false);
   applySettingsUI();
 });
 if (btnDialogSecondary) {

@@ -540,6 +540,10 @@ body.compact-hud .life-group-label {
   display: none;
 }
 
+#btn-start-dashboard-menu {
+  display: none;
+}
+
 #overlay[data-mode="start"] #start-dashboard-tabs {
   position: sticky;
   top: 0;
@@ -599,6 +603,20 @@ body.compact-hud .life-group-label {
   flex-wrap: wrap;
   gap: 10px;
   min-width: 0;
+}
+
+.menu-icon {
+  display: inline-grid;
+  gap: 3px;
+  width: 16px;
+}
+
+.menu-icon span {
+  display: block;
+  width: 16px;
+  height: 2px;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
 }
 
 #btn-start-nav {
@@ -3076,16 +3094,13 @@ body:fullscreen #meta-footer {
 
   #overlay[data-mode="start"] #start-dashboard-tabs {
     top: var(--start-tabs-top);
-    gap: 8px;
+    gap: 10px;
     padding-bottom: 10px;
-    align-items: stretch;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: flex-start;
   }
 
   #start-dashboard-tablist {
     width: 100%;
-    min-width: 0;
     gap: 8px;
   }
 
@@ -3102,7 +3117,6 @@ body:fullscreen #meta-footer {
     font-size: 11px;
     letter-spacing: 2px;
     align-self: flex-start;
-    white-space: nowrap;
   }
 
   #overlay[data-mode="start"] #game-settings-panel,
@@ -3322,7 +3336,9 @@ body:fullscreen #meta-footer {
     margin-inline: -4px;
     padding: 4px 4px 10px;
     gap: 10px;
+    display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
   }
 
   #overlay[data-mode="start"] #start-dashboard-tabs::before {
@@ -3330,25 +3346,67 @@ body:fullscreen #meta-footer {
   }
 
   #start-dashboard-tablist {
+    grid-column: 1 / -1;
+    display: none;
+    flex-direction: column;
     flex-wrap: nowrap;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scroll-snap-type: x proximity;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
+    gap: 8px;
+    width: 100%;
+    padding: 10px;
+    border: 1px solid rgba(0,255,136,0.12);
+    border-radius: 14px;
+    background:
+      linear-gradient(180deg, rgba(0,255,136,0.06), rgba(0,255,136,0.02)),
+      rgba(1,10,7,0.96);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.04),
+      0 18px 32px rgba(0,0,0,0.24);
   }
 
-  #start-dashboard-tablist::-webkit-scrollbar {
-    display: none;
+  #start-dashboard-tabs.is-menu-open #start-dashboard-tablist {
+    display: flex;
   }
 
   .start-dashboard-tab {
     flex: 0 0 auto;
+    width: 100%;
     min-height: 44px;
     padding: 11px 16px;
     font-size: 12px;
     letter-spacing: 1.5px;
-    scroll-snap-align: start;
+    text-align: left;
+  }
+
+  #btn-start-dashboard-menu {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    width: fit-content;
+    padding: 10px 14px;
+    border: 1px solid rgba(0,255,136,0.18);
+    border-radius: 999px;
+    background:
+      linear-gradient(180deg, rgba(0,255,136,0.095), rgba(0,255,136,0.035)),
+      rgba(1,10,7,0.9);
+    color: #b7f3cf;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 1.5px;
+    cursor: pointer;
+  }
+
+  #start-dashboard-tabs.is-menu-open #btn-start-dashboard-menu {
+    border-color: rgba(255,239,136,0.28);
+    color: #fff2a6;
+    box-shadow: inset 0 0 0 1px rgba(255,239,136,0.08);
+  }
+
+  #btn-start-nav {
+    justify-self: end;
+    white-space: nowrap;
   }
 
   #btn-start-nav,
