@@ -3079,10 +3079,13 @@ body:fullscreen #meta-footer {
     gap: 8px;
     padding-bottom: 10px;
     align-items: stretch;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   #start-dashboard-tablist {
     width: 100%;
+    min-width: 0;
     gap: 8px;
   }
 
@@ -3099,6 +3102,7 @@ body:fullscreen #meta-footer {
     font-size: 11px;
     letter-spacing: 2px;
     align-self: flex-start;
+    white-space: nowrap;
   }
 
   #overlay[data-mode="start"] #game-settings-panel,
@@ -3318,6 +3322,7 @@ body:fullscreen #meta-footer {
     margin-inline: -4px;
     padding: 4px 4px 10px;
     gap: 10px;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   #overlay[data-mode="start"] #start-dashboard-tabs::before {

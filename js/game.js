@@ -1728,8 +1728,200 @@ function fillShipRect(ctxRef, x, y, w, h, rx, ry, rw, rh) {
   fillModelRect(ctxRef, x, y, w, h, rx, ry, rw, rh);
 }
 
+function fillModelPath(ctxRef, x, y, w, h, points) {
+  if (!points.length) return;
+  ctxRef.beginPath();
+  points.forEach(([rx, ry], index) => {
+    const px = Math.round(x + rx * w);
+    const py = Math.round(y + ry * h);
+    if (index === 0) ctxRef.moveTo(px, py);
+    else ctxRef.lineTo(px, py);
+  });
+  ctxRef.closePath();
+  ctxRef.fill();
+}
+
+function strokeModelPath(ctxRef, x, y, w, h, points) {
+  if (!points.length) return;
+  ctxRef.beginPath();
+  points.forEach(([rx, ry], index) => {
+    const px = Math.round(x + rx * w);
+    const py = Math.round(y + ry * h);
+    if (index === 0) ctxRef.moveTo(px, py);
+    else ctxRef.lineTo(px, py);
+  });
+  ctxRef.stroke();
+}
+
+function fillModelCircle(ctxRef, x, y, w, h, rx, ry, radiusRatio) {
+  ctxRef.beginPath();
+  ctxRef.arc(x + rx * w, y + ry * h, Math.max(2, Math.min(w, h) * radiusRatio), 0, Math.PI * 2);
+  ctxRef.fill();
+}
+
+function getEnemyVisualProfile(type = 'classic') {
+  const profiles = {
+    classic: { silhouette: 'wide-claw', armor: 0, weaponPorts: 1, movementRead: 'standard' },
+    scout: { silhouette: 'needle-wing', armor: 0, weaponPorts: 0, movementRead: 'fast' },
+    shooter: { silhouette: 'gunship', armor: 0, weaponPorts: 3, movementRead: 'standard' },
+    tank: { silhouette: 'armored-block', armor: 2, weaponPorts: 1, movementRead: 'heavy' }
+  };
+  return profiles[type] || profiles.classic;
+}
+
+function getShipVisualProfile(model = 'classic') {
+  const profiles = {
+    classic: { silhouette: 'interceptor', wingSpan: 'medium', cockpit: 'single' },
+    arrow: { silhouette: 'needle', wingSpan: 'narrow', cockpit: 'forward' },
+    bulwark: { silhouette: 'fortress', wingSpan: 'wide', cockpit: 'twin' },
+    nova: { silhouette: 'starframe', wingSpan: 'wide', cockpit: 'single' },
+    tandem: { silhouette: 'dual-cockpit', wingSpan: 'medium', cockpit: 'dual' },
+    regent: { silhouette: 'command', wingSpan: 'wide', cockpit: 'crown' },
+    dreadnought: { silhouette: 'dreadnought', wingSpan: 'heavy', cockpit: 'bridge' }
+  };
+  return profiles[normalizeShipSkin(model)] || profiles.classic;
+}
+
+function getPowerUpVisualProfile(type = 'rapid') {
+  const profiles = {
+    rapid: { icon: 'chevrons', label: 'R', color: '#00ff88' },
+    shield: { icon: 'shield', label: 'S', color: '#66d9ff' },
+    heart: { icon: 'heart', label: '+', color: '#ff6f9d' },
+    freeze: { icon: 'crystal', label: 'T', color: '#9ed8ff' },
+    piercing: { icon: 'lance', label: 'P', color: '#ffd966' },
+    drone: { icon: 'pods', label: 'D', color: '#f6b3ff' }
+  };
+  return profiles[type] || profiles.rapid;
+}
+
+function getProjectileVisualProfile(bullet = {}) {
+  if (bullet.fromBoss) return { shape: 'boss-shard', glow: 12, trail: true };
+  if (bullet.source === 'drone') return { shape: 'drone-needle', glow: 8, trail: true };
+  if ((bullet.pierces || 1) > 1) return { shape: 'piercing-lance', glow: 10, trail: true };
+  if (bullet.tint === '#ffd666') return { shape: 'shooter-bolt', glow: 8, trail: false };
+  if (bullet.tint === '#ff9a5f') return { shape: 'heavy-shell', glow: 7, trail: false };
+  return { shape: 'bolt', glow: 6, trail: false };
+}
+
+function alphaColor(color, alpha = 1) {
+  if (color.startsWith('rgba')) return color.replace(/rgba\(([^)]+),\s*[\d.]+\)/, `rgba($1,${alpha})`);
+  if (!color.startsWith('#') || color.length !== 7) return color;
+  const r = Number.parseInt(color.slice(1, 3), 16);
+  const g = Number.parseInt(color.slice(3, 5), 16);
+  const b = Number.parseInt(color.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function drawSoftEntityAura(ctxRef, x, y, w, h, color, intensity = 1) {
+  if (gameSettings.reducedEffects) intensity *= 0.42;
+  if (intensity <= 0.01) return;
+  ctxRef.save();
+  ctxRef.globalAlpha = Math.min(0.45, 0.16 * intensity);
+  ctxRef.fillStyle = alphaColor(color, 0.35);
+  ctxRef.shadowBlur = 16 * intensity;
+  ctxRef.shadowColor = color;
+  ctxRef.fillRect(x - 2, y - 2, w + 4, h + 4);
+  ctxRef.restore();
+}
+
+function drawPowerUpAura(powerUp, color) {
+  const pulse = gameSettings.reducedEffects ? 0 : Math.sin((frameCount + powerUp.phase * 20) * 0.12) * 2;
+  ctx.save();
+  ctx.globalAlpha = gameSettings.reducedEffects ? 0.16 : 0.28;
+  ctx.strokeStyle = alphaColor(color, 0.72);
+  ctx.lineWidth = 1;
+  ctx.strokeRect(powerUp.x - 3 - pulse * 0.2, powerUp.y - 3 - pulse * 0.2, powerUp.w + 6 + pulse * 0.4, powerUp.h + 6 + pulse * 0.4);
+  ctx.restore();
+}
+
+function drawProjectileVisual(bullet, color, direction = -1) {
+  const profile = getProjectileVisualProfile(bullet);
+  ctx.save();
+  if (profile.trail && !gameSettings.reducedEffects) {
+    const trailLength = Math.max(10, bullet.h * 1.6);
+    const gradient = ctx.createLinearGradient(
+      bullet.x + bullet.w / 2,
+      bullet.y + (direction < 0 ? bullet.h : 0),
+      bullet.x + bullet.w / 2,
+      bullet.y + (direction < 0 ? bullet.h + trailLength : -trailLength)
+    );
+    gradient.addColorStop(0, alphaColor(color, 0.42));
+    gradient.addColorStop(1, alphaColor(color, 0));
+    ctx.fillStyle = gradient;
+    ctx.fillRect(bullet.x - 1, direction < 0 ? bullet.y + bullet.h : bullet.y - trailLength, bullet.w + 2, trailLength);
+  }
+  ctx.shadowBlur = gameSettings.reducedEffects ? Math.min(4, profile.glow) : profile.glow;
+  ctx.shadowColor = color;
+  ctx.fillStyle = color;
+  if (profile.shape === 'piercing-lance') {
+    fillModelPath(ctx, bullet.x - 2, bullet.y, bullet.w + 4, bullet.h, [[0.5, 0], [0.86, 0.25], [0.66, 1], [0.34, 1], [0.14, 0.25]]);
+  } else if (profile.shape === 'boss-shard') {
+    fillModelPath(ctx, bullet.x - 2, bullet.y, bullet.w + 4, bullet.h, [[0.5, 0], [1, 0.36], [0.74, 1], [0.26, 1], [0, 0.36]]);
+  } else if (profile.shape === 'heavy-shell') {
+    ctx.fillRect(bullet.x - 1, bullet.y, bullet.w + 2, bullet.h);
+    ctx.fillStyle = alphaColor('#fff0c2', 0.78);
+    ctx.fillRect(bullet.x, bullet.y + 2, bullet.w, 2);
+  } else {
+    ctx.fillRect(bullet.x, bullet.y, bullet.w, bullet.h);
+  }
+  ctx.restore();
+}
+
+function drawPlayerEngineFx(playerState, color) {
+  if (gameSettings.reducedEffects || playerState.hit) return;
+  const flicker = 1 + Math.sin(frameCount * 0.38 + playerState.id) * 0.24;
+  ctx.save();
+  ctx.globalAlpha = 0.42;
+  ctx.fillStyle = alphaColor(color, 0.82);
+  ctx.shadowBlur = 10;
+  ctx.shadowColor = color;
+  fillModelPath(ctx, playerState.x, playerState.y, playerState.w, playerState.h, [[0.38, 0.92], [0.48, 0.92], [0.43, 1 + 0.35 * flicker]]);
+  fillModelPath(ctx, playerState.x, playerState.y, playerState.w, playerState.h, [[0.52, 0.92], [0.62, 0.92], [0.57, 1 + 0.35 * flicker]]);
+  ctx.restore();
+}
+
+function drawWaveEventBackdrop(event, theme) {
+  if (!event || event.id === 'standard') return;
+  const palette = {
+    hunter: ['rgba(255,95,152,0.08)', 'rgba(255,95,152,0.018)'],
+    armored: ['rgba(255,217,102,0.08)', 'rgba(255,217,102,0.018)'],
+    bonus: ['rgba(126,242,213,0.08)', 'rgba(126,242,213,0.018)']
+  };
+  const [top, bottom] = palette[event.id] || [alphaColor(theme.accent, 0.08), alphaColor(theme.accent, 0.018)];
+  ctx.save();
+  ctx.globalAlpha = gameSettings.reducedEffects ? 0.36 : 1;
+  const eventWash = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  eventWash.addColorStop(0, top);
+  eventWash.addColorStop(0.46, bottom);
+  eventWash.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = eventWash;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = top;
+  ctx.lineWidth = 1;
+  for (let y = 72; y < canvas.height - 140; y += 38) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(canvas.width, y + Math.sin((frameCount + y) * 0.015) * 7);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawModelDamageMarks(ctxRef, x, y, w, h, ratio = 1, color = 'rgba(255,255,255,0.75)') {
+  if (ratio >= 0.98) return;
+  ctxRef.save();
+  ctxRef.strokeStyle = color;
+  ctxRef.lineWidth = Math.max(1, Math.round(Math.min(w, h) * 0.06));
+  strokeModelPath(ctxRef, x, y, w, h, [[0.28, 0.22], [0.42, 0.38], [0.36, 0.58]]);
+  if (ratio <= 0.55) {
+    strokeModelPath(ctxRef, x, y, w, h, [[0.72, 0.26], [0.58, 0.44], [0.66, 0.7]]);
+  }
+  ctxRef.restore();
+}
+
 function drawPlayerShipModel(ctxRef, x, y, w, h, model = gameSettings.shipSkin, color = '#00ff88', { glow = 0 } = {}) {
   if (!ctxRef) return;
+  const profile = getShipVisualProfile(model);
   ctxRef.save();
   ctxRef.fillStyle = color;
   if (glow > 0) {
@@ -1739,100 +1931,95 @@ function drawPlayerShipModel(ctxRef, x, y, w, h, model = gameSettings.shipSkin, 
 
   switch (normalizeShipSkin(model)) {
     case 'arrow':
-      fillShipRect(ctxRef, x, y, w, h, 0.42, 0.0, 0.16, 0.44);
-      fillShipRect(ctxRef, x, y, w, h, 0.29, 0.42, 0.42, 0.28);
-      fillShipRect(ctxRef, x, y, w, h, 0.12, 0.54, 0.18, 0.18);
-      fillShipRect(ctxRef, x, y, w, h, 0.70, 0.54, 0.18, 0.18);
-      fillShipRect(ctxRef, x, y, w, h, 0.03, 0.66, 0.14, 0.16);
-      fillShipRect(ctxRef, x, y, w, h, 0.83, 0.66, 0.14, 0.16);
+      fillModelPath(ctxRef, x, y, w, h, [[0.5, 0], [0.64, 0.4], [0.96, 0.78], [0.62, 0.64], [0.56, 1], [0.44, 1], [0.38, 0.64], [0.04, 0.78], [0.36, 0.4]]);
       break;
     case 'bulwark':
-      fillShipRect(ctxRef, x, y, w, h, 0.18, 0.0, 0.18, 0.3);
-      fillShipRect(ctxRef, x, y, w, h, 0.64, 0.0, 0.18, 0.3);
-      fillShipRect(ctxRef, x, y, w, h, 0.26, 0.26, 0.48, 0.28);
-      fillShipRect(ctxRef, x, y, w, h, 0.06, 0.54, 0.88, 0.24);
-      fillShipRect(ctxRef, x, y, w, h, 0.0, 0.66, 0.16, 0.18);
-      fillShipRect(ctxRef, x, y, w, h, 0.84, 0.66, 0.16, 0.18);
+      fillModelPath(ctxRef, x, y, w, h, [[0.18, 0.08], [0.36, 0.02], [0.42, 0.34], [0.58, 0.34], [0.64, 0.02], [0.82, 0.08], [0.96, 0.72], [0.84, 0.94], [0.16, 0.94], [0.04, 0.72]]);
+      fillShipRect(ctxRef, x, y, w, h, 0.0, 0.64, 0.22, 0.2);
+      fillShipRect(ctxRef, x, y, w, h, 0.78, 0.64, 0.22, 0.2);
       break;
     case 'nova':
-      fillShipRect(ctxRef, x, y, w, h, 0.42, 0.0, 0.16, 0.36);
-      fillShipRect(ctxRef, x, y, w, h, 0.3, 0.22, 0.4, 0.18);
-      fillShipRect(ctxRef, x, y, w, h, 0.14, 0.42, 0.72, 0.2);
-      fillShipRect(ctxRef, x, y, w, h, 0.0, 0.56, 0.18, 0.18);
-      fillShipRect(ctxRef, x, y, w, h, 0.82, 0.56, 0.18, 0.18);
-      fillShipRect(ctxRef, x, y, w, h, 0.22, 0.68, 0.16, 0.16);
-      fillShipRect(ctxRef, x, y, w, h, 0.62, 0.68, 0.16, 0.16);
+      fillModelPath(ctxRef, x, y, w, h, [[0.5, 0], [0.62, 0.34], [1, 0.56], [0.72, 0.66], [0.66, 0.98], [0.5, 0.78], [0.34, 0.98], [0.28, 0.66], [0, 0.56], [0.38, 0.34]]);
+      fillShipRect(ctxRef, x, y, w, h, 0.2, 0.66, 0.16, 0.16);
+      fillShipRect(ctxRef, x, y, w, h, 0.64, 0.66, 0.16, 0.16);
       break;
     case 'tandem':
-      fillShipRect(ctxRef, x, y, w, h, 0.2, 0.12, 0.16, 0.22);
-      fillShipRect(ctxRef, x, y, w, h, 0.64, 0.12, 0.16, 0.22);
-      fillShipRect(ctxRef, x, y, w, h, 0.42, 0.0, 0.16, 0.18);
-      fillShipRect(ctxRef, x, y, w, h, 0.28, 0.3, 0.44, 0.18);
-      fillShipRect(ctxRef, x, y, w, h, 0.06, 0.5, 0.22, 0.18);
-      fillShipRect(ctxRef, x, y, w, h, 0.72, 0.5, 0.22, 0.18);
-      fillShipRect(ctxRef, x, y, w, h, 0.18, 0.66, 0.64, 0.18);
+      fillModelPath(ctxRef, x, y, w, h, [[0.28, 0.08], [0.42, 0.3], [0.5, 0], [0.58, 0.3], [0.72, 0.08], [0.94, 0.72], [0.64, 0.62], [0.58, 0.94], [0.42, 0.94], [0.36, 0.62], [0.06, 0.72]]);
+      fillShipRect(ctxRef, x, y, w, h, 0.2, 0.18, 0.16, 0.18);
+      fillShipRect(ctxRef, x, y, w, h, 0.64, 0.18, 0.16, 0.18);
       break;
     case 'regent':
-      fillShipRect(ctxRef, x, y, w, h, 0.4, 0.0, 0.2, 0.2);
-      fillShipRect(ctxRef, x, y, w, h, 0.26, 0.18, 0.48, 0.18);
-      fillShipRect(ctxRef, x, y, w, h, 0.1, 0.38, 0.8, 0.22);
-      fillShipRect(ctxRef, x, y, w, h, 0.0, 0.54, 0.2, 0.18);
-      fillShipRect(ctxRef, x, y, w, h, 0.8, 0.54, 0.2, 0.18);
-      fillShipRect(ctxRef, x, y, w, h, 0.18, 0.68, 0.18, 0.16);
-      fillShipRect(ctxRef, x, y, w, h, 0.64, 0.68, 0.18, 0.16);
+      fillModelPath(ctxRef, x, y, w, h, [[0.5, 0], [0.62, 0.22], [0.86, 0.34], [1, 0.7], [0.74, 0.76], [0.66, 0.98], [0.5, 0.82], [0.34, 0.98], [0.26, 0.76], [0, 0.7], [0.14, 0.34], [0.38, 0.22]]);
+      fillShipRect(ctxRef, x, y, w, h, 0.08, 0.56, 0.2, 0.18);
+      fillShipRect(ctxRef, x, y, w, h, 0.72, 0.56, 0.2, 0.18);
+      break;
+    case 'dreadnought':
+      fillModelPath(ctxRef, x, y, w, h, [[0.28, 0.02], [0.42, 0.18], [0.5, 0], [0.58, 0.18], [0.72, 0.02], [0.96, 0.42], [1, 0.78], [0.78, 0.98], [0.22, 0.98], [0, 0.78], [0.04, 0.42]]);
+      fillShipRect(ctxRef, x, y, w, h, 0.04, 0.56, 0.2, 0.22);
+      fillShipRect(ctxRef, x, y, w, h, 0.76, 0.56, 0.2, 0.22);
+      fillShipRect(ctxRef, x, y, w, h, 0.36, 0.52, 0.28, 0.28);
       break;
     case 'classic':
     default:
-      fillShipRect(ctxRef, x, y, w, h, 0.2, 0.4, 0.6, 0.6);
-      fillShipRect(ctxRef, x, y, w, h, 0.425, 0.0, 0.15, 0.5);
-      fillShipRect(ctxRef, x, y, w, h, 0.0, 0.6, 0.25, 0.2);
-      fillShipRect(ctxRef, x, y, w, h, 0.75, 0.6, 0.25, 0.2);
+      fillModelPath(ctxRef, x, y, w, h, [[0.5, 0.02], [0.62, 0.38], [0.94, 0.68], [0.7, 0.74], [0.62, 0.98], [0.38, 0.98], [0.3, 0.74], [0.06, 0.68], [0.38, 0.38]]);
       break;
   }
+  ctxRef.fillStyle = 'rgba(255,255,255,0.7)';
+  if (profile.cockpit === 'dual') {
+    fillShipRect(ctxRef, x, y, w, h, 0.25, 0.23, 0.12, 0.12);
+    fillShipRect(ctxRef, x, y, w, h, 0.63, 0.23, 0.12, 0.12);
+  } else if (profile.cockpit === 'bridge') {
+    fillShipRect(ctxRef, x, y, w, h, 0.36, 0.24, 0.28, 0.12);
+  } else {
+    fillShipRect(ctxRef, x, y, w, h, 0.44, profile.cockpit === 'forward' ? 0.14 : 0.22, 0.12, 0.16);
+  }
+  ctxRef.globalAlpha = 0.72;
+  ctxRef.fillStyle = color;
+  fillShipRect(ctxRef, x, y, w, h, 0.3, 0.86, 0.1, 0.12);
+  fillShipRect(ctxRef, x, y, w, h, 0.6, 0.86, 0.1, 0.12);
+  ctxRef.globalAlpha = 1;
   ctxRef.restore();
 }
 
-function drawEnemyModel(ctxRef, x, y, w, h, type = 'classic', color = '#00ff88', { glow = 4, pose = 0, flash = false } = {}) {
+function drawEnemyModel(ctxRef, x, y, w, h, type = 'classic', color = '#00ff88', { glow = 4, pose = 0, flash = false, hpRatio = 1 } = {}) {
   if (!ctxRef) return;
+  const profile = getEnemyVisualProfile(type);
+  const baseColor = flash ? '#ffffff' : color;
   ctxRef.save();
-  ctxRef.fillStyle = color;
+  ctxRef.fillStyle = baseColor;
   if (glow > 0) {
     ctxRef.shadowBlur = glow;
-    ctxRef.shadowColor = color;
+    ctxRef.shadowColor = baseColor;
   }
 
   if (type === 'scout') {
-    fillModelRect(ctxRef, x, y, w, h, 0.17, 0.19, 0.66, 0.56);
-    fillModelRect(ctxRef, x, y, w, h, 0.28, 0.06, 0.11, 0.25);
-    fillModelRect(ctxRef, x, y, w, h, 0.61, 0.06, 0.11, 0.25);
-    fillModelRect(ctxRef, x, y, w, h, 0.06, 0.75, 0.22, 0.19);
-    fillModelRect(ctxRef, x, y, w, h, 0.72, 0.75, 0.22, 0.19);
+    fillModelPath(ctxRef, x, y, w, h, [[0.5, 0], [0.62, 0.3], [0.96, 0.54], [0.64, 0.64], [0.58, 1], [0.42, 1], [0.36, 0.64], [0.04, 0.54], [0.38, 0.3]]);
+    ctxRef.fillStyle = flash ? '#ffffff' : 'rgba(210,250,255,0.78)';
+    fillModelRect(ctxRef, x, y, w, h, 0.46, 0.22, 0.08, 0.18);
   } else if (type === 'shooter') {
-    fillModelRect(ctxRef, x, y, w, h, 0.14, 0.16, 0.72, 0.59);
-    fillModelRect(ctxRef, x, y, w, h, 0.39, -0.03, 0.22, 0.25);
-    fillModelRect(ctxRef, x, y, w, h, 0.44, 0.78, 0.11, 0.22);
-    fillModelRect(ctxRef, x, y, w, h, 0.11, 0.69, 0.17, 0.16);
-    fillModelRect(ctxRef, x, y, w, h, 0.72, 0.69, 0.17, 0.16);
+    fillModelPath(ctxRef, x, y, w, h, [[0.18, 0.14], [0.82, 0.14], [0.92, 0.54], [0.72, 0.74], [0.62, 0.56], [0.56, 1], [0.44, 1], [0.38, 0.56], [0.28, 0.74], [0.08, 0.54]]);
+    fillModelRect(ctxRef, x, y, w, h, 0.42, -0.05, 0.16, 0.28);
+    fillModelRect(ctxRef, x, y, w, h, 0.18, 0.72, 0.13, 0.2);
+    fillModelRect(ctxRef, x, y, w, h, 0.69, 0.72, 0.13, 0.2);
+    ctxRef.fillStyle = flash ? '#ffffff' : '#fff0ad';
+    fillModelRect(ctxRef, x, y, w, h, 0.45, 0.76, 0.1, 0.24);
   } else if (type === 'tank') {
-    fillModelRect(ctxRef, x, y, w, h, 0.08, 0.13, 0.84, 0.63);
-    fillModelRect(ctxRef, x, y, w, h, 0.22, 0, 0.56, 0.22);
-    fillModelRect(ctxRef, x, y, w, h, 0.03, 0.78, 0.28, 0.22);
-    fillModelRect(ctxRef, x, y, w, h, 0.69, 0.78, 0.28, 0.22);
-    ctxRef.fillStyle = flash ? '#fff6db' : 'rgba(255,244,210,0.7)';
-    fillModelRect(ctxRef, x, y, w, h, 0.28, 0.31, 0.44, 0.13);
+    fillModelPath(ctxRef, x, y, w, h, [[0.1, 0.18], [0.28, 0.02], [0.72, 0.02], [0.9, 0.18], [0.98, 0.72], [0.78, 1], [0.22, 1], [0.02, 0.72]]);
+    fillModelRect(ctxRef, x, y, w, h, 0, 0.62, 0.26, 0.2);
+    fillModelRect(ctxRef, x, y, w, h, 0.74, 0.62, 0.26, 0.2);
+    ctxRef.fillStyle = flash ? '#fff6db' : 'rgba(255,244,210,0.72)';
+    fillModelRect(ctxRef, x, y, w, h, 0.21, 0.3, 0.58, 0.12);
+    fillModelRect(ctxRef, x, y, w, h, 0.25, 0.5, 0.5, 0.09);
   } else if (pose === 0) {
-    fillModelRect(ctxRef, x, y, w, h, 0.11, 0.13, 0.78, 0.63);
-    fillModelRect(ctxRef, x, y, w, h, 0.17, 0, 0.11, 0.19);
-    fillModelRect(ctxRef, x, y, w, h, 0.72, 0, 0.11, 0.19);
-    fillModelRect(ctxRef, x, y, w, h, 0, 0.75, 0.22, 0.19);
-    fillModelRect(ctxRef, x, y, w, h, 0.78, 0.75, 0.22, 0.19);
+    fillModelPath(ctxRef, x, y, w, h, [[0.14, 0.16], [0.32, 0.02], [0.5, 0.22], [0.68, 0.02], [0.86, 0.16], [0.92, 0.68], [0.72, 0.92], [0.56, 0.78], [0.44, 0.78], [0.28, 0.92], [0.08, 0.68]]);
   } else {
-    fillModelRect(ctxRef, x, y, w, h, 0.11, 0.13, 0.78, 0.63);
-    fillModelRect(ctxRef, x, y, w, h, 0.22, 0, 0.11, 0.25);
-    fillModelRect(ctxRef, x, y, w, h, 0.67, 0, 0.11, 0.25);
-    fillModelRect(ctxRef, x, y, w, h, 0.06, 0.81, 0.22, 0.13);
-    fillModelRect(ctxRef, x, y, w, h, 0.72, 0.81, 0.22, 0.13);
+    fillModelPath(ctxRef, x, y, w, h, [[0.14, 0.18], [0.28, 0], [0.48, 0.24], [0.52, 0.24], [0.72, 0], [0.86, 0.18], [0.9, 0.7], [0.66, 0.9], [0.54, 0.76], [0.46, 0.76], [0.34, 0.9], [0.1, 0.7]]);
   }
+  if (profile.weaponPorts > 0 && type === 'classic') {
+    ctxRef.fillStyle = flash ? '#ffffff' : 'rgba(255,240,190,0.72)';
+    fillModelRect(ctxRef, x, y, w, h, 0.42, 0.52, 0.16, 0.1);
+  }
+  drawModelDamageMarks(ctxRef, x, y, w, h, hpRatio, type === 'tank' ? 'rgba(255,236,185,0.88)' : 'rgba(255,255,255,0.72)');
   ctxRef.restore();
 }
 
@@ -1875,7 +2062,7 @@ function drawUfoModel(ctxRef, x, y, w, h, variantId = 'bonus', color = '#ff4f8f'
   }
 }
 
-function drawMiniBossShipModel(ctxRef, x, y, w, h, role = 'escort', color = '#7be6ff', { glow = 8, flash = false, variant = 'squad_basic' } = {}) {
+function drawMiniBossShipModel(ctxRef, x, y, w, h, role = 'escort', color = '#7be6ff', { glow = 8, flash = false, variant = 'squad_basic', hpRatio = 1 } = {}) {
   if (!ctxRef) return;
   const baseColor = flash ? '#ffffff' : color;
   ctxRef.save();
@@ -1913,10 +2100,11 @@ function drawMiniBossShipModel(ctxRef, x, y, w, h, role = 'escort', color = '#7b
     fillModelRect(ctxRef, x, y, w, h, 0.06, 0.5, 0.88, 0.25);
     fillModelRect(ctxRef, x, y, w, h, 0.41, 0.08, 0.18, 0.25);
   }
+  drawModelDamageMarks(ctxRef, x, y, w, h, hpRatio, 'rgba(223,252,255,0.78)');
   ctxRef.restore();
 }
 
-function drawBossModel(ctxRef, x, y, w, h, profileId = 'striker', color = '#ff5f98', { glow = 16, flash = false } = {}) {
+function drawBossModel(ctxRef, x, y, w, h, profileId = 'striker', color = '#ff5f98', { glow = 16, flash = false, hpRatio = 1 } = {}) {
   if (!ctxRef) return;
   const baseColor = flash ? '#ffeef6' : color;
   ctxRef.save();
@@ -1977,6 +2165,7 @@ function drawBossModel(ctxRef, x, y, w, h, profileId = 'striker', color = '#ff5f
     fillModelRect(ctxRef, x, y, w, h, 0.32, 0.39, 0.1, 0.09);
     fillModelRect(ctxRef, x, y, w, h, 0.58, 0.39, 0.1, 0.09);
   }
+  drawModelDamageMarks(ctxRef, x, y, w, h, hpRatio, profileId === 'warden' ? 'rgba(223,247,255,0.8)' : 'rgba(255,214,226,0.82)');
   ctxRef.restore();
 }
 
@@ -2192,7 +2381,7 @@ function refreshModeAvailability() {
 function updateMobileStartPanelState() {
   if (!overlayPanels) return;
   const panelIds = ['game-settings', 'visual-settings', 'start-objectives', 'bestiary'];
-  const mobileActive = false;
+  const mobileActive = isMobileViewport();
   panelIds.forEach(panelId => {
     const panel = overlayPanels.querySelector(`[data-mobile-panel="${panelId}"]`);
     if (!panel) return;
@@ -2220,6 +2409,9 @@ function applyStartDashboardTab() {
     const isActive = trigger.dataset.startDashboardTab === activeTab;
     trigger.classList.toggle('is-active', isActive);
     trigger.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    if (isActive && isMobileViewport()) {
+      trigger.scrollIntoView?.({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+    }
   });
   const visiblePanels = new Set(config[activeTab]);
   Object.values(config).flat().forEach(panel => {
@@ -7356,10 +7548,14 @@ function rectsOverlap(a, b) {
 
 function drawAlien(enemy) {
   const color = enemy.flashTimer > 0 ? '#ffffff' : getEnemyRoleColor(enemy);
+  if (enemy.waveMode && !gameSettings.reducedEffects) {
+    drawSoftEntityAura(ctx, enemy.x, enemy.y, enemy.w, enemy.h, color, enemy.type === 'tank' ? 0.75 : 0.45);
+  }
   drawEnemyModel(ctx, enemy.x, enemy.y, enemy.w, enemy.h, enemy.type, color, {
     glow: enemy.type === 'tank' ? 8 : 4,
     pose: enemy.pose,
-    flash: enemy.flashTimer > 0
+    flash: enemy.flashTimer > 0,
+    hpRatio: Math.max(0, enemy.hp || 0) / Math.max(1, enemy.maxHp || 1)
   });
 }
 
@@ -7399,15 +7595,9 @@ function drawDronePods(playerState, theme) {
 }
 
 function drawPowerUp(powerUp) {
-  const colors = {
-    rapid: '#00ff88',
-    shield: '#66d9ff',
-    heart: '#ff6f9d',
-    freeze: '#9ed8ff',
-    piercing: '#ffd966',
-    drone: '#f6b3ff'
-  };
-  const color = colors[powerUp.type];
+  const profile = getPowerUpVisualProfile(powerUp.type);
+  const color = profile.color;
+  drawPowerUpAura(powerUp, color);
   ctx.save();
   ctx.shadowBlur = 10;
   ctx.shadowColor = color;
@@ -7428,12 +7618,28 @@ function drawPowerUp(powerUp) {
     ctx.lineTo(powerUp.x + 4, powerUp.y + 8);
     ctx.closePath();
     ctx.fill();
+  } else if (powerUp.type === 'rapid') {
+    ctx.fillStyle = color;
+    fillModelPath(ctx, powerUp.x + 3, powerUp.y + 3, powerUp.w - 6, powerUp.h - 6, [[0.1, 0.1], [0.58, 0.5], [0.1, 0.9], [0.28, 0.5]]);
+    fillModelPath(ctx, powerUp.x + 8, powerUp.y + 3, powerUp.w - 6, powerUp.h - 6, [[0.1, 0.1], [0.58, 0.5], [0.1, 0.9], [0.28, 0.5]]);
+  } else if (powerUp.type === 'freeze') {
+    ctx.fillStyle = color;
+    fillModelPath(ctx, powerUp.x + 4, powerUp.y + 3, powerUp.w - 8, powerUp.h - 6, [[0.5, 0], [0.86, 0.28], [0.72, 1], [0.28, 1], [0.14, 0.28]]);
+    ctx.fillStyle = 'rgba(255,255,255,0.72)';
+    fillModelRect(ctx, powerUp.x, powerUp.y, powerUp.w, powerUp.h, 0.46, 0.18, 0.08, 0.58);
+  } else if (powerUp.type === 'piercing') {
+    ctx.fillStyle = color;
+    fillModelPath(ctx, powerUp.x + 3, powerUp.y + 2, powerUp.w - 6, powerUp.h - 4, [[0.5, 0], [0.76, 0.34], [0.58, 1], [0.42, 1], [0.24, 0.34]]);
+  } else if (powerUp.type === 'drone') {
+    ctx.fillStyle = color;
+    fillModelRect(ctx, powerUp.x, powerUp.y, powerUp.w, powerUp.h, 0.18, 0.48, 0.22, 0.18);
+    fillModelRect(ctx, powerUp.x, powerUp.y, powerUp.w, powerUp.h, 0.6, 0.48, 0.22, 0.18);
+    fillModelRect(ctx, powerUp.x, powerUp.y, powerUp.w, powerUp.h, 0.43, 0.22, 0.14, 0.22);
   } else {
     ctx.fillStyle = color;
     ctx.font = 'bold 12px Courier New';
     ctx.textAlign = 'center';
-    const glyph = powerUp.type === 'rapid' ? 'R' : powerUp.type === 'freeze' ? 'T' : powerUp.type === 'piercing' ? 'P' : 'D';
-    ctx.fillText(glyph, powerUp.x + powerUp.w / 2, powerUp.y + 14);
+    ctx.fillText(profile.label, powerUp.x + powerUp.w / 2, powerUp.y + 14);
     ctx.textAlign = 'left';
   }
   ctx.restore();
@@ -7442,19 +7648,25 @@ function drawPowerUp(powerUp) {
 function drawBoss() {
   if (!boss.active) return;
   const accent = getBossAccentColor();
+  const ratio = boss.hp / boss.maxHp;
+  drawSoftEntityAura(ctx, boss.x, boss.y, boss.w, boss.h, accent, boss.phaseIndex === 2 ? 1.45 : 1);
   drawBossModel(ctx, boss.x, boss.y, boss.w, boss.h, boss.profileId, accent, {
     glow: boss.entryTimer > 0 ? 26 : 16,
-    flash: boss.flashTimer > 0
+    flash: boss.flashTimer > 0,
+    hpRatio: ratio
   });
 
   const barWidth = 180;
-  const ratio = boss.hp / boss.maxHp;
   const barX = canvas.width / 2 - barWidth / 2;
   const barY = 18;
   ctx.fillStyle = 'rgba(255,255,255,0.08)';
   ctx.fillRect(barX, barY, barWidth, 8);
   ctx.fillStyle = accent;
   ctx.fillRect(barX, barY, barWidth * ratio, 8);
+  ctx.fillStyle = 'rgba(0,0,0,0.26)';
+  for (let tick = 1; tick < 6; tick++) {
+    ctx.fillRect(barX + (barWidth / 6) * tick - 0.5, barY, 1, 8);
+  }
   ctx.strokeStyle = boss.profileId === 'pulse' ? 'rgba(255,214,111,0.5)' : boss.profileId === 'warden' ? 'rgba(143,224,255,0.5)' : 'rgba(255,95,152,0.5)';
   ctx.strokeRect(barX, barY, barWidth, 8);
 
@@ -7471,10 +7683,12 @@ function drawMiniBossSquad() {
   if (!miniBossSquad.active) return;
   for (const ship of miniBossSquad.ships) {
     if (ship.hp <= 0) continue;
+    drawSoftEntityAura(ctx, ship.x, ship.y, ship.w, ship.h, ship.color, ship.role === 'leader' ? 0.9 : 0.55);
     drawMiniBossShipModel(ctx, ship.x, ship.y, ship.w, ship.h, ship.role, ship.color, {
       glow: ship.role === 'leader' ? 12 : 8,
       flash: ship.flashTimer > 0,
-      variant: miniBossSquad.profileId
+      variant: miniBossSquad.profileId,
+      hpRatio: Math.max(0, ship.hp || 0) / Math.max(1, ship.maxHp || 1)
     });
   }
 }
@@ -7504,6 +7718,7 @@ function draw() {
   for (let row = 0; row < 8; row++) {
     ctx.fillRect(0, canvas.height - 170 + row * 20, canvas.width, 1);
   }
+  drawWaveEventBackdrop(currentWaveEvent, theme);
 
   if (showingLevelScreen) {
     const previewEvent = getWaveEventForLevel(level, running ? currentRunStats.mode : gameSettings.mode);
@@ -7537,7 +7752,9 @@ function draw() {
 
   for (const playerState of getActivePlayers()) {
     if (!playerState.hit || Math.floor(frameCount / 5) % 2 === 0) {
-      drawPlayerShipModel(ctx, playerState.x, playerState.y, playerState.w, playerState.h, playerState.shipSkin, getPlayerThemeColor(playerState, theme), { glow: 8 });
+      const playerColor = getPlayerThemeColor(playerState, theme);
+      drawPlayerEngineFx(playerState, playerColor);
+      drawPlayerShipModel(ctx, playerState.x, playerState.y, playerState.w, playerState.h, playerState.shipSkin, playerColor, { glow: 8 });
     }
 
     if (playerState.shieldCharges > 0) {
@@ -7556,15 +7773,12 @@ function draw() {
   playerBullets.forEach(bullet => {
     const owner = getPlayerState(bullet.ownerId || 0);
     const bulletColor = bullet.source === 'drone' ? getPlayerBulletColor(owner, theme) : getPlayerBulletColor(owner, theme);
-    ctx.fillStyle = bulletColor;
-    ctx.shadowColor = bulletColor;
-    ctx.fillRect(bullet.x, bullet.y, bullet.w, bullet.h);
+    drawProjectileVisual(bullet, bulletColor, -1);
   });
   ctx.shadowBlur = 0;
 
   enemyBullets.forEach(bullet => {
-    ctx.fillStyle = bullet.tint || (bullet.fromBoss ? '#ff2f7d' : '#ff6600');
-    ctx.fillRect(bullet.x, bullet.y, bullet.w, bullet.h);
+    drawProjectileVisual(bullet, bullet.tint || (bullet.fromBoss ? '#ff2f7d' : '#ff6600'), 1);
   });
 
   enemies.forEach(enemy => {
@@ -7573,6 +7787,7 @@ function draw() {
 
   if (ufo.active) {
     const variant = getUfoVariantDef();
+    drawSoftEntityAura(ctx, ufo.x, ufo.y, ufo.w, ufo.h, variant.color, variant.id === 'jackpot' ? 1.25 : 0.85);
     drawUfoModel(ctx, ufo.x, ufo.y, ufo.w, ufo.h, variant.id, variant.color, {
       glow: 8,
       showPoints: true,
